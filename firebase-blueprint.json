@@ -1,0 +1,225 @@
+{
+  "entities": {
+    "assignment": {
+      "title": "Assignment",
+      "description": "An online worksheet or assignment created by a teacher",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the assignment",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "description": "Assignment title",
+          "maxLength": 300
+        },
+        "subject": {
+          "type": "string",
+          "description": "School subject",
+          "maxLength": 100
+        },
+        "gradeLevel": {
+          "type": "string",
+          "description": "Grade level e.g. ม.3",
+          "maxLength": 50
+        },
+        "category": {
+          "type": "string",
+          "description": "Worksheet category",
+          "maxLength": 100
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the assignment",
+          "maxLength": 2000
+        },
+        "instructions": {
+          "type": "string",
+          "description": "Instructions for students",
+          "maxLength": 2000
+        },
+        "questions": {
+          "type": "array",
+          "description": "List of questions in the worksheet"
+        },
+        "totalPoints": {
+          "type": "number",
+          "description": "Total max points"
+        },
+        "dueDate": {
+          "type": "string",
+          "description": "Due date ISO string",
+          "maxLength": 100
+        },
+        "createdDate": {
+          "type": "string",
+          "description": "Creation date ISO string",
+          "maxLength": 100
+        },
+        "teacherName": {
+          "type": "string",
+          "description": "Name of the teacher",
+          "maxLength": 200
+        }
+      },
+      "required": ["id", "title", "subject", "gradeLevel", "totalPoints", "dueDate"]
+    },
+    "submission": {
+      "title": "Submission",
+      "description": "A student's submitted response to an assignment",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the submission",
+          "maxLength": 128
+        },
+        "assignmentId": {
+          "type": "string",
+          "description": "ID of the associated assignment",
+          "maxLength": 128
+        },
+        "studentId": {
+          "type": "string",
+          "description": "Student profile ID",
+          "maxLength": 128
+        },
+        "studentName": {
+          "type": "string",
+          "description": "Student full name",
+          "maxLength": 200
+        },
+        "studentCode": {
+          "type": "string",
+          "description": "Student ID code",
+          "maxLength": 64
+        },
+        "gradeLevel": {
+          "type": "string",
+          "description": "Student grade level",
+          "maxLength": 50
+        },
+        "submissionDate": {
+          "type": "string",
+          "description": "Date and time of submission",
+          "maxLength": 100
+        },
+        "answers": {
+          "type": "object",
+          "description": "Map of question ID to student answer"
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of submission",
+          "maxLength": 50
+        },
+        "score": {
+          "type": "number",
+          "description": "Score given by teacher or AI"
+        },
+        "maxScore": {
+          "type": "number",
+          "description": "Maximum possible score"
+        },
+        "teacherComment": {
+          "type": "string",
+          "description": "Feedback or comment from the teacher",
+          "maxLength": 3000
+        },
+        "gradedAt": {
+          "type": "string",
+          "description": "Timestamp when graded",
+          "maxLength": 100
+        }
+      },
+      "required": ["id", "assignmentId", "studentCode", "status"]
+    },
+    "student": {
+      "title": "Student",
+      "description": "Student user record",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique student identifier",
+          "maxLength": 128
+        },
+        "code": {
+          "type": "string",
+          "description": "Student ID number used for login",
+          "maxLength": 64
+        },
+        "name": {
+          "type": "string",
+          "description": "Student full name",
+          "maxLength": 200
+        },
+        "password": {
+          "type": "string",
+          "description": "Student password",
+          "maxLength": 128
+        },
+        "gradeLevel": {
+          "type": "string",
+          "description": "Current grade level",
+          "maxLength": 50
+        },
+        "avatar": {
+          "type": "string",
+          "description": "Avatar image URL",
+          "maxLength": 1000
+        }
+      },
+      "required": ["id", "code", "name", "password", "gradeLevel"]
+    },
+    "categorySetting": {
+      "title": "CategorySetting",
+      "description": "Custom grade levels and subjects settings",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Setting ID",
+          "maxLength": 128
+        },
+        "gradeLevels": {
+          "type": "array",
+          "description": "Array of grade levels"
+        },
+        "subjects": {
+          "type": "array",
+          "description": "Array of school subjects"
+        }
+      },
+      "required": ["id"]
+    }
+  },
+  "firestore": {
+    "/assignments/{assignmentId}": {
+      "schema": {
+        "$ref": "#/entities/assignment"
+      },
+      "description": "Worksheets and assignments created by teachers"
+    },
+    "/submissions/{submissionId}": {
+      "schema": {
+        "$ref": "#/entities/submission"
+      },
+      "description": "Student submissions and grading feedback"
+    },
+    "/students/{studentId}": {
+      "schema": {
+        "$ref": "#/entities/student"
+      },
+      "description": "Student roster and login credentials"
+    },
+    "/settings/{settingId}": {
+      "schema": {
+        "$ref": "#/entities/categorySetting"
+      },
+      "description": "Global school grade levels and subjects configurations"
+    }
+  }
+}

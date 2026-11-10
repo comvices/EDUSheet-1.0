@@ -1,0 +1,6 @@
+{
+  "name": "EduSheet TH - ระบบเก็บใบงานและตรวจการบ้านออนไลน์",
+  "description": "ระบบจัดเก็บ ค้นหา ส่ง และตรวจใบงานออนไลน์ พร้อมระบบแจ้งเตือนกำหนดส่งและ AI ช่วยตรวจการบ้าน",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
