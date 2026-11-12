@@ -194,6 +194,60 @@
         }
       },
       "required": ["id"]
+    },
+    "learningResource": {
+      "title": "LearningResource",
+      "description": "Educational media resource such as video, slide, document, or web link categorized by subject and room",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique resource ID",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "description": "Resource title",
+          "maxLength": 300
+        },
+        "description": {
+          "type": "string",
+          "description": "Resource description",
+          "maxLength": 2000
+        },
+        "subject": {
+          "type": "string",
+          "description": "Subject name",
+          "maxLength": 100
+        },
+        "gradeLevel": {
+          "type": "string",
+          "description": "Target room or grade level (e.g. ม.1/1, ม.1, ทั้งหมด)",
+          "maxLength": 100
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of resource: video, document, link, slide",
+          "enum": ["video", "document", "link", "slide"],
+          "maxLength": 50
+        },
+        "url": {
+          "type": "string",
+          "description": "Resource URL or video link",
+          "maxLength": 2000
+        },
+        "createdDate": {
+          "type": "string",
+          "description": "Creation timestamp",
+          "maxLength": 100
+        },
+        "teacherName": {
+          "type": "string",
+          "description": "Teacher who published the resource",
+          "maxLength": 200
+        }
+      },
+      "required": ["id", "title", "subject", "gradeLevel", "type", "url"]
     }
   },
   "firestore": {
@@ -220,6 +274,12 @@
         "$ref": "#/entities/categorySetting"
       },
       "description": "Global school grade levels and subjects configurations"
+    },
+    "/resources/{resourceId}": {
+      "schema": {
+        "$ref": "#/entities/learningResource"
+      },
+      "description": "Learning media library for students and teachers"
     }
   }
 }

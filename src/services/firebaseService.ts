@@ -8,7 +8,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { Assignment, Submission, StudentProfile, TeacherProfile } from '../types';
+import { Assignment, Submission, StudentProfile, TeacherProfile, LearningResource } from '../types';
 
 const ASSIGNMENTS_COLLECTION = 'assignments';
 const SUBMISSIONS_COLLECTION = 'submissions';
@@ -16,6 +16,7 @@ const STUDENTS_COLLECTION = 'students';
 const TEACHERS_COLLECTION = 'teachers';
 const SETTINGS_COLLECTION = 'settings';
 const MAIN_SETTINGS_DOC = 'main_config';
+const RESOURCES_COLLECTION = 'resources';
 
 // 1. Subscribe to Assignments in Real-Time
 export function subscribeAssignments(onData: (assignments: Assignment[]) => void) {
@@ -145,6 +146,53 @@ export function subscribeSettings(
   }
 }
 
+// Subscribe to Learning Resources in Real-Time
+export function subscribeResources(onData: (resources: LearningResource[]) => void) {
+  try {
+    const colRef = collection(db, RESOURCES_COLLECTION);
+    return onSnapshot(
+      colRef,
+      (snapshot) => {
+        const list: LearningResource[] = [];
+        snapshot.forEach((docSnap) => {
+          list.push(docSnap.data() as LearningResource);
+        });
+        list.sort((a, b) => new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime());
+        onData(list);
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, RESOURCES_COLLECTION);
+      }
+    );
+  } catch (err) {
+    console.error('Error subscribing to resources:', err);
+    return () => {};
+  }
+}
+
+// Helper to strip undefined values so Firestore setDoc does not throw errors
+function sanitizeForFirestore<T>(data: T): T {
+  return JSON.parse(JSON.stringify(data));
+}
+
+// Seed Resources if empty
+export async function seedResourcesIfEmpty(initialResources: LearningResource[]) {
+  try {
+    const snapshot = await getDocs(collection(db, RESOURCES_COLLECTION));
+    if (snapshot.empty && initialResources.length > 0) {
+      console.log('🌱 Seeding Firestore with initial learning resources...');
+      const batch = writeBatch(db);
+      for (const res of initialResources) {
+        batch.set(doc(db, RESOURCES_COLLECTION, res.id), sanitizeForFirestore(res));
+      }
+      await batch.commit();
+      console.log('✅ Learning resources seeded successfully!');
+    }
+  } catch (err) {
+    console.warn('Note on Firestore resources seeding:', err);
+  }
+}
+
 // 6. Seed Firestore with initial mock data if empty
 export async function seedInitialDataIfEmpty(
   initialAssignments: Assignment[],
@@ -199,7 +247,7 @@ export async function seedInitialDataIfEmpty(
 export async function saveAssignmentToFirestore(asg: Assignment): Promise<void> {
   const path = `${ASSIGNMENTS_COLLECTION}/${asg.id}`;
   try {
-    await setDoc(doc(db, ASSIGNMENTS_COLLECTION, asg.id), asg);
+    await setDoc(doc(db, ASSIGNMENTS_COLLECTION, asg.id), sanitizeForFirestore(asg));
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -217,7 +265,7 @@ export async function deleteAssignmentFromFirestore(asgId: string): Promise<void
 export async function saveSubmissionToFirestore(sub: Submission): Promise<void> {
   const path = `${SUBMISSIONS_COLLECTION}/${sub.id}`;
   try {
-    await setDoc(doc(db, SUBMISSIONS_COLLECTION, sub.id), sub);
+    await setDoc(doc(db, SUBMISSIONS_COLLECTION, sub.id), sanitizeForFirestore(sub));
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -226,7 +274,7 @@ export async function saveSubmissionToFirestore(sub: Submission): Promise<void> 
 export async function saveStudentToFirestore(student: StudentProfile): Promise<void> {
   const path = `${STUDENTS_COLLECTION}/${student.id}`;
   try {
-    await setDoc(doc(db, STUDENTS_COLLECTION, student.id), student);
+    await setDoc(doc(db, STUDENTS_COLLECTION, student.id), sanitizeForFirestore(student));
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -236,7 +284,7 @@ export async function saveMultipleStudentsToFirestore(students: StudentProfile[]
   try {
     const batch = writeBatch(db);
     for (const std of students) {
-      batch.set(doc(db, STUDENTS_COLLECTION, std.id), std);
+      batch.set(doc(db, STUDENTS_COLLECTION, std.id), sanitizeForFirestore(std));
     }
     await batch.commit();
   } catch (error) {
@@ -256,7 +304,7 @@ export async function deleteStudentFromFirestore(studentId: string): Promise<voi
 export async function saveTeacherToFirestore(teacher: TeacherProfile): Promise<void> {
   const path = `${TEACHERS_COLLECTION}/${teacher.id}`;
   try {
-    await setDoc(doc(db, TEACHERS_COLLECTION, teacher.id), teacher);
+    await setDoc(doc(db, TEACHERS_COLLECTION, teacher.id), sanitizeForFirestore(teacher));
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -277,11 +325,11 @@ export async function saveSettingsToFirestore(
 ): Promise<void> {
   const path = `${SETTINGS_COLLECTION}/${MAIN_SETTINGS_DOC}`;
   try {
-    await setDoc(doc(db, SETTINGS_COLLECTION, MAIN_SETTINGS_DOC), {
+    await setDoc(doc(db, SETTINGS_COLLECTION, MAIN_SETTINGS_DOC), sanitizeForFirestore({
       id: MAIN_SETTINGS_DOC,
       gradeLevels,
       subjects,
-    });
+    }));
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -293,6 +341,7 @@ export async function clearDatabase(): Promise<void> {
     SUBMISSIONS_COLLECTION,
     STUDENTS_COLLECTION,
     TEACHERS_COLLECTION,
+    RESOURCES_COLLECTION,
   ];
 
   try {
@@ -313,8 +362,8 @@ export async function clearDatabase(): Promise<void> {
 
 export async function resetDataKeepUsers(): Promise<void> {
   try {
-    // 1. Delete assignments, submissions, settings
-    const collectionsToDelete = [ASSIGNMENTS_COLLECTION, SUBMISSIONS_COLLECTION, SETTINGS_COLLECTION];
+    // 1. Delete assignments, submissions, settings, resources
+    const collectionsToDelete = [ASSIGNMENTS_COLLECTION, SUBMISSIONS_COLLECTION, SETTINGS_COLLECTION, RESOURCES_COLLECTION];
     for (const colName of collectionsToDelete) {
       const colRef = collection(db, colName);
       const snapshot = await getDocs(colRef);
@@ -343,6 +392,24 @@ export async function resetDataKeepUsers(): Promise<void> {
   } catch (error) {
     console.error('Error resetting database while keeping users:', error);
     handleFirestoreError(error, OperationType.WRITE, 'reset_data_keep_users');
+  }
+}
+
+export async function saveResourceToFirestore(res: LearningResource): Promise<void> {
+  const path = `${RESOURCES_COLLECTION}/${res.id}`;
+  try {
+    await setDoc(doc(db, RESOURCES_COLLECTION, res.id), sanitizeForFirestore(res));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function deleteResourceFromFirestore(resId: string): Promise<void> {
+  const path = `${RESOURCES_COLLECTION}/${resId}`;
+  try {
+    await deleteDoc(doc(db, RESOURCES_COLLECTION, resId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
   }
 }
 

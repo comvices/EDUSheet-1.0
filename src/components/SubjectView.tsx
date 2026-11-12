@@ -101,6 +101,19 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
         </div>
       </div>
 
+      {/* Room Quick Filter for Current Subject */}
+      <div className="bg-white dark:bg-slate-900 px-5 py-3.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-slate-700 dark:text-slate-300">
+            วิชา: <strong className="text-indigo-600 dark:text-indigo-400">{selectedSubject}</strong>
+          </span>
+          <span className="text-slate-400">·</span>
+          <span className="text-slate-500">
+            จำแนกตามห้องเรียน ม.1/1 - ม.6/3
+          </span>
+        </div>
+      </div>
+
       {/* Assignment Grid */}
       <div>
         <h3 className="text-base font-bold font-prompt text-slate-900 dark:text-white mb-4">

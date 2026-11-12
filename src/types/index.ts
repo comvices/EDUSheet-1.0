@@ -85,6 +85,21 @@ export interface TeacherProfile {
   avatar: string;
 }
 
+export type ResourceType = 'video' | 'document' | 'link' | 'slide';
+
+export interface LearningResource {
+  id: string;
+  title: string;
+  description: string;
+  subject: string;
+  gradeLevel: string; // e.g. "ม.1/1", "ม.1", "ทั้งหมด"
+  type: ResourceType;
+  url: string;
+  createdDate: string;
+  teacherName: string;
+  fileSize?: string;
+}
+
 export interface FilterState {
   search: string;
   subject: string;

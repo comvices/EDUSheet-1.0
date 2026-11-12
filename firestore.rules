@@ -7,9 +7,9 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Helper functions
+    // Hardened Helper functions
     function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
     function incoming() {
@@ -20,6 +20,55 @@ service cloud.firestore {
       return resource.data;
     }
 
+    function isValidString(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    // Payload validation helpers
+    function isValidAssignment(data) {
+      return data.keys().hasAll(['id', 'title', 'subject', 'gradeLevel', 'totalPoints', 'dueDate']) &&
+        isValidString(data.id, 1, 128) &&
+        isValidString(data.title, 1, 300) &&
+        isValidString(data.subject, 1, 100) &&
+        isValidString(data.gradeLevel, 1, 50) &&
+        data.totalPoints is number && data.totalPoints >= 0 && data.totalPoints <= 1000;
+    }
+
+    function isValidSubmission(data) {
+      return data.keys().hasAll(['id', 'assignmentId', 'studentCode', 'status']) &&
+        isValidString(data.id, 1, 128) &&
+        isValidString(data.assignmentId, 1, 128) &&
+        isValidString(data.studentCode, 1, 64) &&
+        isValidString(data.status, 1, 50);
+    }
+
+    function isValidStudent(data) {
+      return data.keys().hasAll(['id', 'code', 'name', 'password', 'gradeLevel']) &&
+        isValidString(data.id, 1, 128) &&
+        isValidString(data.code, 1, 64) &&
+        isValidString(data.name, 1, 200) &&
+        isValidString(data.password, 1, 128) &&
+        isValidString(data.gradeLevel, 1, 50);
+    }
+
+    function isValidTeacher(data) {
+      return data.keys().hasAll(['id', 'code', 'name', 'password', 'subject']) &&
+        isValidString(data.id, 1, 128) &&
+        isValidString(data.code, 1, 64) &&
+        isValidString(data.name, 1, 200) &&
+        isValidString(data.password, 1, 128);
+    }
+
+    function isValidResource(data) {
+      return data.keys().hasAll(['id', 'title', 'subject', 'gradeLevel', 'type', 'url']) &&
+        isValidString(data.id, 1, 128) &&
+        isValidString(data.title, 1, 300) &&
+        isValidString(data.subject, 1, 100) &&
+        isValidString(data.gradeLevel, 1, 100) &&
+        (data.type == 'video' || data.type == 'document' || data.type == 'slide' || data.type == 'link') &&
+        isValidString(data.url, 1, 2000);
+    }
+
     // Test connection doc used at startup
     match /test/{testId} {
       allow read, write: if true;
@@ -28,31 +77,42 @@ service cloud.firestore {
     // Assignments collection
     match /assignments/{assignmentId} {
       allow read: if true;
-      allow create, update, delete: if isValidId(assignmentId);
+      allow create, update: if isValidId(assignmentId) && isValidAssignment(incoming());
+      allow delete: if isValidId(assignmentId);
     }
 
     // Submissions collection
     match /submissions/{submissionId} {
       allow read: if true;
-      allow create, update, delete: if isValidId(submissionId);
+      allow create, update: if isValidId(submissionId) && isValidSubmission(incoming());
+      allow delete: if isValidId(submissionId);
     }
 
     // Students collection
     match /students/{studentId} {
       allow read: if true;
-      allow create, update, delete: if isValidId(studentId);
+      allow create, update: if isValidId(studentId) && isValidStudent(incoming());
+      allow delete: if isValidId(studentId);
     }
 
     // Teachers collection
     match /teachers/{teacherId} {
       allow read: if true;
-      allow create, update, delete: if isValidId(teacherId);
+      allow create, update: if isValidId(teacherId) && isValidTeacher(incoming());
+      allow delete: if isValidId(teacherId);
     }
 
-    // Settings collection (Grade levels and subjects)
+    // Settings collection
     match /settings/{settingId} {
       allow read: if true;
       allow write: if isValidId(settingId);
+    }
+
+    // Resources collection (Learning media library)
+    match /resources/{resourceId} {
+      allow read: if true;
+      allow create, update: if isValidId(resourceId) && isValidResource(incoming());
+      allow delete: if isValidId(resourceId);
     }
   }
 }

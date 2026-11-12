@@ -17,6 +17,9 @@ import {
   Sparkles,
   ChevronRight,
   ChevronDown,
+  Moon,
+  Sun,
+  FolderOpen,
 } from 'lucide-react';
 import { UserRole, StudentProfile, TeacherProfile } from '../types';
 
@@ -58,6 +61,28 @@ export const Header: React.FC<HeaderProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [settingsDropdownOpen, setSettingsDropdownOpen] = useState(false);
   const settingsDropdownRef = useRef<HTMLDivElement | null>(null);
+
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('theme');
+      if (saved) return saved === 'dark';
+      return document.documentElement.classList.contains('dark') || window.matchMedia('(prefers-color-scheme: dark)').matches;
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      if (isDarkMode) {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+      }
+    } catch (e) {}
+  }, [isDarkMode]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -141,6 +166,17 @@ export const Header: React.FC<HeaderProps> = ({
                 }`}
               >
                 สถานะการส่งงาน
+              </button>
+              <button
+                onClick={() => handleTabClick('resources')}
+                className={`px-3 py-2 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === 'resources'
+                    ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold'
+                    : 'hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <FolderOpen className="w-4 h-4 text-rose-500" />
+                <span>คลังสื่อเรียนรู้</span>
               </button>
             </nav>
 
@@ -250,6 +286,21 @@ export const Header: React.FC<HeaderProps> = ({
                   </button>
                 </div>
               )}
+
+              {/* Theme Toggle (Dark/Light Mode) */}
+              <button
+                type="button"
+                onClick={() => setIsDarkMode(!isDarkMode)}
+                className="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+                title={isDarkMode ? 'เปลี่ยนเป็นโหมดสว่าง' : 'เปลี่ยนเป็นโหมดถนอมสายตา (โหมดมืด)'}
+                aria-label="สลับโหมดการแสดงผล"
+              >
+                {isDarkMode ? (
+                  <Sun className="w-4.5 h-4.5 text-amber-400 animate-in zoom-in-75 duration-150" />
+                ) : (
+                  <Moon className="w-4.5 h-4.5 text-slate-600 animate-in zoom-in-75 duration-150" />
+                )}
+              </button>
 
               {/* Notification Bell */}
               <button
@@ -411,6 +462,18 @@ export const Header: React.FC<HeaderProps> = ({
                   <Clock className="w-4 h-4 text-amber-600" />
                   <span>สถานะการส่ง</span>
                 </button>
+
+                <button
+                  onClick={() => handleTabClick('resources')}
+                  className={`py-2 px-3 rounded-xl text-xs font-semibold flex items-center gap-2 border transition-colors cursor-pointer col-span-2 ${
+                    activeTab === 'resources'
+                      ? 'bg-rose-50 dark:bg-rose-950/60 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 font-bold'
+                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <FolderOpen className="w-4 h-4 text-rose-600" />
+                  <span>คลังสื่อเรียนรู้ประจำวิชา (ม.1-6)</span>
+                </button>
               </div>
             </div>
 
@@ -563,6 +626,18 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <Clock className="w-5 h-5" />
           <span className="text-[10px] mt-0.5">สถานะงาน</span>
+        </button>
+
+        <button
+          onClick={() => handleTabClick('resources')}
+          className={`flex flex-col items-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+            activeTab === 'resources'
+              ? 'text-indigo-600 dark:text-indigo-400 font-bold'
+              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          <FolderOpen className="w-5 h-5 text-rose-500" />
+          <span className="text-[10px] mt-0.5">คลังสื่อ</span>
         </button>
 
         <button

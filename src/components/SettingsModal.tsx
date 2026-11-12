@@ -103,7 +103,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [manualName, setManualName] = useState('');
   const [manualPassword, setManualPassword] = useState('123456');
   const [manualGrade, setManualGrade] = useState(
-    activeGrades[0] || 'ม.3'
+    activeGrades[0] || 'ม.1/1'
   );
 
   // Edit Student State
@@ -687,11 +687,43 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               {/* Quick Add Suggestions */}
               <div>
-                <span className="text-[11px] font-semibold text-slate-400 block mb-1.5">
-                  แนะนำเพิ่มด่วน (คลิกเพื่อเพิ่มทันที):
-                </span>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-semibold text-slate-400">
+                    แนะนำเพิ่มด่วน ระดับมัธยมศึกษา ม.1 - ม.6 (ห้อง 1, 2, 3):
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const allSecondaryRooms = [
+                        'ม.1/1', 'ม.1/2', 'ม.1/3',
+                        'ม.2/1', 'ม.2/2', 'ม.2/3',
+                        'ม.3/1', 'ม.3/2', 'ม.3/3',
+                        'ม.4/1', 'ม.4/2', 'ม.4/3',
+                        'ม.5/1', 'ม.5/2', 'ม.5/3',
+                        'ม.6/1', 'ม.6/2', 'ม.6/3',
+                      ];
+                      allSecondaryRooms.forEach((r) => {
+                        if (!activeGrades.includes(r)) {
+                          onAddGradeLevel(r);
+                        }
+                      });
+                      triggerLocalToast('เพิ่มระดับชั้น ม.1/1 ถึง ม.6/3 ครบทั้ง 18 ห้องเรียบร้อยแล้ว! 🎓');
+                    }}
+                    className="text-[11px] text-indigo-600 dark:text-indigo-400 font-bold hover:underline cursor-pointer flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>เพิ่ม ม.1/1 ถึง ม.6/3 ทั้งหมด (18 ห้อง) ใน 1 คลิก</span>
+                  </button>
+                </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {['ม.1', 'ม.2', 'ม.3', 'ม.4', 'ม.5', 'ม.6', 'ป.4', 'ป.5', 'ป.6'].map((suggestGrade) => {
+                  {[
+                    'ม.1/1', 'ม.1/2', 'ม.1/3',
+                    'ม.2/1', 'ม.2/2', 'ม.2/3',
+                    'ม.3/1', 'ม.3/2', 'ม.3/3',
+                    'ม.4/1', 'ม.4/2', 'ม.4/3',
+                    'ม.5/1', 'ม.5/2', 'ม.5/3',
+                    'ม.6/1', 'ม.6/2', 'ม.6/3',
+                  ].map((suggestGrade) => {
                     const alreadyExists = activeGrades.includes(suggestGrade);
                     return (
                       <button

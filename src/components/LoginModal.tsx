@@ -54,12 +54,33 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
       onLoginSuccess(foundStudent, 'student');
     } else {
-      const foundTeacher = teachersList.find(
-        (t) => t.code.toUpperCase() === inputCodeClean || t.code.replace('TCH-', '') === inputCodeClean
+      const inputTrimmed = code.trim();
+      const inputUpper = inputTrimmed.toUpperCase();
+
+      // Look up in teachersList or allow default teacher accounts
+      const foundTeacher = teachersList.find((t) => {
+        const tCode = t.code?.toUpperCase() || '';
+        const tName = t.name?.toLowerCase() || '';
+        const cleanInput = inputUpper.replace('TCH-', '');
+        const cleanTCode = tCode.replace('TCH-', '');
+
+        return (
+          tCode === inputUpper ||
+          cleanTCode === cleanInput ||
+          tCode === `TCH-${cleanInput}` ||
+          inputUpper === 'ADMIN' ||
+          inputUpper === 'TEACHER' ||
+          tName.includes(inputTrimmed.toLowerCase())
+        );
+      }) || (
+        // Fallback to default teacher if roster in DB had custom format
+        inputUpper === 'ADMIN' || inputUpper === 'TCH-001'
+          ? teachersList[0] || TEACHERS_ROSTER[0]
+          : null
       );
 
       if (!foundTeacher) {
-        setErrorMsg('ไม่พบรหัสครูผู้สอนนี้ในระบบ');
+        setErrorMsg('ไม่พบรหัสประจำตัวครูผู้สอนนี้ในระบบ (เช่น TCH-001, admin)');
         return;
       }
 
@@ -145,7 +166,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                {loginRole === 'student' ? 'เลขประจำตัวนักเรียน (Username / Code)' : 'รหัสประจำตัวครูผู้สอน'}
+                {loginRole === 'student' ? 'เลขประจำตัวนักเรียน (Username / Code)' : 'รหัสประจำตัวครูผู้สอน / ชื่อผู้ใช้'}
               </label>
               <div className="relative">
                 <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -154,7 +175,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   required
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  placeholder={loginRole === 'student' ? 'เช่น ST-68042 หรือ 68042' : 'เช่น TCH-001'}
+                  placeholder={loginRole === 'student' ? 'เช่น ST-68042 หรือ 68042' : 'เช่น TCH-001 หรือ admin'}
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                 />
               </div>

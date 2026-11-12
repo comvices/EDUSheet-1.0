@@ -207,18 +207,18 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
                   </div>
 
                   {/* Student Answer */}
-                  <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-mono text-[11px]">
-                    <span className="font-sans font-semibold text-indigo-600 dark:text-indigo-400 block mb-1">
+                  <div className="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-sm sm:text-[15px]">
+                    <span className="font-semibold text-indigo-600 dark:text-indigo-400 block mb-1.5 text-xs">
                       คำตอบของนักเรียน:
                     </span>
-                    <p className="whitespace-pre-wrap">{studentAnswer}</p>
+                    <p className="whitespace-pre-wrap leading-relaxed font-sans">{studentAnswer}</p>
                   </div>
 
                   {/* Answer Key / Rubric */}
                   {q.answerKey && (
-                    <div className="p-2.5 bg-emerald-50/60 dark:bg-emerald-950/30 rounded-lg border border-emerald-100 dark:border-emerald-900/40 text-emerald-900 dark:text-emerald-300 text-[11px]">
-                      <span className="font-semibold block">เฉลย/เกณฑ์การตรวจ:</span>
-                      <p>{q.answerKey}</p>
+                    <div className="p-3 bg-emerald-50/60 dark:bg-emerald-950/30 rounded-xl border border-emerald-100 dark:border-emerald-900/40 text-emerald-900 dark:text-emerald-300 text-xs sm:text-sm">
+                      <span className="font-semibold block mb-0.5">เฉลย/เกณฑ์การตรวจ:</span>
+                      <p className="leading-relaxed">{q.answerKey}</p>
                     </div>
                   )}
                 </div>

@@ -7,6 +7,7 @@ import {
   FilterState,
   StudentProfile,
   TeacherProfile,
+  LearningResource,
 } from './types';
 import {
   INITIAL_ASSIGNMENTS,
@@ -16,6 +17,7 @@ import {
   TEACHERS_ROSTER,
   GRADE_LEVELS_LIST,
   SUBJECTS_LIST,
+  INITIAL_LEARNING_RESOURCES,
 } from './data/mockData';
 import {
   subscribeAssignments,
@@ -33,6 +35,10 @@ import {
   saveTeacherToFirestore,
   deleteTeacherFromFirestore,
   saveSettingsToFirestore,
+  subscribeResources,
+  seedResourcesIfEmpty,
+  saveResourceToFirestore,
+  deleteResourceFromFirestore,
   clearDatabase,
   resetDataKeepUsers,
 } from './services/firebaseService';
@@ -56,7 +62,9 @@ import { GradeLevelView } from './components/GradeLevelView';
 import { SubjectView } from './components/SubjectView';
 import { StatusView } from './components/StatusView';
 import { SubmissionRosterModal } from './components/SubmissionRosterModal';
-import { CheckCircle2, KeyRound } from 'lucide-react';
+import { ResourcesView } from './components/ResourcesView';
+import { CreateResourceModal } from './components/CreateResourceModal';
+import { CheckCircle2, KeyRound, LogOut, AlertTriangle } from 'lucide-react';
 
 // Safe localStorage loader helper
 const getInitialStorage = <T,>(key: string, defaultValue: T): T => {
@@ -113,6 +121,9 @@ export default function App() {
   const [subjectsList, setSubjectsList] = useState<string[]>(() =>
     getInitialStorage('edusheet_subjects', SUBJECTS_LIST)
   );
+  const [resources, setResources] = useState<LearningResource[]>(() =>
+    getInitialStorage('edusheet_resources', INITIAL_LEARNING_RESOURCES)
+  );
 
   // Auto-Save to LocalStorage on state change
   React.useEffect(() => {
@@ -157,6 +168,12 @@ export default function App() {
     } catch (e) {}
   }, [notifications]);
 
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('edusheet_resources', JSON.stringify(resources));
+    } catch (e) {}
+  }, [resources]);
+
   // Google Firebase Firestore Real-Time Sync & Auto-Seed
   React.useEffect(() => {
     // 1. Seed initial assignments, submissions, students, and teachers if Firestore collection is empty
@@ -199,11 +216,20 @@ export default function App() {
       }
     });
 
+    // Seed initial learning resources if empty
+    seedResourcesIfEmpty(INITIAL_LEARNING_RESOURCES);
+
+    const unsubResources = subscribeResources((remoteResources) => {
+      setResources(remoteResources || []);
+    });
+
     return () => {
       unsubAssignments();
       unsubSubmissions();
       unsubStudents();
+      unsubTeachers();
       unsubSettings();
+      unsubResources();
     };
   }, []);
 
@@ -218,7 +244,7 @@ export default function App() {
   });
 
   // Specialized View Tab States
-  const [selectedGradeInView, setSelectedGradeInView] = useState('ม.3');
+  const [selectedGradeInView, setSelectedGradeInView] = useState('ม.1/1');
   const [selectedSubjectInView, setSelectedSubjectInView] = useState('ทั้งหมด');
   const [selectedStatusInView, setSelectedStatusInView] = useState('all');
 
@@ -235,12 +261,15 @@ export default function App() {
   } | null>(null);
   const [isCreateWorksheetOpen, setIsCreateWorksheetOpen] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
+  const [isCreateResourceOpen, setIsCreateResourceOpen] = useState(false);
+  const [editingResource, setEditingResource] = useState<LearningResource | null>(null);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab>('grades');
   const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
   const [isManageStudentsOpen, setIsManageStudentsOpen] = useState(false);
   const [isNotifDrawerOpen, setIsNotifDrawerOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(true);
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [infoModalTab, setInfoModalTab] = useState<InfoModalTab>('guide');
 
@@ -283,8 +312,13 @@ export default function App() {
     setIsLoginModalOpen(false);
   };
 
-  // Logout Handler
-  const handleLogOut = () => {
+  // Logout Handler - opens confirm dialog first
+  const handleRequestLogOut = () => {
+    setIsLogoutConfirmOpen(true);
+  };
+
+  const handleConfirmLogOut = () => {
+    setIsLogoutConfirmOpen(false);
     setIsLoggedIn(false);
     setIsLoginModalOpen(true);
     showToast('ออกจากระบบเรียบร้อยแล้ว');
@@ -430,6 +464,28 @@ export default function App() {
     setSubmissions((prev) => prev.filter((s) => s.assignmentId !== assignmentId));
     deleteAssignmentFromFirestore(assignmentId);
     showToast(`ลบใบงาน "${targetAsg?.title || ''}" ออกจากระบบเรียบร้อยแล้ว 🗑️`);
+  };
+
+  // Learning Resources Handlers
+  const handleSaveResource = (res: LearningResource) => {
+    const existingIdx = resources.findIndex((r) => r.id === res.id);
+    if (existingIdx >= 0) {
+      const updated = [...resources];
+      updated[existingIdx] = res;
+      setResources(updated);
+      showToast(`อัปเดตสื่อการเรียนรู้ "${res.title}" เรียบร้อยแล้ว! 📚`);
+    } else {
+      setResources([res, ...resources]);
+      showToast(`เพิ่มสื่อการเรียนรู้ใหม่ "${res.title}" เรียบร้อยแล้ว! ✨`);
+    }
+    saveResourceToFirestore(res);
+  };
+
+  const handleDeleteResource = (resId: string) => {
+    const target = resources.find((r) => r.id === resId);
+    setResources((prev) => prev.filter((r) => r.id !== resId));
+    deleteResourceFromFirestore(resId);
+    showToast(`ลบสื่อการเรียนรู้ "${target?.title || ''}" เรียบร้อยแล้ว 🗑️`);
   };
 
   // Category & Grade Level Management Handlers
@@ -609,14 +665,23 @@ export default function App() {
 
   // Grade-Level Isolation:
   // - Teachers see ALL assignments across all grade levels.
-  // - Students ONLY see assignments created for their own grade level (currentStudentUser.gradeLevel) or 'ทั้งหมด'.
+  // - Students ONLY see assignments created for their own grade/room (e.g. 'ม.1/1'),
+  //   or for their whole grade level (e.g. 'ม.1' or 'ม.1 (ทุกห้อง)'), or 'ทั้งหมด'.
   const visibleAssignments = React.useMemo(() => {
     if (role === 'teacher') return assignments;
     const stdGrade = currentStudentUser?.gradeLevel;
     if (!stdGrade) return assignments;
-    return assignments.filter(
-      (asg) => asg.gradeLevel === stdGrade || asg.gradeLevel === 'ทั้งหมด'
-    );
+
+    // e.g. If stdGrade is "ม.1/1", baseGrade is "ม.1"
+    const baseGrade = stdGrade.includes('/') ? stdGrade.split('/')[0] : stdGrade;
+
+    return assignments.filter((asg) => {
+      if (asg.gradeLevel === 'ทั้งหมด') return true;
+      if (asg.gradeLevel === stdGrade) return true;
+      if (asg.gradeLevel === baseGrade) return true;
+      if (asg.gradeLevel === `${baseGrade} (ทุกห้อง)`) return true;
+      return false;
+    });
   }, [assignments, role, currentStudentUser?.gradeLevel]);
 
   // Filtered assignments logic for Home View
@@ -709,7 +774,7 @@ export default function App() {
         onOpenManageStudents={() => handleOpenSettings('students')}
         onOpenSettings={handleOpenSettings}
         onOpenLoginModal={() => setIsLoginModalOpen(true)}
-        onLogOut={handleLogOut}
+        onLogOut={handleRequestLogOut}
         student={currentStudentUser}
         teacher={currentTeacherUser}
         isLoggedIn={isLoggedIn}
@@ -903,9 +968,67 @@ export default function App() {
             }}
           />
         )}
+
+        {/* Tab 5: Dedicated Learning Resources Hub */}
+        {activeTab === 'resources' && (
+          <ResourcesView
+            resources={resources}
+            role={role}
+            studentGradeLevel={currentStudentUser.gradeLevel}
+            subjectsList={subjectsList}
+            gradeLevelsList={gradeLevelsList}
+            onOpenCreateResource={() => {
+              setEditingResource(null);
+              setIsCreateResourceOpen(true);
+            }}
+            onEditResource={(res) => {
+              setEditingResource(res);
+              setIsCreateResourceOpen(true);
+            }}
+            onDeleteResource={handleDeleteResource}
+          />
+        )}
       </main>
 
       {/* Modals & Drawers */}
+      {/* Logout Confirmation Modal */}
+      {isLogoutConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto shadow-xs">
+              <LogOut className="w-6 h-6" />
+            </div>
+
+            <div>
+              <h3 className="text-base font-bold font-prompt text-slate-900 dark:text-white">
+                ยืนยันการออกจากระบบ?
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                คุณกำลังจะออกจากบัญชี <strong>{role === 'student' ? currentStudentUser.name : currentTeacherUser.name}</strong> ต้องการดำเนินการต่อหรือไม่?
+              </p>
+            </div>
+
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsLogoutConfirmOpen(false)}
+                className="flex-1 py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmLogOut}
+                className="flex-1 py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>ออกจากระบบ</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isLoginModalOpen && (
         <LoginModal
           onLoginSuccess={handleLoginSuccess}
@@ -920,6 +1043,7 @@ export default function App() {
         <SubmissionRosterModal
           assignment={activeRosterModalAsg}
           submissions={submissions}
+          students={studentsRoster}
           onClose={() => setActiveRosterModalAsg(null)}
           onSelectStudentSubmission={(sub) => {
             const asg = assignments.find((a) => a.id === sub.assignmentId) || activeRosterModalAsg;
@@ -971,6 +1095,20 @@ export default function App() {
           }}
           onCreateAssignment={handleCreateAssignment}
           onUpdateAssignment={handleUpdateAssignment}
+          gradeLevelsList={gradeLevelsList}
+          subjectsList={subjectsList}
+          currentTeacherName={currentTeacherUser.name}
+        />
+      )}
+
+      {isCreateResourceOpen && (
+        <CreateResourceModal
+          editingResource={editingResource}
+          onClose={() => {
+            setIsCreateResourceOpen(false);
+            setEditingResource(null);
+          }}
+          onSaveResource={handleSaveResource}
           gradeLevelsList={gradeLevelsList}
           subjectsList={subjectsList}
           currentTeacherName={currentTeacherUser.name}
