@@ -8,16 +8,13 @@ import {
   StudentProfile,
   TeacherProfile,
   LearningResource,
+  TeachingSchedule,
+  AttendanceSession,
+  PeriodConfig,
 } from './types';
 import {
-  INITIAL_ASSIGNMENTS,
-  INITIAL_SUBMISSIONS,
-  INITIAL_NOTIFICATIONS,
-  STUDENTS_ROSTER,
-  TEACHERS_ROSTER,
   GRADE_LEVELS_LIST,
-  SUBJECTS_LIST,
-  INITIAL_LEARNING_RESOURCES,
+  DEFAULT_PERIOD_CONFIGS,
 } from './data/mockData';
 import {
   subscribeAssignments,
@@ -25,7 +22,6 @@ import {
   subscribeStudents,
   subscribeTeachers,
   subscribeSettings,
-  seedInitialDataIfEmpty,
   saveAssignmentToFirestore,
   deleteAssignmentFromFirestore,
   saveSubmissionToFirestore,
@@ -35,10 +31,16 @@ import {
   saveTeacherToFirestore,
   deleteTeacherFromFirestore,
   saveSettingsToFirestore,
+  savePeriodConfigsToFirestore,
   subscribeResources,
-  seedResourcesIfEmpty,
   saveResourceToFirestore,
   deleteResourceFromFirestore,
+  subscribeTeachingSchedules,
+  saveTeachingScheduleToFirestore,
+  deleteTeachingScheduleFromFirestore,
+  subscribeAttendanceSessions,
+  saveAttendanceSessionToFirestore,
+  deleteAttendanceSessionFromFirestore,
   clearDatabase,
   resetDataKeepUsers,
 } from './services/firebaseService';
@@ -64,9 +66,28 @@ import { StatusView } from './components/StatusView';
 import { SubmissionRosterModal } from './components/SubmissionRosterModal';
 import { ResourcesView } from './components/ResourcesView';
 import { CreateResourceModal } from './components/CreateResourceModal';
+import { AttendanceView } from './components/AttendanceView';
 import { CheckCircle2, KeyRound, LogOut, AlertTriangle } from 'lucide-react';
 
-// Safe localStorage loader helper
+const DEFAULT_GUEST_STUDENT: StudentProfile = {
+  id: 'guest_student',
+  code: '',
+  name: 'ผู้เรียน',
+  password: '',
+  gradeLevel: '',
+  avatar: '',
+};
+
+const DEFAULT_ADMIN_TEACHER: TeacherProfile = {
+  id: 'tch_admin',
+  code: 'ADMIN',
+  name: 'ผู้ดูแลระบบ (Admin)',
+  password: '',
+  subject: 'ผู้ดูแลระบบ',
+  avatar: '',
+};
+
+// Safe localStorage loader helper (only for category preferences)
 const getInitialStorage = <T,>(key: string, defaultValue: T): T => {
   try {
     const saved = localStorage.getItem(key);
@@ -80,75 +101,52 @@ const getInitialStorage = <T,>(key: string, defaultValue: T): T => {
 };
 
 export default function App() {
-  // Roster & Dynamic Student User Management State (with LocalStorage persistence)
-  const [studentsRoster, setStudentsRoster] = useState<StudentProfile[]>(() =>
-    getInitialStorage('edusheet_students', STUDENTS_ROSTER)
-  );
+  // Roster & Dynamic Student User Management State (loaded exclusively from Firestore, never auto-seeded)
+  const [studentsRoster, setStudentsRoster] = useState<StudentProfile[]>([]);
 
-  // Dynamic Teacher Management State
-  const [teachersRoster, setTeachersRoster] = useState<TeacherProfile[]>(() =>
-    getInitialStorage('edusheet_teachers', TEACHERS_ROSTER)
-  );
+  // Dynamic Teacher Management State (loaded exclusively from Firestore, never auto-seeded)
+  const [teachersRoster, setTeachersRoster] = useState<TeacherProfile[]>([]);
 
   // Authentication & Logged In User State
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
-  const [currentStudentUser, setCurrentStudentUser] = useState<StudentProfile>(() =>
-    getInitialStorage('edusheet_students', STUDENTS_ROSTER)[0] || STUDENTS_ROSTER[0]
-  );
-  const [currentTeacherUser, setCurrentTeacherUser] = useState<TeacherProfile>(() =>
-    getInitialStorage('edusheet_teachers', TEACHERS_ROSTER)[0] || TEACHERS_ROSTER[0]
-  );
+  const [currentStudentUser, setCurrentStudentUser] = useState<StudentProfile>(DEFAULT_GUEST_STUDENT);
+  const [currentTeacherUser, setCurrentTeacherUser] = useState<TeacherProfile>(DEFAULT_ADMIN_TEACHER);
   const [role, setRole] = useState<UserRole>('student');
 
   // Tab State
   const [activeTab, setActiveTab] = useState<string>('home');
 
-  // Core Data State (with LocalStorage persistence)
-  const [assignments, setAssignments] = useState<Assignment[]>(() =>
-    getInitialStorage('edusheet_assignments', INITIAL_ASSIGNMENTS)
-  );
-  const [submissions, setSubmissions] = useState<Submission[]>(() =>
-    getInitialStorage('edusheet_submissions', INITIAL_SUBMISSIONS)
-  );
-  const [notifications, setNotifications] = useState<NotificationItem[]>(() =>
-    getInitialStorage('edusheet_notifs', INITIAL_NOTIFICATIONS)
-  );
+  // Core Data State (loaded exclusively from Firestore)
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
-  // Dynamic Grade Levels & Subjects Management State
+  // Dynamic Grade Levels & Subjects Management State (loaded from Firestore, never seeded with mock subjects)
   const [gradeLevelsList, setGradeLevelsList] = useState<string[]>(() =>
     getInitialStorage('edusheet_grade_levels', GRADE_LEVELS_LIST)
   );
-  const [subjectsList, setSubjectsList] = useState<string[]>(() =>
-    getInitialStorage('edusheet_subjects', SUBJECTS_LIST)
+  const [subjectsList, setSubjectsList] = useState<string[]>(['ทั้งหมด']);
+  const [periodConfigs, setPeriodConfigs] = useState<PeriodConfig[]>(() =>
+    getInitialStorage('edusheet_period_configs', DEFAULT_PERIOD_CONFIGS)
   );
-  const [resources, setResources] = useState<LearningResource[]>(() =>
-    getInitialStorage('edusheet_resources', INITIAL_LEARNING_RESOURCES)
-  );
+  const [resources, setResources] = useState<LearningResource[]>([]);
+  const [teachingSchedules, setTeachingSchedules] = useState<TeachingSchedule[]>([]);
+  const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>([]);
 
-  // Auto-Save to LocalStorage on state change
+  // Clear stale pre-seeded mock cache keys on mount
   React.useEffect(() => {
     try {
-      localStorage.setItem('edusheet_assignments', JSON.stringify(assignments));
+      localStorage.removeItem('edusheet_assignments');
+      localStorage.removeItem('edusheet_submissions');
+      localStorage.removeItem('edusheet_students');
+      localStorage.removeItem('edusheet_teachers');
+      localStorage.removeItem('edusheet_notifs');
+      localStorage.removeItem('edusheet_resources');
+      localStorage.removeItem('edusheet_schedules');
+      localStorage.removeItem('edusheet_attendance');
+      localStorage.removeItem('edusheet_subjects');
     } catch (e) {}
-  }, [assignments]);
-
-  React.useEffect(() => {
-    try {
-      localStorage.setItem('edusheet_submissions', JSON.stringify(submissions));
-    } catch (e) {}
-  }, [submissions]);
-
-  React.useEffect(() => {
-    try {
-      localStorage.setItem('edusheet_students', JSON.stringify(studentsRoster));
-    } catch (e) {}
-  }, [studentsRoster]);
-
-  React.useEffect(() => {
-    try {
-      localStorage.setItem('edusheet_teachers', JSON.stringify(teachersRoster));
-    } catch (e) {}
-  }, [teachersRoster]);
+  }, []);
 
   React.useEffect(() => {
     try {
@@ -158,35 +156,12 @@ export default function App() {
 
   React.useEffect(() => {
     try {
-      localStorage.setItem('edusheet_subjects', JSON.stringify(subjectsList));
+      localStorage.setItem('edusheet_period_configs', JSON.stringify(periodConfigs));
     } catch (e) {}
-  }, [subjectsList]);
+  }, [periodConfigs]);
 
+  // Google Firebase Firestore Real-Time Sync (Strictly read-only on startup; never auto-creates mock items)
   React.useEffect(() => {
-    try {
-      localStorage.setItem('edusheet_notifs', JSON.stringify(notifications));
-    } catch (e) {}
-  }, [notifications]);
-
-  React.useEffect(() => {
-    try {
-      localStorage.setItem('edusheet_resources', JSON.stringify(resources));
-    } catch (e) {}
-  }, [resources]);
-
-  // Google Firebase Firestore Real-Time Sync & Auto-Seed
-  React.useEffect(() => {
-    // 1. Seed initial assignments, submissions, students, and teachers if Firestore collection is empty
-    seedInitialDataIfEmpty(
-      INITIAL_ASSIGNMENTS,
-      INITIAL_SUBMISSIONS,
-      STUDENTS_ROSTER,
-      TEACHERS_ROSTER,
-      GRADE_LEVELS_LIST,
-      SUBJECTS_LIST
-    );
-
-    // 2. Attach real-time cloud snapshot listeners
     const unsubAssignments = subscribeAssignments((remoteAssignments) => {
       setAssignments(remoteAssignments || []);
     });
@@ -196,15 +171,11 @@ export default function App() {
     });
 
     const unsubStudents = subscribeStudents((remoteStudents) => {
-      if (remoteStudents && remoteStudents.length > 0) {
-        setStudentsRoster(remoteStudents);
-      }
+      setStudentsRoster(remoteStudents || []);
     });
 
     const unsubTeachers = subscribeTeachers((remoteTeachers) => {
-      if (remoteTeachers && remoteTeachers.length > 0) {
-        setTeachersRoster(remoteTeachers);
-      }
+      setTeachersRoster(remoteTeachers || []);
     });
 
     const unsubSettings = subscribeSettings((remoteSettings) => {
@@ -214,13 +185,21 @@ export default function App() {
       if (remoteSettings.subjects && remoteSettings.subjects.length > 0) {
         setSubjectsList(remoteSettings.subjects);
       }
+      if (remoteSettings.periodConfigs && remoteSettings.periodConfigs.length > 0) {
+        setPeriodConfigs(remoteSettings.periodConfigs);
+      }
     });
-
-    // Seed initial learning resources if empty
-    seedResourcesIfEmpty(INITIAL_LEARNING_RESOURCES);
 
     const unsubResources = subscribeResources((remoteResources) => {
       setResources(remoteResources || []);
+    });
+
+    const unsubSchedules = subscribeTeachingSchedules((remoteSchedules) => {
+      setTeachingSchedules(remoteSchedules || []);
+    });
+
+    const unsubAttendance = subscribeAttendanceSessions((remoteSessions) => {
+      setAttendanceSessions(remoteSessions || []);
     });
 
     return () => {
@@ -230,6 +209,8 @@ export default function App() {
       unsubTeachers();
       unsubSettings();
       unsubResources();
+      unsubSchedules();
+      unsubAttendance();
     };
   }, []);
 
@@ -382,7 +363,8 @@ export default function App() {
     submissionId: string,
     score: number,
     comment: string,
-    status: 'graded' | 'needs_revision'
+    status: 'graded' | 'needs_revision',
+    aiGraded?: boolean
   ) => {
     const targetSub = submissions.find((s) => s.id === submissionId);
     const targetAsg = assignments.find((a) => a.id === targetSub?.assignmentId);
@@ -396,6 +378,7 @@ export default function App() {
               teacherComment: comment,
               status,
               gradedAt: new Date().toISOString(),
+              ...(aiGraded !== undefined ? { aiGraded } : {}),
             }
           : s
       )
@@ -409,6 +392,7 @@ export default function App() {
         teacherComment: comment,
         status,
         gradedAt: new Date().toISOString(),
+        ...(aiGraded !== undefined ? { aiGraded } : {}),
       };
       saveSubmissionToFirestore(updatedSub);
     }
@@ -486,6 +470,54 @@ export default function App() {
     setResources((prev) => prev.filter((r) => r.id !== resId));
     deleteResourceFromFirestore(resId);
     showToast(`ลบสื่อการเรียนรู้ "${target?.title || ''}" เรียบร้อยแล้ว 🗑️`);
+  };
+
+  // Teaching Schedule & Attendance Handlers
+  const handleSaveSchedule = (schedule: TeachingSchedule) => {
+    const exists = teachingSchedules.some((s) => s.id === schedule.id);
+    if (exists) {
+      setTeachingSchedules((prev) =>
+        prev.map((s) => (s.id === schedule.id ? schedule : s))
+      );
+      showToast(`อัปเดตคาบสอนวิชา ${schedule.subject} (${schedule.gradeLevel}) เรียบร้อยแล้ว 📅`);
+    } else {
+      setTeachingSchedules((prev) => [...prev, schedule]);
+      showToast(`เพิ่มคาบสอนวิชา ${schedule.subject} (${schedule.gradeLevel}) ลงตารางสอนแล้ว ✨`);
+    }
+    saveTeachingScheduleToFirestore(schedule);
+  };
+
+  const handleDeleteSchedule = (scheduleId: string) => {
+    const target = teachingSchedules.find((s) => s.id === scheduleId);
+    setTeachingSchedules((prev) => prev.filter((s) => s.id !== scheduleId));
+    deleteTeachingScheduleFromFirestore(scheduleId);
+    showToast(`ลบคาบสอน "${target?.subject || ''}" ออกจากตารางสอนแล้ว 🗑️`);
+  };
+
+  const handleSaveAttendanceSession = (session: AttendanceSession) => {
+    const exists = attendanceSessions.some((s) => s.id === session.id);
+    if (exists) {
+      setAttendanceSessions((prev) =>
+        prev.map((s) => (s.id === session.id ? session : s))
+      );
+      showToast(`อัปเดตผลการเช็คชื่อวิชา ${session.subject} (${session.gradeLevel}) เรียบร้อยแล้ว ✅`);
+    } else {
+      setAttendanceSessions((prev) => [session, ...prev]);
+      showToast(`บันทึกการเช็คชื่อวิชา ${session.subject} (${session.gradeLevel}) เรียบร้อยแล้ว 🎉`);
+    }
+    saveAttendanceSessionToFirestore(session);
+  };
+
+  const handleDeleteAttendanceSession = (sessionId: string) => {
+    setAttendanceSessions((prev) => prev.filter((s) => s.id !== sessionId));
+    deleteAttendanceSessionFromFirestore(sessionId);
+    showToast('ลบบันทึกการเช็คชื่อเรียบร้อยแล้ว 🗑️');
+  };
+
+  const handleSavePeriodConfigs = (nextConfigs: PeriodConfig[]) => {
+    setPeriodConfigs(nextConfigs);
+    savePeriodConfigsToFirestore(nextConfigs);
+    showToast('บันทึกการตั้งค่าคาบเรียนและคาบพักเที่ยงเรียบร้อยแล้ว ⏰');
   };
 
   // Category & Grade Level Management Handlers
@@ -622,40 +654,42 @@ export default function App() {
 
   const handleResetFactoryData = async () => {
     await clearDatabase();
-    setAssignments(INITIAL_ASSIGNMENTS);
-    setSubmissions(INITIAL_SUBMISSIONS);
-    setStudentsRoster(STUDENTS_ROSTER);
+    setAssignments([]);
+    setSubmissions([]);
+    setStudentsRoster([]);
+    setTeachersRoster([]);
+    setResources([]);
+    setTeachingSchedules([]);
+    setAttendanceSessions([]);
     setGradeLevelsList(GRADE_LEVELS_LIST);
-    setSubjectsList(SUBJECTS_LIST);
-    setNotifications(INITIAL_NOTIFICATIONS);
+    setSubjectsList(['ทั้งหมด']);
+    setPeriodConfigs(DEFAULT_PERIOD_CONFIGS);
+    setNotifications([]);
     try {
-      localStorage.removeItem('edusheet_assignments');
-      localStorage.removeItem('edusheet_submissions');
-      localStorage.removeItem('edusheet_students');
       localStorage.removeItem('edusheet_grade_levels');
       localStorage.removeItem('edusheet_subjects');
-      localStorage.removeItem('edusheet_notifs');
+      localStorage.removeItem('edusheet_period_configs');
     } catch (e) {}
-    showToast('ล้างข้อมูลในฐานข้อมูลและรีเซ็ตข้อมูลเริ่มต้น (Factory Reset) เรียบร้อยแล้ว 🔄');
+    showToast('ล้างข้อมูลทั้งหมดในฐานข้อมูลเรียบร้อยแล้ว 🔄');
   };
 
   const handleResetKeepUsers = async () => {
     await resetDataKeepUsers();
     setAssignments([]);
     setSubmissions([]);
+    setResources([]);
+    setTeachingSchedules([]);
+    setAttendanceSessions([]);
     setNotifications([]);
-    setGradeLevelsList([]);
-    setSubjectsList([]);
-    
-    // Refresh student/teacher lists (they've been updated in Firestore)
-    // Note: The snapshots should trigger these automatically, but we can clear local storage
-    localStorage.removeItem('edusheet_assignments');
-    localStorage.removeItem('edusheet_submissions');
-    localStorage.removeItem('edusheet_notifs');
-    localStorage.removeItem('edusheet_grade_levels');
-    localStorage.removeItem('edusheet_subjects');
-    
-    showToast('ล้างข้อมูลใบงานและตั้งค่าระบบเรียบร้อยแล้ว (เก็บข้อมูลผู้ใช้งานไว้) 🧹');
+    setGradeLevelsList(GRADE_LEVELS_LIST);
+    setSubjectsList(['ทั้งหมด']);
+    setPeriodConfigs(DEFAULT_PERIOD_CONFIGS);
+    try {
+      localStorage.removeItem('edusheet_grade_levels');
+      localStorage.removeItem('edusheet_subjects');
+      localStorage.removeItem('edusheet_period_configs');
+    } catch (e) {}
+    showToast('ล้างข้อมูลใบงาน สื่อ และตั้งค่าระบบเรียบร้อยแล้ว (เก็บข้อมูลผู้ใช้งานไว้) 🧹');
   };
 
   // Notifications read handler
@@ -663,30 +697,67 @@ export default function App() {
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
   };
 
-  // Grade-Level Isolation:
+  // Strict Assignment Visibility Isolation:
   // - Teachers see ALL assignments across all grade levels.
-  // - Students ONLY see assignments created for their own grade/room (e.g. 'ม.1/1'),
-  //   or for their whole grade level (e.g. 'ม.1' or 'ม.1 (ทุกห้อง)'), or 'ทั้งหมด'.
+  // - Unauthenticated sessions see NO student worksheets.
+  // - Students ONLY see published assignments assigned specifically to their student code (if targeted)
+  //   or assigned to their grade/room.
   const visibleAssignments = React.useMemo(() => {
     if (role === 'teacher') return assignments;
+    if (!isLoggedIn) return [];
+
     const stdGrade = currentStudentUser?.gradeLevel;
-    if (!stdGrade) return assignments;
+    const stdCode = currentStudentUser?.code;
+    if (!stdGrade) return [];
 
     // e.g. If stdGrade is "ม.1/1", baseGrade is "ม.1"
     const baseGrade = stdGrade.includes('/') ? stdGrade.split('/')[0] : stdGrade;
 
     return assignments.filter((asg) => {
-      if (asg.gradeLevel === 'ทั้งหมด') return true;
+      // 1. Unpublished / draft worksheets are hidden from students
+      if (asg.isPublished === false) return false;
+
+      // 2. If teacher specified individual student codes, enforce strict per-student match
+      if (asg.assignedStudentCodes && asg.assignedStudentCodes.length > 0) {
+        return Boolean(stdCode && asg.assignedStudentCodes.includes(stdCode));
+      }
+
+      // 3. Class/Room level assignment matching
       if (asg.gradeLevel === stdGrade) return true;
-      if (asg.gradeLevel === baseGrade) return true;
+      if (asg.gradeLevel === 'ทั้งหมด') return true;
       if (asg.gradeLevel === `${baseGrade} (ทุกห้อง)`) return true;
+      if (!asg.gradeLevel.includes('/') && asg.gradeLevel === baseGrade) return true;
       return false;
     });
-  }, [assignments, role, currentStudentUser?.gradeLevel]);
+  }, [assignments, role, isLoggedIn, currentStudentUser?.gradeLevel, currentStudentUser?.code]);
+
+  // Strict Submission Isolation for students (only their own submissions)
+  const visibleSubmissions = React.useMemo(() => {
+    if (role === 'teacher') return submissions;
+    if (!isLoggedIn) return [];
+    return submissions.filter(
+      (s) =>
+        s.studentCode === currentStudentUser.code ||
+        s.studentId === currentStudentUser.id
+    );
+  }, [submissions, role, isLoggedIn, currentStudentUser?.code, currentStudentUser?.id]);
+
+  // Strict Notification Isolation for students (only for worksheets assigned to them)
+  const visibleNotifications = React.useMemo(() => {
+    if (role === 'teacher') return notifications;
+    if (!isLoggedIn) return [];
+    const allowedIds = new Set(visibleAssignments.map((a) => a.id));
+    return notifications.filter(
+      (n) => !n.assignmentId || allowedIds.has(n.assignmentId)
+    );
+  }, [notifications, role, isLoggedIn, visibleAssignments]);
 
   // Filtered assignments logic for Home View
   const filteredHomeAssignments = visibleAssignments
     .filter((asg) => {
+      // Students do not use manual search/filter bars because teachers pre-configure assignments per class
+      if (role === 'student') return true;
+
       // Search text
       if (filters.search) {
         const query = filters.search.toLowerCase();
@@ -707,9 +778,7 @@ export default function App() {
       if (filters.category !== 'ทั้งหมด' && asg.category !== filters.category) return false;
 
       // Status
-      const sub = submissions.find(
-        (s) => s.assignmentId === asg.id && (role === 'teacher' || s.studentCode === currentStudentUser.code || s.studentId === currentStudentUser.id)
-      );
+      const sub = submissions.find((s) => s.assignmentId === asg.id);
       const now = new Date();
       const isOverdue = new Date(asg.dueDate).getTime() < now.getTime() && (!sub || sub.status === 'pending');
 
@@ -722,7 +791,7 @@ export default function App() {
       return true;
     })
     .sort((a, b) => {
-      if (filters.dateSort === 'due_soon') {
+      if (role === 'student' || filters.dateSort === 'due_soon') {
         return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
       }
       if (filters.dateSort === 'newest') {
@@ -740,18 +809,19 @@ export default function App() {
   const pendingCount = role === 'teacher' 
     ? submissions.filter((s) => s.status === 'submitted').length // Submissions needing grading
     : visibleAssignments.filter((a) => {
-        const s = submissions.find((sub) => sub.assignmentId === a.id && sub.studentCode === currentStudentUser.code);
+        const s = visibleSubmissions.find((sub) => sub.assignmentId === a.id);
         return !s || s.status === 'pending';
       }).length;
 
   const submittedCount = role === 'teacher'
     ? submissions.filter((s) => s.status === 'graded').length // Submissions already graded
-    : submissions.filter((s) => s.studentCode === currentStudentUser.code && (s.status === 'submitted' || s.status === 'graded')).length;
+    : visibleAssignments.filter((a) => {
+        const s = visibleSubmissions.find((sub) => sub.assignmentId === a.id);
+        return s && (s.status === 'submitted' || s.status === 'graded');
+      }).length;
 
   const dueSoonCount = visibleAssignments.filter((a) => {
-    const s = submissions.find(
-      (sub) => sub.assignmentId === a.id && (role === 'teacher' || sub.studentCode === currentStudentUser.code)
-    );
+    const s = visibleSubmissions.find((sub) => sub.assignmentId === a.id);
     const diffHours = (new Date(a.dueDate).getTime() - Date.now()) / (1000 * 60 * 60);
     return diffHours > 0 && diffHours <= 24 && (!s || s.status === 'pending');
   }).length;
@@ -764,7 +834,7 @@ export default function App() {
         setActiveTab={setActiveTab}
         role={role}
         setRole={setRole}
-        unreadNotifCount={notifications.filter((n) => !n.isRead).length}
+        unreadNotifCount={visibleNotifications.filter((n) => !n.isRead).length}
         onOpenNotifs={() => setIsNotifDrawerOpen(true)}
         onOpenCreateWorksheet={() => {
           setEditingAssignment(null);
@@ -806,7 +876,12 @@ export default function App() {
               searchTerm={filters.search}
               setSearchTerm={(term) => setFilters((prev) => ({ ...prev, search: term }))}
               onQuickFilterDueSoon={() => {
-                setFilters((prev) => ({ ...prev, dateSort: 'due_soon', status: 'pending' }));
+                if (role === 'student') {
+                  setSelectedStatusInView('pending');
+                  setActiveTab('statuses');
+                } else {
+                  setFilters((prev) => ({ ...prev, dateSort: 'due_soon', status: 'pending' }));
+                }
               }}
               onOpenCreateWorksheet={() => {
                 setEditingAssignment(null);
@@ -814,28 +889,30 @@ export default function App() {
               }}
             />
 
-            {/* Filter Bar */}
-            <FilterBar
-              filters={filters}
-              setFilters={setFilters}
-              onResetFilters={() =>
-                setFilters({
-                  search: '',
-                  subject: 'ทั้งหมด',
-                  gradeLevel: 'ทั้งหมด',
-                  status: 'all',
-                  category: 'ทั้งหมด',
-                  dateSort: 'due_soon',
-                })
-              }
-              resultCount={filteredHomeAssignments.length}
-              gradeLevels={gradeLevelsList}
-              subjects={subjectsList}
-              role={role}
-              studentGradeLevel={currentStudentUser.gradeLevel}
-              onOpenManageCategories={() => handleOpenSettings('grades')}
-              onOpenSettings={handleOpenSettings}
-            />
+            {/* Filter Bar (Teacher Only — Students already receive teacher-configured class worksheets) */}
+            {role === 'teacher' && (
+              <FilterBar
+                filters={filters}
+                setFilters={setFilters}
+                onResetFilters={() =>
+                  setFilters({
+                    search: '',
+                    subject: 'ทั้งหมด',
+                    gradeLevel: 'ทั้งหมด',
+                    status: 'all',
+                    category: 'ทั้งหมด',
+                    dateSort: 'due_soon',
+                  })
+                }
+                resultCount={filteredHomeAssignments.length}
+                gradeLevels={gradeLevelsList}
+                subjects={subjectsList}
+                role={role}
+                studentGradeLevel={currentStudentUser.gradeLevel}
+                onOpenManageCategories={() => handleOpenSettings('grades')}
+                onOpenSettings={handleOpenSettings}
+              />
+            )}
 
             {/* Assignments Grid */}
             <div className="mb-10">
@@ -847,27 +924,33 @@ export default function App() {
 
               {filteredHomeAssignments.length === 0 ? (
                 <div className="text-center py-16 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-400 text-sm space-y-2">
-                  <p>ไม่พบใบงานที่ตรงกับเงื่อนไขการค้นหาของคุณ</p>
+                  <p>
+                    {role === 'student'
+                      ? 'ยังไม่มีใบงานที่ครูผู้สอนมอบหมายสำหรับห้องเรียนของคุณในขณะนี้'
+                      : 'ไม่พบใบงานที่ตรงกับเงื่อนไขการค้นหาของคุณ'}
+                  </p>
                   {role === 'student' && (
                     <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
                       🔒 (แสดงเฉพาะใบงานสำหรับนักเรียนระดับชั้น {currentStudentUser.gradeLevel})
                     </p>
                   )}
-                  <button
-                    onClick={() =>
-                      setFilters({
-                        search: '',
-                        subject: 'ทั้งหมด',
-                        gradeLevel: 'ทั้งหมด',
-                        status: 'all',
-                        category: 'ทั้งหมด',
-                        dateSort: 'due_soon',
-                      })
-                    }
-                    className="text-xs text-indigo-600 dark:text-indigo-400 underline font-semibold"
-                  >
-                    ล้างคำค้นหาและตัวกรองทั้งหมด
-                  </button>
+                  {role === 'teacher' && (
+                    <button
+                      onClick={() =>
+                        setFilters({
+                          search: '',
+                          subject: 'ทั้งหมด',
+                          gradeLevel: 'ทั้งหมด',
+                          status: 'all',
+                          category: 'ทั้งหมด',
+                          dateSort: 'due_soon',
+                        })
+                      }
+                      className="text-xs text-indigo-600 dark:text-indigo-400 underline font-semibold cursor-pointer"
+                    >
+                      ล้างคำค้นหาและตัวกรองทั้งหมด
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -908,7 +991,7 @@ export default function App() {
         {activeTab === 'grades' && (
           <GradeLevelView
             assignments={visibleAssignments}
-            submissions={submissions}
+            submissions={visibleSubmissions}
             role={role}
             studentGradeLevel={currentStudentUser.gradeLevel}
             selectedGrade={selectedGradeInView}
@@ -931,7 +1014,7 @@ export default function App() {
         {activeTab === 'subjects' && (
           <SubjectView
             assignments={visibleAssignments}
-            submissions={submissions}
+            submissions={visibleSubmissions}
             role={role}
             selectedSubject={selectedSubjectInView}
             setSelectedSubject={setSelectedSubjectInView}
@@ -953,7 +1036,7 @@ export default function App() {
         {activeTab === 'statuses' && (
           <StatusView
             assignments={visibleAssignments}
-            submissions={submissions}
+            submissions={visibleSubmissions}
             role={role}
             selectedStatus={selectedStatusInView}
             setSelectedStatus={setSelectedStatusInView}
@@ -986,6 +1069,28 @@ export default function App() {
               setIsCreateResourceOpen(true);
             }}
             onDeleteResource={handleDeleteResource}
+          />
+        )}
+
+        {/* Tab 6: Classroom Attendance & Teaching Schedule Hub */}
+        {activeTab === 'attendance' && (
+          <AttendanceView
+            role={role}
+            currentStudent={currentStudentUser}
+            currentTeacher={currentTeacherUser}
+            studentsRoster={studentsRoster}
+            teachersRoster={teachersRoster}
+            subjectsList={subjectsList}
+            gradeLevelsList={gradeLevelsList}
+            schedules={teachingSchedules}
+            attendanceSessions={attendanceSessions}
+            periodConfigs={periodConfigs}
+            onSavePeriodConfigs={handleSavePeriodConfigs}
+            onSaveSchedule={handleSaveSchedule}
+            onDeleteSchedule={handleDeleteSchedule}
+            onSaveAttendanceSession={handleSaveAttendanceSession}
+            onDeleteAttendanceSession={handleDeleteAttendanceSession}
+            onOpenSettings={role === 'teacher' ? handleOpenSettings : undefined}
           />
         )}
       </main>
@@ -1054,9 +1159,12 @@ export default function App() {
 
       {activeSubmitModalAsg && (
         <WorksheetSubmissionModal
+          key={`${activeSubmitModalAsg.id}_${currentStudentUser.code}`}
           assignment={activeSubmitModalAsg}
           submission={submissions.find(
-            (s) => s.assignmentId === activeSubmitModalAsg.id && s.studentCode === currentStudentUser.code
+            (s) =>
+              s.assignmentId === activeSubmitModalAsg.id &&
+              (s.studentCode === currentStudentUser.code || s.studentId === currentStudentUser.id)
           )}
           onClose={() => setActiveSubmitModalAsg(null)}
           onSubmitWorksheet={handleSubmitWorksheet}
@@ -1098,6 +1206,7 @@ export default function App() {
           gradeLevelsList={gradeLevelsList}
           subjectsList={subjectsList}
           currentTeacherName={currentTeacherUser.name}
+          studentsList={studentsRoster}
         />
       )}
 
@@ -1165,7 +1274,7 @@ export default function App() {
       )}
 
       <NotificationDrawer
-        notifications={notifications}
+        notifications={visibleNotifications}
         assignments={visibleAssignments}
         isOpen={isNotifDrawerOpen}
         onClose={() => setIsNotifDrawerOpen(false)}

@@ -57,32 +57,32 @@ export const BannerHero: React.FC<BannerHeroProps> = ({
 
         <p className="text-sm sm:text-base text-slate-300 max-w-2xl mb-6">
           {role === 'student'
-            ? 'ค้นหาใบงาน พิมพ์คำตอบส่งงานออนไลน์ ตรวจสอบคะแนน และติดตามการแจ้งเตือนกำหนดส่งได้ในระบบเดียว'
+            ? 'ทำใบงาน พิมพ์คำตอบส่งงานออนไลน์ ตรวจสอบคะแนน และติดตามการแจ้งเตือนกำหนดส่งได้ในระบบเดียว'
             : 'จัดการใบงานออนไลน์ ตรวจและให้คะแนนการตอบของนักเรียนด้วยระบบ AI ช่วยวิเคราะห์ และออกใบงานใหม่ในไม่กี่วินาที'}
         </p>
 
-        {/* Search Bar & Action Input */}
-        <div className="flex flex-col sm:flex-row gap-3 max-w-2xl mb-8">
-          <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="ค้นหาชื่อใบงาน, วิชา, ระดับชั้น หรือคำสั่ง..."
-              className="w-full pl-10 pr-4 py-2.5 bg-white/10 dark:bg-slate-800/60 backdrop-blur border border-white/20 dark:border-slate-700/60 rounded-xl text-sm text-white placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-400 transition-all"
-            />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white"
-              >
-                ล้างคำค้น
-              </button>
-            )}
-          </div>
+        {/* Search Bar (Teacher only) & Primary Quick Action */}
+        {role === 'teacher' ? (
+          <div className="flex flex-col sm:flex-row gap-3 max-w-2xl mb-8">
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="ค้นหาชื่อใบงาน, วิชา, ระดับชั้น หรือคำสั่ง..."
+                className="w-full pl-10 pr-4 py-2.5 bg-white/10 dark:bg-slate-800/60 backdrop-blur border border-white/20 dark:border-slate-700/60 rounded-xl text-sm text-white placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-400 transition-all"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white"
+                >
+                  ล้างคำค้น
+                </button>
+              )}
+            </div>
 
-          {role === 'teacher' ? (
             <button
               onClick={onOpenCreateWorksheet}
               className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-sm shadow-lg shadow-indigo-600/30 transition-all shrink-0 cursor-pointer"
@@ -90,18 +90,20 @@ export const BannerHero: React.FC<BannerHeroProps> = ({
               <PlusCircle className="w-4 h-4" />
               <span>สร้างใบงานใหม่</span>
             </button>
-          ) : (
-            dueSoonCount > 0 && (
+          </div>
+        ) : (
+          dueSoonCount > 0 && (
+            <div className="mb-8">
               <button
                 onClick={onQuickFilterDueSoon}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold rounded-xl text-xs sm:text-sm shadow-md transition-all shrink-0 cursor-pointer"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold rounded-xl text-xs sm:text-sm shadow-md transition-all cursor-pointer"
               >
                 <AlertTriangle className="w-4 h-4" />
                 <span>ดูใบงานใกล้ส่ง ({dueSoonCount})</span>
               </button>
-            )
-          )}
-        </div>
+            </div>
+          )
+        )}
 
         {/* Stats Strip (Full-width desktop row) */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 pt-4 border-t border-white/10">

@@ -125,6 +125,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     name: string;
     details?: string;
   } | null>(null);
+  const [pendingResetAction, setPendingResetAction] = useState<'factory' | 'keep_users' | null>(null);
 
   // Excel Upload State
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -658,26 +659,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="pt-6 border-t border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
-                  onClick={() => {
-                    if (window.confirm('คุณต้องการล้างข้อมูลทั้งหมดในระบบและรีเซ็ตเป็นค่าเริ่มต้นใช่หรือไม่?')) {
-                      // @ts-ignore
-                      onResetSystem();
-                    }
-                  }}
+                  onClick={() => setPendingResetAction('factory')}
                   className="w-full px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <AlertTriangle className="w-4 h-4" />
-                  <span>ล้างข้อมูลระบบทั้งหมด (Reset Factory)</span>
+                  <span>ล้างข้อมูลระบบทั้งหมด (Factory Reset)</span>
                 </button>
                 
                 <button
                   type="button"
-                  onClick={() => {
-                    if (window.confirm('คุณต้องการล้างข้อมูลใบงานและตั้งค่าระบบ แต่เก็บข้อมูลผู้ใช้งานไว้ใช่หรือไม่?')) {
-                      // @ts-ignore
-                      onResetKeepUsers();
-                    }
-                  }}
+                  onClick={() => setPendingResetAction('keep_users')}
                   className="w-full px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer mt-3"
                 >
                   <AlertTriangle className="w-4 h-4" />
@@ -1785,6 +1776,54 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Reset Confirmation Modal Overlay */}
+      {pendingResetAction && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+
+            <div className="text-center space-y-1.5">
+              <h3 className="text-base font-bold font-prompt text-slate-900 dark:text-white">
+                {pendingResetAction === 'factory'
+                  ? 'ยืนยันล้างข้อมูลระบบทั้งหมด?'
+                  : 'ยืนยันล้างใบงานและตั้งค่าระบบ?'}
+              </h3>
+              <p className="text-xs text-slate-600 dark:text-slate-300">
+                {pendingResetAction === 'factory'
+                  ? 'ข้อมูลใบงาน การส่งงาน สื่อการเรียนรู้ ตารางสอน เช็คชื่อ และบัญชีผู้ใช้ทั้งหมดในฐานข้อมูลจะถูกลบอย่างถาวร'
+                  : 'ข้อมูลใบงาน การส่งงาน สื่อ ตารางสอน เช็คชื่อ และตั้งค่าจะถูกลบ โดยยังคงบัญชีนักเรียนและครูผู้สอนไว้'}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setPendingResetAction(null)}
+                className="py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const action = pendingResetAction;
+                  setPendingResetAction(null);
+                  if (action === 'factory') {
+                    onResetSystem();
+                  } else {
+                    onResetKeepUsers();
+                  }
+                }}
+                className="py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-md transition-colors cursor-pointer"
+              >
+                ยืนยันดำเนินการ
+              </button>
+            </div>
           </div>
         </div>
       )}

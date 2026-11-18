@@ -191,6 +191,10 @@
         "subjects": {
           "type": "array",
           "description": "Array of school subjects"
+        },
+        "periodConfigs": {
+          "type": "array",
+          "description": "Array of configured class periods including lunch break"
         }
       },
       "required": ["id"]
@@ -248,6 +252,156 @@
         }
       },
       "required": ["id", "title", "subject", "gradeLevel", "type", "url"]
+    },
+    "teachingSchedule": {
+      "title": "TeachingSchedule",
+      "description": "A teacher's scheduled class period for a specific day, period, subject, and room",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique schedule ID",
+          "maxLength": 128
+        },
+        "teacherId": {
+          "type": "string",
+          "description": "Teacher profile ID",
+          "maxLength": 128
+        },
+        "teacherCode": {
+          "type": "string",
+          "description": "Teacher code",
+          "maxLength": 64
+        },
+        "teacherName": {
+          "type": "string",
+          "description": "Teacher full name",
+          "maxLength": 200
+        },
+        "dayOfWeek": {
+          "type": "string",
+          "description": "Day of week",
+          "enum": ["monday", "tuesday", "wednesday", "thursday", "friday"],
+          "maxLength": 20
+        },
+        "period": {
+          "type": "number",
+          "description": "Period number (0-12, where 0 represents break/lunch period)"
+        },
+        "startTime": {
+          "type": "string",
+          "description": "Start time HH:mm",
+          "maxLength": 20
+        },
+        "endTime": {
+          "type": "string",
+          "description": "End time HH:mm",
+          "maxLength": 20
+        },
+        "subject": {
+          "type": "string",
+          "description": "Subject name",
+          "maxLength": 100
+        },
+        "gradeLevel": {
+          "type": "string",
+          "description": "Target room or grade level (e.g. ม.3/1)",
+          "maxLength": 50
+        },
+        "classroom": {
+          "type": "string",
+          "description": "Physical classroom or lab name",
+          "maxLength": 100
+        },
+        "note": {
+          "type": "string",
+          "description": "Optional note",
+          "maxLength": 500
+        }
+      },
+      "required": ["id", "teacherId", "teacherCode", "teacherName", "dayOfWeek", "period", "startTime", "endTime", "subject", "gradeLevel"]
+    },
+    "attendanceSession": {
+      "title": "AttendanceSession",
+      "description": "Classroom attendance check-in record for a specific date and teaching period",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique attendance session ID",
+          "maxLength": 128
+        },
+        "scheduleId": {
+          "type": "string",
+          "description": "Reference teaching schedule ID",
+          "maxLength": 128
+        },
+        "date": {
+          "type": "string",
+          "description": "Session date YYYY-MM-DD",
+          "maxLength": 20
+        },
+        "dayOfWeek": {
+          "type": "string",
+          "description": "Day of week",
+          "enum": ["monday", "tuesday", "wednesday", "thursday", "friday"],
+          "maxLength": 20
+        },
+        "period": {
+          "type": "number",
+          "description": "Period number"
+        },
+        "startTime": {
+          "type": "string",
+          "description": "Start time",
+          "maxLength": 20
+        },
+        "endTime": {
+          "type": "string",
+          "description": "End time",
+          "maxLength": 20
+        },
+        "subject": {
+          "type": "string",
+          "description": "Subject name",
+          "maxLength": 100
+        },
+        "gradeLevel": {
+          "type": "string",
+          "description": "Grade level and room",
+          "maxLength": 50
+        },
+        "teacherId": {
+          "type": "string",
+          "description": "Teacher profile ID",
+          "maxLength": 128
+        },
+        "teacherCode": {
+          "type": "string",
+          "description": "Teacher code",
+          "maxLength": 64
+        },
+        "teacherName": {
+          "type": "string",
+          "description": "Teacher full name",
+          "maxLength": 200
+        },
+        "topicTaught": {
+          "type": "string",
+          "description": "Lesson topic taught in this period",
+          "maxLength": 500
+        },
+        "records": {
+          "type": "array",
+          "description": "List of student attendance records"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Last update ISO timestamp",
+          "maxLength": 100
+        }
+      },
+      "required": ["id", "date", "dayOfWeek", "period", "subject", "gradeLevel", "teacherId", "teacherCode", "teacherName", "records", "updatedAt"]
     }
   },
   "firestore": {
@@ -280,6 +434,18 @@
         "$ref": "#/entities/learningResource"
       },
       "description": "Learning media library for students and teachers"
+    },
+    "/teachingSchedules/{scheduleId}": {
+      "schema": {
+        "$ref": "#/entities/teachingSchedule"
+      },
+      "description": "Teacher weekly teaching schedules per subject and classroom"
+    },
+    "/attendanceSessions/{sessionId}": {
+      "schema": {
+        "$ref": "#/entities/attendanceSession"
+      },
+      "description": "Daily classroom attendance check-in records linked to teaching schedules"
     }
   }
 }

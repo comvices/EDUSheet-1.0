@@ -229,24 +229,26 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
 
           {/* Grade & Subject Selectors */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Grade Level Filter */}
-            <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl">
-              <GraduationCap className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
-              <select
-                value={selectedGrade}
-                onChange={(e) => setSelectedGrade(e.target.value)}
-                className="bg-transparent text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-hidden cursor-pointer"
-              >
-                <option value="ทั้งหมด">ระดับชั้น: ทั้งหมด</option>
-                {gradeLevelsList
-                  .filter((g) => g !== 'ทั้งหมด')
-                  .map((gl) => (
-                    <option key={gl} value={gl}>
-                      {gl}
-                    </option>
-                  ))}
-              </select>
-            </div>
+            {/* Grade Level Filter (Teacher Only) */}
+            {role === 'teacher' && (
+              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl">
+                <GraduationCap className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                <select
+                  value={selectedGrade}
+                  onChange={(e) => setSelectedGrade(e.target.value)}
+                  className="bg-transparent text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-hidden cursor-pointer"
+                >
+                  <option value="ทั้งหมด">ระดับชั้น: ทั้งหมด</option>
+                  {gradeLevelsList
+                    .filter((g) => g !== 'ทั้งหมด')
+                    .map((gl) => (
+                      <option key={gl} value={gl}>
+                        {gl}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            )}
 
             {/* Subject Filter */}
             <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl">

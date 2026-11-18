@@ -1,4 +1,4 @@
-import { Assignment, Submission, NotificationItem, StudentProfile, TeacherProfile, LearningResource } from '../types';
+import { Assignment, Submission, NotificationItem, StudentProfile, TeacherProfile, LearningResource, DayOfWeek, PeriodConfig, TeachingSchedule, AttendanceSession } from '../types';
 import teacherAvatar from '../assets/images/teacher_avatar_1794303087146.jpg';
 import studentAvatar from '../assets/images/student_avatar_1794303088072.jpg';
 
@@ -926,3 +926,161 @@ export const INITIAL_LEARNING_RESOURCES: LearningResource[] = [
     teacherName: 'ครู สมชาย พากเพียร',
   },
 ];
+
+export const DAYS_OF_WEEK_LIST: {
+  id: DayOfWeek;
+  label: string;
+  shortLabel: string;
+  jsDay: number;
+  badgeClass: string;
+}[] = [
+  { id: 'monday', label: 'วันจันทร์', shortLabel: 'จ.', jsDay: 1, badgeClass: 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200 dark:border-amber-800' },
+  { id: 'tuesday', label: 'วันอังคาร', shortLabel: 'อ.', jsDay: 2, badgeClass: 'bg-pink-100 text-pink-800 dark:bg-pink-950/60 dark:text-pink-300 border-pink-200 dark:border-pink-800' },
+  { id: 'wednesday', label: 'วันพุธ', shortLabel: 'พ.', jsDay: 3, badgeClass: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' },
+  { id: 'thursday', label: 'วันพฤหัสบดี', shortLabel: 'พฤ.', jsDay: 4, badgeClass: 'bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300 border-orange-200 dark:border-orange-800' },
+  { id: 'friday', label: 'วันศุกร์', shortLabel: 'ศ.', jsDay: 5, badgeClass: 'bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300 border-sky-200 dark:border-sky-800' },
+];
+
+export const DEFAULT_PERIOD_CONFIGS: PeriodConfig[] = [
+  { id: 'p_1', period: 1, label: 'คาบที่ 1', startTime: '08:30', endTime: '09:20', isBreak: false },
+  { id: 'p_2', period: 2, label: 'คาบที่ 2', startTime: '09:20', endTime: '10:10', isBreak: false },
+  { id: 'p_3', period: 3, label: 'คาบที่ 3', startTime: '10:10', endTime: '11:00', isBreak: false },
+  { id: 'p_4', period: 4, label: 'คาบที่ 4', startTime: '11:00', endTime: '11:50', isBreak: false },
+  { id: 'p_lunch', period: 0, label: 'พักเที่ยง', startTime: '11:50', endTime: '12:50', isBreak: true },
+  { id: 'p_5', period: 5, label: 'คาบที่ 5', startTime: '12:50', endTime: '13:40', isBreak: false },
+  { id: 'p_6', period: 6, label: 'คาบที่ 6', startTime: '13:40', endTime: '14:30', isBreak: false },
+  { id: 'p_7', period: 7, label: 'คาบที่ 7', startTime: '14:30', endTime: '15:20', isBreak: false },
+  { id: 'p_8', period: 8, label: 'คาบที่ 8', startTime: '15:20', endTime: '16:10', isBreak: false },
+];
+
+export const STANDARD_PERIODS: { period: number; startTime: string; endTime: string; label: string; isBreak?: boolean }[] =
+  DEFAULT_PERIOD_CONFIGS.map((p) => ({
+    period: p.period,
+    startTime: p.startTime,
+    endTime: p.endTime,
+    label: `${p.label} (${p.startTime} - ${p.endTime})`,
+    isBreak: p.isBreak,
+  }));
+
+export const INITIAL_TEACHING_SCHEDULES: TeachingSchedule[] = [
+  {
+    id: 'sch_001',
+    teacherId: 'tch_001',
+    teacherCode: 'TCH-001',
+    teacherName: 'ครู อัญชลี รัตนอุบล',
+    dayOfWeek: 'monday',
+    period: 1,
+    startTime: '08:30',
+    endTime: '09:20',
+    subject: 'วิทยาศาสตร์',
+    gradeLevel: 'ม.3/1',
+    classroom: 'ห้องปฏิบัติการวิทย์ 1',
+  },
+  {
+    id: 'sch_002',
+    teacherId: 'tch_001',
+    teacherCode: 'TCH-001',
+    teacherName: 'ครู อัญชลี รัตนอุบล',
+    dayOfWeek: 'monday',
+    period: 3,
+    startTime: '10:20',
+    endTime: '11:10',
+    subject: 'วิทยาศาสตร์',
+    gradeLevel: 'ม.3/2',
+    classroom: 'ห้องปฏิบัติการวิทย์ 1',
+  },
+  {
+    id: 'sch_003',
+    teacherId: 'tch_001',
+    teacherCode: 'TCH-001',
+    teacherName: 'ครู อัญชลี รัตนอุบล',
+    dayOfWeek: 'tuesday',
+    period: 2,
+    startTime: '09:20',
+    endTime: '10:10',
+    subject: 'วิทยาศาสตร์',
+    gradeLevel: 'ม.3/1',
+    classroom: 'ห้อง 312',
+  },
+  {
+    id: 'sch_004',
+    teacherId: 'tch_001',
+    teacherCode: 'TCH-001',
+    teacherName: 'ครู อัญชลี รัตนอุบล',
+    dayOfWeek: 'wednesday',
+    period: 4,
+    startTime: '11:10',
+    endTime: '12:00',
+    subject: 'วิทยาศาสตร์',
+    gradeLevel: 'ม.5/1',
+    classroom: 'ห้องฟิสิกส์ 2',
+  },
+  {
+    id: 'sch_005',
+    teacherId: 'tch_001',
+    teacherCode: 'TCH-001',
+    teacherName: 'ครู อัญชลี รัตนอุบล',
+    dayOfWeek: 'thursday',
+    period: 1,
+    startTime: '08:30',
+    endTime: '09:20',
+    subject: 'วิทยาศาสตร์',
+    gradeLevel: 'ม.3/1',
+    classroom: 'ห้องปฏิบัติการวิทย์ 1',
+  },
+  {
+    id: 'sch_006',
+    teacherId: 'tch_001',
+    teacherCode: 'TCH-001',
+    teacherName: 'ครู อัญชลี รัตนอุบล',
+    dayOfWeek: 'friday',
+    period: 5,
+    startTime: '13:00',
+    endTime: '13:50',
+    subject: 'วิทยาศาสตร์',
+    gradeLevel: 'ม.3/2',
+    classroom: 'ห้อง 314',
+  },
+  {
+    id: 'sch_007',
+    teacherId: 'tch_002',
+    teacherCode: 'TCH-002',
+    teacherName: 'ครู สมชาย พากเพียร',
+    dayOfWeek: 'monday',
+    period: 2,
+    startTime: '09:20',
+    endTime: '10:10',
+    subject: 'คณิตศาสตร์',
+    gradeLevel: 'ม.3/1',
+    classroom: 'ห้อง 311',
+  },
+  {
+    id: 'sch_008',
+    teacherId: 'tch_002',
+    teacherCode: 'TCH-002',
+    teacherName: 'ครู สมชาย พากเพียร',
+    dayOfWeek: 'wednesday',
+    period: 2,
+    startTime: '09:20',
+    endTime: '10:10',
+    subject: 'คณิตศาสตร์',
+    gradeLevel: 'ม.2/1',
+    classroom: 'ห้อง 211',
+  },
+  {
+    id: 'sch_009',
+    teacherId: 'tch_002',
+    teacherCode: 'TCH-002',
+    teacherName: 'ครู สมชาย พากเพียร',
+    dayOfWeek: 'friday',
+    period: 1,
+    startTime: '08:30',
+    endTime: '09:20',
+    subject: 'คณิตศาสตร์',
+    gradeLevel: 'ม.3/1',
+    classroom: 'ห้อง 311',
+  },
+];
+
+export const INITIAL_ATTENDANCE_SESSIONS: AttendanceSession[] = [];
+

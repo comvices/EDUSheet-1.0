@@ -1,12 +1,51 @@
 import React, { useState } from 'react';
-import { X, Sparkles, Award, CheckCircle, RotateCcw, MessageSquare, AlertCircle, User } from 'lucide-react';
+import {
+  X,
+  Sparkles,
+  Award,
+  CheckCircle,
+  RotateCcw,
+  AlertCircle,
+  User,
+  CheckCircle2,
+  XCircle,
+  MinusCircle,
+  HelpCircle,
+  Loader2,
+  Paperclip,
+} from 'lucide-react';
 import { Assignment, Submission } from '../types';
+
+interface ItemFeedbackResult {
+  questionIndex: number;
+  questionId?: string;
+  status: 'correct' | 'partial' | 'incorrect' | 'unanswered';
+  score: number;
+  maxScore: number;
+  comment: string;
+}
+
+interface AiFeedbackResult {
+  suggestedScore: number;
+  maxPoints?: number;
+  recommendedStatus?: 'graded' | 'needs_revision';
+  overallFeedback: string;
+  strengths?: string[];
+  improvements?: string[];
+  itemFeedback?: ItemFeedbackResult[];
+}
 
 interface TeacherGradingModalProps {
   assignment: Assignment;
   submission?: Submission;
   onClose: () => void;
-  onSaveGrade: (submissionId: string, score: number, comment: string, status: 'graded' | 'needs_revision') => void;
+  onSaveGrade: (
+    submissionId: string,
+    score: number,
+    comment: string,
+    status: 'graded' | 'needs_revision',
+    aiGraded?: boolean
+  ) => void;
 }
 
 export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
@@ -15,71 +54,144 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
   onClose,
   onSaveGrade,
 }) => {
-  const defaultScore = submission?.score ?? Math.round(assignment.totalPoints * 0.9);
+  const defaultScore = submission?.score !== undefined ? submission.score : 0;
   const [score, setScore] = useState<number>(defaultScore);
-  const [teacherComment, setTeacherComment] = useState<string>(
-    submission?.teacherComment || 'ตอบคำถามได้ถูกต้องตามหลักการและอธิบายเหตุผลประกอบได้ชัดเจนครับ'
-  );
+  const [teacherComment, setTeacherComment] = useState<string>(submission?.teacherComment || '');
 
   const [isAiGrading, setIsAiGrading] = useState(false);
-  const [aiFeedbackResult, setAiFeedbackResult] = useState<any | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiFeedbackResult, setAiFeedbackResult] = useState<AiFeedbackResult | null>(null);
+  const [usedAiGrading, setUsedAiGrading] = useState<boolean>(Boolean(submission?.aiGraded));
 
   // Call server-side Gemini AI for Auto-Grading assistance
   const handleRunAiGrading = async () => {
+    if (!submission) {
+      setAiError('ไม่พบข้อมูลการส่งงานของนักเรียนรายนี้');
+      return;
+    }
+
     setIsAiGrading(true);
+    setAiError(null);
+
     try {
       const res = await fetch('/api/ai/grade', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           assignmentTitle: assignment.title,
+          subject: assignment.subject,
+          gradeLevel: assignment.gradeLevel,
           instructions: assignment.instructions,
           questions: assignment.questions,
-          answers: submission?.answers || {},
+          answers: submission.answers || {},
+          files: submission.files || [],
           maxPoints: assignment.totalPoints,
         }),
       });
+
       const data = await res.json();
-      if (data.success && data.result) {
-        setAiFeedbackResult(data.result);
-        if (data.result.suggestedScore !== undefined) {
-          setScore(data.result.suggestedScore);
-        }
-        if (data.result.overallFeedback) {
-          setTeacherComment(data.result.overallFeedback);
-        }
-      } else {
-        throw new Error('AI grading response not successful');
+      if (!res.ok || !data.success || !data.result) {
+        throw new Error(data?.message || data?.error || 'ไม่สามารถประเมินคำตอบด้วย AI ได้');
       }
-    } catch (err) {
-      console.warn('AI Grading fallback evaluation:', err);
-      const fallbackScore = Math.max(Math.round(assignment.totalPoints * 0.9), 1);
-      setScore(fallbackScore);
-      setTeacherComment('ตอบคำถามได้ตรงประเด็นและมีความเข้าใจในเนื้อหาเป็นอย่างดี ข้อความอธิบายชัดเจนและมีโครงสร้างความคิดที่ถูกต้อง');
-      setAiFeedbackResult({
-        suggestedScore: fallbackScore,
-        overallFeedback: 'นักเรียนมีความเข้าใจในกระบวนการสำคัญ อธิบายขั้นตอนและบทบาทของสารที่เกี่ยวข้องได้ครบถ้วน ชื่นชมในความตั้งใจครับ',
-        evaluationPoints: [
-          'ตอบคำถามได้ถูกต้องตามหลักการวิชาการ',
-          'ยกตัวอย่างและอธิบายเชื่อมโยงได้ชัดเจน',
-          'ภาษาที่ใช้ในการสื่อสารเหมาะสมและเป็นระเบียบ',
-        ],
-      });
+
+      const result: AiFeedbackResult = data.result;
+      setAiFeedbackResult(result);
+      setUsedAiGrading(true);
+
+      if (typeof result.suggestedScore === 'number') {
+        setScore(result.suggestedScore);
+      }
+      if (result.overallFeedback) {
+        setTeacherComment(result.overallFeedback);
+      }
+    } catch (err: any) {
+      console.error('AI Grading error:', err);
+      setAiError(
+        err?.message ||
+          'เกิดข้อผิดพลาดในการเชื่อมต่อระบบ AI กรุณาตรวจสอบการตั้งค่า GEMINI_API_KEY หรือลองใหม่อีกครั้ง'
+      );
     } finally {
       setIsAiGrading(false);
     }
   };
 
+  // Allow teacher to adjust individual item score and automatically recalculate total score
+  const handleAdjustItemScore = (questionIndex: number, newItemScore: number) => {
+    if (!aiFeedbackResult?.itemFeedback) return;
+
+    const updatedItems = aiFeedbackResult.itemFeedback.map((item) => {
+      if (item.questionIndex !== questionIndex) return item;
+      const clamped = Math.max(0, Math.min(item.maxScore, Number.isFinite(newItemScore) ? newItemScore : 0));
+      let nextStatus: ItemFeedbackResult['status'] = item.status;
+      if (clamped >= item.maxScore && item.maxScore > 0) nextStatus = 'correct';
+      else if (clamped > 0) nextStatus = 'partial';
+      else if (item.status !== 'unanswered') nextStatus = 'incorrect';
+
+      return {
+        ...item,
+        score: clamped,
+        status: nextStatus,
+      };
+    });
+
+    const sumItems = updatedItems.reduce((acc, it) => acc + it.score, 0);
+    const sumQuestionMax = assignment.questions.reduce((acc, q) => acc + (Number(q.maxPoints) || 0), 0);
+    let nextTotal = sumItems;
+    if (sumQuestionMax > 0 && assignment.totalPoints !== sumQuestionMax) {
+      nextTotal = (sumItems / sumQuestionMax) * assignment.totalPoints;
+    }
+    nextTotal = Math.max(0, Math.min(assignment.totalPoints, Math.round(nextTotal * 2) / 2));
+
+    setAiFeedbackResult({
+      ...aiFeedbackResult,
+      suggestedScore: nextTotal,
+      itemFeedback: updatedItems,
+    });
+    setScore(nextTotal);
+  };
+
   const handleApproveGrade = () => {
     if (!submission) return;
-    onSaveGrade(submission.id, score, teacherComment, 'graded');
+    const clampedScore = Math.max(0, Math.min(assignment.totalPoints, Number(score) || 0));
+    onSaveGrade(submission.id, clampedScore, teacherComment, 'graded', usedAiGrading);
     onClose();
   };
 
   const handleRequestRevision = () => {
     if (!submission) return;
-    onSaveGrade(submission.id, score, teacherComment, 'needs_revision');
+    const clampedScore = Math.max(0, Math.min(assignment.totalPoints, Number(score) || 0));
+    onSaveGrade(submission.id, clampedScore, teacherComment, 'needs_revision', usedAiGrading);
     onClose();
+  };
+
+  const getItemBadge = (item: ItemFeedbackResult) => {
+    switch (item.status) {
+      case 'correct':
+        return {
+          cls: 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
+          icon: <CheckCircle2 className="w-3.5 h-3.5" />,
+          label: 'ถูกต้อง',
+        };
+      case 'partial':
+        return {
+          cls: 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+          icon: <MinusCircle className="w-3.5 h-3.5" />,
+          label: 'ถูกบางส่วน',
+        };
+      case 'unanswered':
+        return {
+          cls: 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700',
+          icon: <HelpCircle className="w-3.5 h-3.5" />,
+          label: 'ไม่ได้ตอบ',
+        };
+      case 'incorrect':
+      default:
+        return {
+          cls: 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800',
+          icon: <XCircle className="w-3.5 h-3.5" />,
+          label: 'ไม่ถูกต้อง',
+        };
+    }
   };
 
   return (
@@ -102,7 +214,7 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg transition-colors"
+            className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -118,34 +230,63 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
               </div>
               <div>
                 <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-                  {submission?.studentName || 'ด.ญ. กัญญาพัชร วงศ์สว่าง'}
+                  {submission?.studentName || 'ไม่พบข้อมูลนักเรียน'}
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  รหัสประจำตัว: {submission?.studentCode || 'ST-68042'} · ชั้น {assignment.gradeLevel}
+                  รหัสประจำตัว: {submission?.studentCode || '-'} · ชั้น {submission?.gradeLevel || assignment.gradeLevel}
                 </p>
               </div>
             </div>
 
             <div className="text-right text-xs text-slate-500 dark:text-slate-400">
-              <p>ส่งเมื่อ: {submission?.submissionDate ? new Date(submission.submissionDate).toLocaleString('th-TH') : 'วันนี้ 10:15 น.'}</p>
+              <p>
+                ส่งเมื่อ:{' '}
+                {submission?.submissionDate
+                  ? new Date(submission.submissionDate).toLocaleString('th-TH')
+                  : '-'}
+              </p>
               <p className="font-semibold text-indigo-600 dark:text-indigo-400">
                 คะแนนเต็ม {assignment.totalPoints} คะแนน
               </p>
             </div>
           </div>
 
+          {/* Attached Files if any */}
+          {submission?.files && submission.files.length > 0 && (
+            <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300">
+                <Paperclip className="w-3.5 h-3.5 text-indigo-500" />
+                <span>ไฟล์แนบจากนักเรียน ({submission.files.length} ไฟล์):</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {submission.files.map((f, i) => (
+                  <a
+                    key={i}
+                    href={f.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
+                  >
+                    <span>{f.name}</span>
+                    {f.size && <span className="text-[10px] text-slate-400">({f.size})</span>}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* AI Grading Trigger Banner */}
           <div className="p-4 bg-gradient-to-r from-violet-600 to-indigo-600 rounded-xl text-white shadow-md flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-white/20 rounded-xl backdrop-blur">
-                <Sparkles className="w-6 h-6 text-yellow-300 animate-bounce" />
+                <Sparkles className="w-6 h-6 text-yellow-300" />
               </div>
               <div>
                 <h4 className="text-sm font-bold font-prompt">
-                  ระบบช่วยตรวจใบงานอัตโนมัติด้วย Gemini AI
+                  ระบบช่วยตรวจใบงานอัตโนมัติด้วย Gemini AI (ตรวจละเอียดรายข้อ)
                 </h4>
                 <p className="text-xs text-violet-100">
-                  วิเคราะห์คำตอบของนักเรียนเทียบกับเฉลย ให้ข้อติชมเชิงบวก และเสนอแนะคะแนนให้ครูพิจารณาใน 1 คลิก
+                  ตรวจเทียบเฉลยทีละข้อ คำนวณคะแนนตามเกณฑ์จริง แจกแจงเหตุผลรายข้อ และสรุปคำแนะนำให้ครูตรวจสอบ
                 </p>
               </div>
             </div>
@@ -153,31 +294,65 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
             <button
               type="button"
               onClick={handleRunAiGrading}
-              disabled={isAiGrading}
-              className="px-4 py-2 bg-white text-indigo-700 hover:bg-indigo-50 text-xs font-bold rounded-lg shadow-sm transition-all shrink-0 cursor-pointer disabled:opacity-50"
+              disabled={isAiGrading || !submission}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-white text-indigo-700 hover:bg-indigo-50 text-xs font-bold rounded-lg shadow-sm transition-all shrink-0 cursor-pointer disabled:opacity-50"
             >
-              {isAiGrading ? 'กำลังวิเคราะห์ด้วย AI...' : '🤖 ให้ AI ช่วยตรวจใบงาน'}
+              {isAiGrading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>{isAiGrading ? 'กำลังตรวจทีละข้อด้วย AI...' : '🤖 ให้ AI ช่วยตรวจใบงาน'}</span>
             </button>
           </div>
 
+          {/* Honest AI Error Callout */}
+          {aiError && (
+            <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl flex items-start gap-3 animate-in fade-in duration-200">
+              <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+              <div className="text-xs space-y-1">
+                <p className="font-bold text-rose-800 dark:text-rose-200">
+                  ไม่สามารถประเมินผลด้วย AI ได้
+                </p>
+                <p className="text-rose-700 dark:text-rose-300">{aiError}</p>
+              </div>
+            </div>
+          )}
+
           {/* AI Results Callout if available */}
           {aiFeedbackResult && (
-            <div className="p-4 bg-violet-50 dark:bg-violet-950/40 border border-violet-200 dark:border-violet-800 rounded-xl space-y-2 animate-in fade-in duration-200">
-              <div className="flex items-center justify-between font-bold text-xs text-violet-900 dark:text-violet-200">
-                <span>✨ ผลการวิเคราะห์จาก Gemini AI</span>
-                <span className="font-mono text-indigo-600 dark:text-indigo-400">
-                  คะแนนที่แนะนำ: {aiFeedbackResult.suggestedScore} / {assignment.totalPoints}
+            <div className="p-4 bg-violet-50 dark:bg-violet-950/40 border border-violet-200 dark:border-violet-800 rounded-xl space-y-2.5 animate-in fade-in duration-200">
+              <div className="flex flex-wrap items-center justify-between gap-2 font-bold text-xs text-violet-900 dark:text-violet-200">
+                <span className="flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                  ผลการวิเคราะห์จาก Gemini AI (ตรวจเทียบเกณฑ์รายข้อ)
                 </span>
+                <div className="flex items-center gap-2">
+                  {aiFeedbackResult.recommendedStatus === 'needs_revision' && (
+                    <span className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 text-[11px] font-semibold">
+                      แนะนำ: ส่งกลับแก้ไข
+                    </span>
+                  )}
+                  <span className="font-mono text-indigo-700 dark:text-indigo-300 bg-white dark:bg-slate-900 px-2.5 py-0.5 rounded-lg border border-violet-200 dark:border-violet-800">
+                    คะแนนที่แนะนำ: {aiFeedbackResult.suggestedScore} / {assignment.totalPoints}
+                  </span>
+                </div>
               </div>
-              <p className="text-xs text-slate-700 dark:text-slate-300">
+
+              <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 leading-relaxed">
                 {aiFeedbackResult.overallFeedback}
               </p>
 
-              {aiFeedbackResult.strengths && (
+              {aiFeedbackResult.strengths && aiFeedbackResult.strengths.length > 0 && (
                 <div className="text-xs">
                   <span className="font-semibold text-emerald-700 dark:text-emerald-400">จุดแข็ง: </span>
                   <span className="text-slate-600 dark:text-slate-300">
-                    {aiFeedbackResult.strengths.join(', ')}
+                    {aiFeedbackResult.strengths.join(' · ')}
+                  </span>
+                </div>
+              )}
+
+              {aiFeedbackResult.improvements && aiFeedbackResult.improvements.length > 0 && (
+                <div className="text-xs">
+                  <span className="font-semibold text-amber-700 dark:text-amber-400">ควรปรับปรุงเพิ่มเติม: </span>
+                  <span className="text-slate-600 dark:text-slate-300">
+                    {aiFeedbackResult.improvements.join(' · ')}
                   </span>
                 </div>
               )}
@@ -192,18 +367,33 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
 
             {assignment.questions.map((q, idx) => {
               const studentAnswer = submission?.answers?.[q.id] || '(ยังไม่ได้ระบุคำตอบ)';
+              const itemEval = aiFeedbackResult?.itemFeedback?.find(
+                (it) => it.questionIndex === idx || it.questionId === q.id
+              );
+              const badge = itemEval ? getItemBadge(itemEval) : null;
+
               return (
                 <div
                   key={q.id}
-                  className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-xl space-y-2 text-xs"
+                  className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-xl space-y-2.5 text-xs"
                 >
-                  <div className="flex items-center justify-between font-semibold text-slate-900 dark:text-white">
-                    <span>
+                  <div className="flex flex-wrap items-center justify-between gap-2 font-semibold text-slate-900 dark:text-white">
+                    <span className="text-sm">
                       ข้อ {idx + 1}. {q.text}
                     </span>
-                    <span className="font-mono text-slate-500 font-normal">
-                      ({q.maxPoints} คะแนน)
-                    </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {badge && itemEval && (
+                        <span
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${badge.cls}`}
+                        >
+                          {badge.icon}
+                          <span>{badge.label}</span>
+                        </span>
+                      )}
+                      <span className="font-mono text-slate-500 font-normal">
+                        ({q.maxPoints} คะแนน)
+                      </span>
+                    </div>
                   </div>
 
                   {/* Student Answer */}
@@ -219,6 +409,32 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
                     <div className="p-3 bg-emerald-50/60 dark:bg-emerald-950/30 rounded-xl border border-emerald-100 dark:border-emerald-900/40 text-emerald-900 dark:text-emerald-300 text-xs sm:text-sm">
                       <span className="font-semibold block mb-0.5">เฉลย/เกณฑ์การตรวจ:</span>
                       <p className="leading-relaxed">{q.answerKey}</p>
+                    </div>
+                  )}
+
+                  {/* Per-question AI Evaluation & Editable Score */}
+                  {itemEval && (
+                    <div className="p-3 bg-violet-50/80 dark:bg-violet-950/30 rounded-xl border border-violet-200 dark:border-violet-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="text-xs text-violet-950 dark:text-violet-200 space-y-0.5">
+                        <span className="font-bold text-violet-700 dark:text-violet-300 block">
+                          🤖 ความเห็น AI ข้อที่ {idx + 1}:
+                        </span>
+                        <p className="leading-relaxed">{itemEval.comment}</p>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0 bg-white dark:bg-slate-900 px-2.5 py-1.5 rounded-lg border border-violet-200 dark:border-violet-800">
+                        <span className="text-[11px] font-semibold text-slate-500">คะแนนข้อนี้:</span>
+                        <input
+                          type="number"
+                          step="0.5"
+                          min={0}
+                          max={itemEval.maxScore}
+                          value={itemEval.score}
+                          onChange={(e) => handleAdjustItemScore(idx, Number(e.target.value))}
+                          className="w-14 px-1.5 py-0.5 text-center font-mono font-bold text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-indigo-700 dark:text-indigo-300"
+                        />
+                        <span className="text-xs font-mono text-slate-500">/ {itemEval.maxScore}</span>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -240,6 +456,7 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
                 </label>
                 <input
                   type="number"
+                  step="0.5"
                   min={0}
                   max={assignment.totalPoints}
                   value={score}
@@ -269,7 +486,7 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors"
+            className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
           >
             ยกเลิก
           </button>
@@ -278,7 +495,8 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
             <button
               type="button"
               onClick={handleRequestRevision}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
+              disabled={!submission}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer disabled:opacity-50"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>ส่งกลับให้แก้ไข</span>
@@ -287,7 +505,8 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
             <button
               type="button"
               onClick={handleApproveGrade}
-              className="inline-flex items-center gap-1.5 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-md transition-colors cursor-pointer"
+              disabled={!submission}
+              className="inline-flex items-center gap-1.5 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-md transition-colors cursor-pointer disabled:opacity-50"
             >
               <CheckCircle className="w-3.5 h-3.5" />
               <span>อนุมัติ & บันทึกการตรวจ</span>

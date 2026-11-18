@@ -20,6 +20,7 @@ import {
   Moon,
   Sun,
   FolderOpen,
+  ClipboardCheck,
 } from 'lucide-react';
 import { UserRole, StudentProfile, TeacherProfile } from '../types';
 
@@ -126,10 +127,10 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
 
             {/* Zone 2: Navigation Links (Desktop) */}
-            <nav className="hidden lg:flex items-center gap-1 xl:gap-2 font-medium text-sm text-slate-600 dark:text-slate-300">
+            <nav className="hidden lg:flex items-center gap-0.5 xl:gap-1 font-medium text-xs xl:text-sm text-slate-600 dark:text-slate-300">
               <button
                 onClick={() => handleTabClick('home')}
-                className={`px-3 py-2 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                className={`px-2.5 py-2 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                   activeTab === 'home'
                     ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold'
                     : 'hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -139,7 +140,7 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
               <button
                 onClick={() => handleTabClick('grades')}
-                className={`px-3 py-2 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                className={`px-2.5 py-2 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                   activeTab === 'grades'
                     ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold'
                     : 'hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -149,7 +150,7 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
               <button
                 onClick={() => handleTabClick('subjects')}
-                className={`px-3 py-2 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                className={`px-2.5 py-2 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                   activeTab === 'subjects'
                     ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold'
                     : 'hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -159,7 +160,7 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
               <button
                 onClick={() => handleTabClick('statuses')}
-                className={`px-3 py-2 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                className={`px-2.5 py-2 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                   activeTab === 'statuses'
                     ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold'
                     : 'hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -169,7 +170,7 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
               <button
                 onClick={() => handleTabClick('resources')}
-                className={`px-3 py-2 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                className={`px-2.5 py-2 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
                   activeTab === 'resources'
                     ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold'
                     : 'hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -177,6 +178,17 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <FolderOpen className="w-4 h-4 text-rose-500" />
                 <span>คลังสื่อเรียนรู้</span>
+              </button>
+              <button
+                onClick={() => handleTabClick('attendance')}
+                className={`px-2.5 py-2 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === 'attendance'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-semibold'
+                    : 'hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <ClipboardCheck className="w-4 h-4 text-emerald-500" />
+                <span>เช็คชื่อเรียน</span>
               </button>
             </nav>
 
@@ -321,11 +333,21 @@ export const Header: React.FC<HeaderProps> = ({
               {/* Account Status / Logged In User Pill */}
               {isLoggedIn ? (
                 <div className="hidden md:flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-slate-800">
-                  <img
-                    src={role === 'student' ? student.avatar : teacher.avatar}
-                    alt="Profile Avatar"
-                    className="w-8 h-8 rounded-full object-cover ring-2 ring-indigo-500/30 shrink-0"
-                  />
+                  {(role === 'student' ? student.avatar : teacher.avatar) ? (
+                    <img
+                      src={role === 'student' ? student.avatar : teacher.avatar}
+                      alt="Profile Avatar"
+                      className="w-8 h-8 rounded-full object-cover ring-2 ring-indigo-500/30 shrink-0"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-600 text-white flex items-center justify-center ring-2 ring-indigo-500/30 shrink-0">
+                      {role === 'student' ? (
+                        <GraduationCap className="w-4 h-4" />
+                      ) : (
+                        <UserCheck className="w-4 h-4" />
+                      )}
+                    </div>
+                  )}
                   <div className="text-left text-xs">
                     <p className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[110px]">
                       {role === 'student' ? student.name : teacher.name}
@@ -372,11 +394,21 @@ export const Header: React.FC<HeaderProps> = ({
             {isLoggedIn ? (
               <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700">
                 <div className="flex items-center gap-3">
-                  <img
-                    src={role === 'student' ? student.avatar : teacher.avatar}
-                    alt=""
-                    className="w-10 h-10 rounded-full object-cover ring-2 ring-indigo-500"
-                  />
+                  {(role === 'student' ? student.avatar : teacher.avatar) ? (
+                    <img
+                      src={role === 'student' ? student.avatar : teacher.avatar}
+                      alt=""
+                      className="w-10 h-10 rounded-full object-cover ring-2 ring-indigo-500"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-600 text-white flex items-center justify-center ring-2 ring-indigo-500 shrink-0">
+                      {role === 'student' ? (
+                        <GraduationCap className="w-5 h-5" />
+                      ) : (
+                        <UserCheck className="w-5 h-5" />
+                      )}
+                    </div>
+                  )}
                   <div>
                     <p className="font-bold text-xs text-slate-900 dark:text-white">
                       {role === 'student' ? student.name : teacher.name}
@@ -465,14 +497,26 @@ export const Header: React.FC<HeaderProps> = ({
 
                 <button
                   onClick={() => handleTabClick('resources')}
-                  className={`py-2 px-3 rounded-xl text-xs font-semibold flex items-center gap-2 border transition-colors cursor-pointer col-span-2 ${
+                  className={`py-2 px-3 rounded-xl text-xs font-semibold flex items-center gap-2 border transition-colors cursor-pointer ${
                     activeTab === 'resources'
                       ? 'bg-rose-50 dark:bg-rose-950/60 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 font-bold'
                       : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
                   }`}
                 >
                   <FolderOpen className="w-4 h-4 text-rose-600" />
-                  <span>คลังสื่อเรียนรู้ประจำวิชา (ม.1-6)</span>
+                  <span>คลังสื่อเรียนรู้</span>
+                </button>
+
+                <button
+                  onClick={() => handleTabClick('attendance')}
+                  className={`py-2 px-3 rounded-xl text-xs font-semibold flex items-center gap-2 border transition-colors cursor-pointer ${
+                    activeTab === 'attendance'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold'
+                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <ClipboardCheck className="w-4 h-4 text-emerald-600" />
+                  <span>เช็คชื่อเรียน</span>
                 </button>
               </div>
             </div>
@@ -605,20 +649,20 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
 
         <button
-          onClick={() => handleTabClick('subjects')}
-          className={`flex flex-col items-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
-            activeTab === 'subjects'
-              ? 'text-indigo-600 dark:text-indigo-400 font-bold'
+          onClick={() => handleTabClick('attendance')}
+          className={`flex flex-col items-center py-1 px-2 rounded-xl transition-all cursor-pointer ${
+            activeTab === 'attendance'
+              ? 'text-emerald-600 dark:text-emerald-400 font-bold'
               : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
-          <BookOpen className="w-5 h-5" />
-          <span className="text-[10px] mt-0.5">วิชาเรียน</span>
+          <ClipboardCheck className="w-5 h-5 text-emerald-500" />
+          <span className="text-[10px] mt-0.5">เช็คชื่อ</span>
         </button>
 
         <button
           onClick={() => handleTabClick('statuses')}
-          className={`flex flex-col items-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+          className={`flex flex-col items-center py-1 px-2 rounded-xl transition-all cursor-pointer ${
             activeTab === 'statuses'
               ? 'text-indigo-600 dark:text-indigo-400 font-bold'
               : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -630,7 +674,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         <button
           onClick={() => handleTabClick('resources')}
-          className={`flex flex-col items-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+          className={`flex flex-col items-center py-1 px-2 rounded-xl transition-all cursor-pointer ${
             activeTab === 'resources'
               ? 'text-indigo-600 dark:text-indigo-400 font-bold'
               : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -642,7 +686,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="flex flex-col items-center py-1 px-2.5 rounded-xl text-slate-500 hover:text-indigo-600 transition-all cursor-pointer"
+          className="flex flex-col items-center py-1 px-2 rounded-xl text-slate-500 hover:text-indigo-600 transition-all cursor-pointer"
         >
           <Menu className="w-5 h-5" />
           <span className="text-[10px] mt-0.5">เมนูอื่น</span>

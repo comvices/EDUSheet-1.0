@@ -8,7 +8,16 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { Assignment, Submission, StudentProfile, TeacherProfile, LearningResource } from '../types';
+import {
+  Assignment,
+  Submission,
+  StudentProfile,
+  TeacherProfile,
+  LearningResource,
+  TeachingSchedule,
+  AttendanceSession,
+  PeriodConfig,
+} from '../types';
 
 const ASSIGNMENTS_COLLECTION = 'assignments';
 const SUBMISSIONS_COLLECTION = 'submissions';
@@ -17,6 +26,8 @@ const TEACHERS_COLLECTION = 'teachers';
 const SETTINGS_COLLECTION = 'settings';
 const MAIN_SETTINGS_DOC = 'main_config';
 const RESOURCES_COLLECTION = 'resources';
+const TEACHING_SCHEDULES_COLLECTION = 'teachingSchedules';
+const ATTENDANCE_SESSIONS_COLLECTION = 'attendanceSessions';
 
 // 1. Subscribe to Assignments in Real-Time
 export function subscribeAssignments(onData: (assignments: Assignment[]) => void) {
@@ -80,9 +91,7 @@ export function subscribeStudents(onData: (students: StudentProfile[]) => void) 
         snapshot.forEach((docSnap) => {
           list.push(docSnap.data() as StudentProfile);
         });
-        if (list.length > 0) {
-          onData(list);
-        }
+        onData(list);
       },
       (error) => {
         handleFirestoreError(error, OperationType.LIST, STUDENTS_COLLECTION);
@@ -105,9 +114,7 @@ export function subscribeTeachers(onData: (teachers: TeacherProfile[]) => void) 
         snapshot.forEach((docSnap) => {
           list.push(docSnap.data() as TeacherProfile);
         });
-        if (list.length > 0) {
-          onData(list);
-        }
+        onData(list);
       },
       (error) => {
         handleFirestoreError(error, OperationType.LIST, TEACHERS_COLLECTION);
@@ -119,9 +126,13 @@ export function subscribeTeachers(onData: (teachers: TeacherProfile[]) => void) 
   }
 }
 
-// 5. Subscribe to Settings (Grade levels & Subjects)
+// 5. Subscribe to Settings (Grade levels, Subjects & Period configs)
 export function subscribeSettings(
-  onData: (settings: { gradeLevels: string[]; subjects: string[] }) => void
+  onData: (settings: {
+    gradeLevels: string[];
+    subjects: string[];
+    periodConfigs?: PeriodConfig[];
+  }) => void
 ) {
   try {
     const docRef = doc(db, SETTINGS_COLLECTION, MAIN_SETTINGS_DOC);
@@ -133,6 +144,7 @@ export function subscribeSettings(
           onData({
             gradeLevels: data.gradeLevels || [],
             subjects: data.subjects || [],
+            periodConfigs: Array.isArray(data.periodConfigs) ? data.periodConfigs : undefined,
           });
         }
       },
@@ -173,74 +185,6 @@ export function subscribeResources(onData: (resources: LearningResource[]) => vo
 // Helper to strip undefined values so Firestore setDoc does not throw errors
 function sanitizeForFirestore<T>(data: T): T {
   return JSON.parse(JSON.stringify(data));
-}
-
-// Seed Resources if empty
-export async function seedResourcesIfEmpty(initialResources: LearningResource[]) {
-  try {
-    const snapshot = await getDocs(collection(db, RESOURCES_COLLECTION));
-    if (snapshot.empty && initialResources.length > 0) {
-      console.log('🌱 Seeding Firestore with initial learning resources...');
-      const batch = writeBatch(db);
-      for (const res of initialResources) {
-        batch.set(doc(db, RESOURCES_COLLECTION, res.id), sanitizeForFirestore(res));
-      }
-      await batch.commit();
-      console.log('✅ Learning resources seeded successfully!');
-    }
-  } catch (err) {
-    console.warn('Note on Firestore resources seeding:', err);
-  }
-}
-
-// 6. Seed Firestore with initial mock data if empty
-export async function seedInitialDataIfEmpty(
-  initialAssignments: Assignment[],
-  initialSubmissions: Submission[],
-  initialStudents: StudentProfile[],
-  initialTeachers: TeacherProfile[],
-  initialGrades: string[],
-  initialSubjects: string[]
-) {
-  try {
-    const asgSnapshot = await getDocs(collection(db, ASSIGNMENTS_COLLECTION));
-    if (asgSnapshot.empty) {
-      console.log('🌱 Seeding Firestore with initial assignments, submissions, students & teachers...');
-      const batch = writeBatch(db);
-
-      // Seed Assignments
-      for (const asg of initialAssignments) {
-        batch.set(doc(db, ASSIGNMENTS_COLLECTION, asg.id), asg);
-      }
-
-      // Seed Submissions
-      for (const sub of initialSubmissions) {
-        batch.set(doc(db, SUBMISSIONS_COLLECTION, sub.id), sub);
-      }
-
-      // Seed Students
-      for (const std of initialStudents) {
-        batch.set(doc(db, STUDENTS_COLLECTION, std.id), std);
-      }
-
-      // Seed Teachers
-      for (const tch of initialTeachers) {
-        batch.set(doc(db, TEACHERS_COLLECTION, tch.id), tch);
-      }
-
-      // Seed Settings
-      batch.set(doc(db, SETTINGS_COLLECTION, MAIN_SETTINGS_DOC), {
-        id: MAIN_SETTINGS_DOC,
-        gradeLevels: initialGrades,
-        subjects: initialSubjects,
-      });
-
-      await batch.commit();
-      console.log('✅ Seeding complete in Firestore!');
-    }
-  } catch (err) {
-    console.warn('Note on Firestore seeding:', err);
-  }
 }
 
 // 7. Write Operations
@@ -325,11 +269,33 @@ export async function saveSettingsToFirestore(
 ): Promise<void> {
   const path = `${SETTINGS_COLLECTION}/${MAIN_SETTINGS_DOC}`;
   try {
-    await setDoc(doc(db, SETTINGS_COLLECTION, MAIN_SETTINGS_DOC), sanitizeForFirestore({
-      id: MAIN_SETTINGS_DOC,
-      gradeLevels,
-      subjects,
-    }));
+    await setDoc(
+      doc(db, SETTINGS_COLLECTION, MAIN_SETTINGS_DOC),
+      sanitizeForFirestore({
+        id: MAIN_SETTINGS_DOC,
+        gradeLevels,
+        subjects,
+      }),
+      { merge: true }
+    );
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function savePeriodConfigsToFirestore(
+  periodConfigs: PeriodConfig[]
+): Promise<void> {
+  const path = `${SETTINGS_COLLECTION}/${MAIN_SETTINGS_DOC}`;
+  try {
+    await setDoc(
+      doc(db, SETTINGS_COLLECTION, MAIN_SETTINGS_DOC),
+      sanitizeForFirestore({
+        id: MAIN_SETTINGS_DOC,
+        periodConfigs,
+      }),
+      { merge: true }
+    );
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -342,12 +308,16 @@ export async function clearDatabase(): Promise<void> {
     STUDENTS_COLLECTION,
     TEACHERS_COLLECTION,
     RESOURCES_COLLECTION,
+    TEACHING_SCHEDULES_COLLECTION,
+    ATTENDANCE_SESSIONS_COLLECTION,
+    SETTINGS_COLLECTION,
   ];
 
   try {
     for (const colName of collections) {
       const colRef = collection(db, colName);
       const snapshot = await getDocs(colRef);
+      if (snapshot.empty) continue;
       const batch = writeBatch(db);
       snapshot.forEach((docSnap) => {
         batch.delete(docSnap.ref);
@@ -362,30 +332,61 @@ export async function clearDatabase(): Promise<void> {
 
 export async function resetDataKeepUsers(): Promise<void> {
   try {
-    // 1. Delete assignments, submissions, settings, resources
-    const collectionsToDelete = [ASSIGNMENTS_COLLECTION, SUBMISSIONS_COLLECTION, SETTINGS_COLLECTION, RESOURCES_COLLECTION];
+    // 1. Delete assignments, submissions, settings, resources, schedules, attendance
+    const collectionsToDelete = [
+      ASSIGNMENTS_COLLECTION,
+      SUBMISSIONS_COLLECTION,
+      SETTINGS_COLLECTION,
+      RESOURCES_COLLECTION,
+      TEACHING_SCHEDULES_COLLECTION,
+      ATTENDANCE_SESSIONS_COLLECTION,
+    ];
     for (const colName of collectionsToDelete) {
       const colRef = collection(db, colName);
       const snapshot = await getDocs(colRef);
+      if (snapshot.empty) continue;
       const batch = writeBatch(db);
       snapshot.forEach((docSnap) => batch.delete(docSnap.ref));
       await batch.commit();
     }
 
-    // 2. Update students and teachers: keep only id, name, password, code
-    const usersCollections = [STUDENTS_COLLECTION, TEACHERS_COLLECTION];
-    for (const colName of usersCollections) {
-      const colRef = collection(db, colName);
-      const snapshot = await getDocs(colRef);
+    // 2. Preserve required profile fields for students and teachers per firestore.rules
+    const studentSnap = await getDocs(collection(db, STUDENTS_COLLECTION));
+    if (!studentSnap.empty) {
       const batch = writeBatch(db);
-      snapshot.forEach((docSnap) => {
+      studentSnap.forEach((docSnap) => {
         const data = docSnap.data();
-        batch.set(docSnap.ref, {
-          id: data.id,
-          name: data.name,
-          password: data.password,
-          code: data.code,
-        });
+        batch.set(
+          docSnap.ref,
+          sanitizeForFirestore({
+            id: data.id || docSnap.id,
+            code: data.code || '',
+            name: data.name || '',
+            password: data.password || '123456',
+            gradeLevel: data.gradeLevel || 'ม.1/1',
+            avatar: data.avatar || '',
+          })
+        );
+      });
+      await batch.commit();
+    }
+
+    const teacherSnap = await getDocs(collection(db, TEACHERS_COLLECTION));
+    if (!teacherSnap.empty) {
+      const batch = writeBatch(db);
+      teacherSnap.forEach((docSnap) => {
+        const data = docSnap.data();
+        batch.set(
+          docSnap.ref,
+          sanitizeForFirestore({
+            id: data.id || docSnap.id,
+            code: data.code || '',
+            name: data.name || '',
+            password: data.password || 'admin123',
+            subject: data.subject || 'ทั่วไป',
+            avatar: data.avatar || '',
+          })
+        );
       });
       await batch.commit();
     }
@@ -413,3 +414,103 @@ export async function deleteResourceFromFirestore(resId: string): Promise<void> 
   }
 }
 
+// Subscribe to Teaching Schedules in Real-Time
+export function subscribeTeachingSchedules(onData: (schedules: TeachingSchedule[]) => void) {
+  try {
+    const colRef = collection(db, TEACHING_SCHEDULES_COLLECTION);
+    return onSnapshot(
+      colRef,
+      (snapshot) => {
+        const list: TeachingSchedule[] = [];
+        snapshot.forEach((docSnap) => {
+          list.push(docSnap.data() as TeachingSchedule);
+        });
+        const dayOrder: Record<string, number> = {
+          monday: 1,
+          tuesday: 2,
+          wednesday: 3,
+          thursday: 4,
+          friday: 5,
+        };
+        list.sort((a, b) => {
+          const dDiff = (dayOrder[a.dayOfWeek] || 9) - (dayOrder[b.dayOfWeek] || 9);
+          if (dDiff !== 0) return dDiff;
+          return a.period - b.period;
+        });
+        onData(list);
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, TEACHING_SCHEDULES_COLLECTION);
+      }
+    );
+  } catch (err) {
+    console.error('Error subscribing to teaching schedules:', err);
+    return () => {};
+  }
+}
+
+// Teaching schedules are managed explicitly by teachers/admins without auto-seeding
+
+export async function saveTeachingScheduleToFirestore(schedule: TeachingSchedule): Promise<void> {
+  const path = `${TEACHING_SCHEDULES_COLLECTION}/${schedule.id}`;
+  try {
+    await setDoc(doc(db, TEACHING_SCHEDULES_COLLECTION, schedule.id), sanitizeForFirestore(schedule));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function deleteTeachingScheduleFromFirestore(scheduleId: string): Promise<void> {
+  const path = `${TEACHING_SCHEDULES_COLLECTION}/${scheduleId}`;
+  try {
+    await deleteDoc(doc(db, TEACHING_SCHEDULES_COLLECTION, scheduleId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+// Subscribe to Classroom Attendance Sessions in Real-Time
+export function subscribeAttendanceSessions(onData: (sessions: AttendanceSession[]) => void) {
+  try {
+    const colRef = collection(db, ATTENDANCE_SESSIONS_COLLECTION);
+    return onSnapshot(
+      colRef,
+      (snapshot) => {
+        const list: AttendanceSession[] = [];
+        snapshot.forEach((docSnap) => {
+          list.push(docSnap.data() as AttendanceSession);
+        });
+        list.sort((a, b) => {
+          const dateCompare = b.date.localeCompare(a.date);
+          if (dateCompare !== 0) return dateCompare;
+          return a.period - b.period;
+        });
+        onData(list);
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, ATTENDANCE_SESSIONS_COLLECTION);
+      }
+    );
+  } catch (err) {
+    console.error('Error subscribing to attendance sessions:', err);
+    return () => {};
+  }
+}
+
+export async function saveAttendanceSessionToFirestore(session: AttendanceSession): Promise<void> {
+  const path = `${ATTENDANCE_SESSIONS_COLLECTION}/${session.id}`;
+  try {
+    await setDoc(doc(db, ATTENDANCE_SESSIONS_COLLECTION, session.id), sanitizeForFirestore(session));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function deleteAttendanceSessionFromFirestore(sessionId: string): Promise<void> {
+  const path = `${ATTENDANCE_SESSIONS_COLLECTION}/${sessionId}`;
+  try {
+    await deleteDoc(doc(db, ATTENDANCE_SESSIONS_COLLECTION, sessionId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}

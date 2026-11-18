@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { X, Sparkles, Plus, Trash2, Save, FilePlus, Edit3 } from 'lucide-react';
-import { Assignment, Question, CategoryType } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, Sparkles, Plus, Trash2, Save, FilePlus, Edit3, Users, EyeOff, Eye, Search } from 'lucide-react';
+import { Assignment, Question, CategoryType, StudentProfile } from '../types';
 import { CATEGORY_LIST } from '../data/mockData';
 
 interface CreateWorksheetModalProps {
@@ -11,6 +11,7 @@ interface CreateWorksheetModalProps {
   gradeLevelsList?: string[];
   subjectsList?: string[];
   currentTeacherName?: string;
+  studentsList?: StudentProfile[];
 }
 
 export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
@@ -18,9 +19,10 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
   onCreateAssignment,
   onUpdateAssignment,
   editingAssignment,
-  gradeLevelsList = ['ป.4', 'ป.5', 'ป.6', 'ม.1', 'ม.2', 'ม.3', 'ม.4', 'ม.5', 'ม.6'],
-  subjectsList = ['วิทยาศาสตร์', 'คณิตศาสตร์', 'ภาษาไทย', 'ภาษาอังกฤษ', 'สังคมศึกษา', 'เทคโนโลยี/คอมพิวเตอร์', 'ศิลปะและดนตรี'],
+  gradeLevelsList = ['ม.1/1', 'ม.1/2', 'ม.1/3'],
+  subjectsList = [],
   currentTeacherName = 'ครูผู้สอน',
+  studentsList = [],
 }) => {
   const isEditMode = Boolean(editingAssignment);
   const [activeTab, setActiveTab] = useState<'manual' | 'ai'>('manual');
@@ -30,12 +32,54 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
 
   // Form State
   const [title, setTitle] = useState(editingAssignment?.title || '');
-  const [subject, setSubject] = useState(editingAssignment?.subject || activeSubjects[0] || 'วิทยาศาสตร์');
-  const [gradeLevel, setGradeLevel] = useState(editingAssignment?.gradeLevel || activeGrades[0] || 'ม.3');
+  const [subject, setSubject] = useState(editingAssignment?.subject || activeSubjects[0] || '');
+  const [gradeLevel, setGradeLevel] = useState(editingAssignment?.gradeLevel || activeGrades[0] || 'ม.1/1');
   const [category, setCategory] = useState<CategoryType>(editingAssignment?.category || 'แบบฝึกหัด');
   const [description, setDescription] = useState(editingAssignment?.description || '');
   const [instructions, setInstructions] = useState(editingAssignment?.instructions || 'จงตอบคำถามให้ถูกต้องตามหลักการ');
   const [dueDate, setDueDate] = useState('');
+
+  // Visibility & Student Targeting State
+  const [isPublished, setIsPublished] = useState<boolean>(
+    editingAssignment?.isPublished !== false
+  );
+  const [assignScope, setAssignScope] = useState<'class' | 'specific'>(
+    editingAssignment?.assignedStudentCodes && editingAssignment.assignedStudentCodes.length > 0
+      ? 'specific'
+      : 'class'
+  );
+  const [assignedStudentCodes, setAssignedStudentCodes] = useState<string[]>(
+    editingAssignment?.assignedStudentCodes || []
+  );
+  const [studentPickerSearch, setStudentPickerSearch] = useState('');
+  const [validationError, setValidationError] = useState('');
+
+  const sortedStudentsForPicker = useMemo(() => {
+    const query = studentPickerSearch.trim().toLowerCase();
+    const baseGrade = gradeLevel.includes('/') ? gradeLevel.split('/')[0] : gradeLevel;
+
+    return [...studentsList]
+      .filter((st) => {
+        if (!query) return true;
+        return (
+          st.name.toLowerCase().includes(query) ||
+          st.code.toLowerCase().includes(query) ||
+          st.gradeLevel.toLowerCase().includes(query)
+        );
+      })
+      .sort((a, b) => {
+        const aMatch = a.gradeLevel === gradeLevel || a.gradeLevel === baseGrade ? 0 : 1;
+        const bMatch = b.gradeLevel === gradeLevel || b.gradeLevel === baseGrade ? 0 : 1;
+        if (aMatch !== bMatch) return aMatch - bMatch;
+        return a.code.localeCompare(b.code);
+      });
+  }, [studentsList, studentPickerSearch, gradeLevel]);
+
+  const toggleStudentCode = (code: string) => {
+    setAssignedStudentCodes((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+    );
+  };
 
   const [questions, setQuestions] = useState<Question[]>(
     editingAssignment?.questions || [
@@ -155,9 +199,19 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setValidationError('');
     if (!title.trim()) return;
 
+    if (assignScope === 'specific' && assignedStudentCodes.length === 0) {
+      setValidationError('กรุณาเลือกนักเรียนอย่างน้อย 1 คน หรือเลือกมอบหมายให้ทุกคนในชั้นเรียน');
+      return;
+    }
+
     const totalPoints = questions.reduce((sum, q) => sum + (q.maxPoints || 5), 0);
+    const targetingPayload = {
+      isPublished,
+      assignedStudentCodes: assignScope === 'specific' ? assignedStudentCodes : [],
+    };
 
     if (isEditMode && editingAssignment && onUpdateAssignment) {
       const updatedAsg: Assignment = {
@@ -173,6 +227,7 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
         dueDate: dueDate
           ? new Date(dueDate).toISOString()
           : editingAssignment.dueDate,
+        ...targetingPayload,
       };
       onUpdateAssignment(updatedAsg);
     } else {
@@ -191,6 +246,7 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
           : new Date(Date.now() + 86400000 * 3).toISOString(),
         createdDate: new Date().toISOString(),
         teacherName: currentTeacherName,
+        ...targetingPayload,
       };
       onCreateAssignment(newAsg);
     }
@@ -415,6 +471,151 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
                     className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white"
                   />
                 </div>
+              </div>
+
+              {/* Visibility & Student Assignment Targeting */}
+              <div className="p-4 bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-200/80 dark:border-indigo-900/60 rounded-xl space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <span className="text-xs font-bold font-prompt text-slate-900 dark:text-white">
+                      กำหนดสิทธิ์นักเรียนที่มองเห็นใบงานนี้
+                    </span>
+                  </div>
+
+                  <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold">
+                    <input
+                      type="checkbox"
+                      checked={isPublished}
+                      onChange={(e) => setIsPublished(e.target.checked)}
+                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className={`flex items-center gap-1 ${isPublished ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                      {isPublished ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                      {isPublished ? 'เผยแพร่ให้นักเรียนเห็นทันที' : 'ซ่อนไว้ก่อน (ฉบับร่าง)'}
+                    </span>
+                  </label>
+                </div>
+
+                {validationError && (
+                  <p className="text-xs font-semibold text-rose-600 dark:text-rose-400">
+                    {validationError}
+                  </p>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAssignScope('class');
+                      setValidationError('');
+                    }}
+                    className={`p-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer ${
+                      assignScope === 'class'
+                        ? 'bg-white dark:bg-slate-900 border-indigo-500 ring-2 ring-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-bold'
+                        : 'bg-white/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                    }`}
+                  >
+                    <span className="block">มอบหมายตามห้อง/ระดับชั้น (ชั้น {gradeLevel})</span>
+                    <span className="block text-[10px] font-normal text-slate-400 mt-0.5">
+                      เฉพาะนักเรียนในชั้น {gradeLevel} เท่านั้นที่มองเห็น
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setAssignScope('specific')}
+                    className={`p-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer ${
+                      assignScope === 'specific'
+                        ? 'bg-white dark:bg-slate-900 border-indigo-500 ring-2 ring-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-bold'
+                        : 'bg-white/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                    }`}
+                  >
+                    <span className="block">
+                      ระบุนักเรียนรายบุคคล ({assignedStudentCodes.length} คน)
+                    </span>
+                    <span className="block text-[10px] font-normal text-slate-400 mt-0.5">
+                      เฉพาะนักเรียนที่ครูเลือกชื่อเท่านั้นที่จะมองเห็น
+                    </span>
+                  </button>
+                </div>
+
+                {assignScope === 'specific' && (
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 space-y-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="relative flex-1 min-w-[180px]">
+                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={studentPickerSearch}
+                          onChange={(e) => setStudentPickerSearch(e.target.value)}
+                          placeholder="ค้นหาชื่อ, รหัส หรือห้องเรียน..."
+                          className="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2 text-[11px]">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const baseG = gradeLevel.includes('/') ? gradeLevel.split('/')[0] : gradeLevel;
+                            const roomCodes = studentsList
+                              .filter((s) => s.gradeLevel === gradeLevel || s.gradeLevel === baseG)
+                              .map((s) => s.code);
+                            setAssignedStudentCodes(Array.from(new Set([...assignedStudentCodes, ...roomCodes])));
+                          }}
+                          className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline cursor-pointer"
+                        >
+                          เลือกทุกคนในชั้น {gradeLevel}
+                        </button>
+                        <span className="text-slate-300">|</span>
+                        <button
+                          type="button"
+                          onClick={() => setAssignedStudentCodes([])}
+                          className="text-rose-500 font-semibold hover:underline cursor-pointer"
+                        >
+                          ล้างที่เลือก
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="max-h-40 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 border border-slate-100 dark:border-slate-800 rounded-lg">
+                      {sortedStudentsForPicker.length === 0 ? (
+                        <p className="text-center py-4 text-xs text-slate-400">
+                          ไม่พบรายชื่อนักเรียน
+                        </p>
+                      ) : (
+                        sortedStudentsForPicker.map((st) => {
+                          const checked = assignedStudentCodes.includes(st.code);
+                          return (
+                            <label
+                              key={st.id}
+                              className="flex items-center justify-between px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer text-xs"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => toggleStudentCode(st.code)}
+                                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                />
+                                <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
+                                  {st.name}
+                                </span>
+                                <span className="text-[11px] font-mono text-slate-400">
+                                  ({st.code})
+                                </span>
+                              </div>
+                              <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-[10px] font-bold text-slate-600 dark:text-slate-300 shrink-0">
+                                {st.gradeLevel}
+                              </span>
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Dynamic Questions Builder */}

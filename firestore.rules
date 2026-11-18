@@ -69,6 +69,39 @@ service cloud.firestore {
         isValidString(data.url, 1, 2000);
     }
 
+    function isValidDayOfWeek(day) {
+      return day == 'monday' || day == 'tuesday' || day == 'wednesday' || day == 'thursday' || day == 'friday';
+    }
+
+    function isValidTeachingSchedule(data) {
+      return data.keys().hasAll(['id', 'teacherId', 'teacherCode', 'teacherName', 'dayOfWeek', 'period', 'startTime', 'endTime', 'subject', 'gradeLevel']) &&
+        isValidString(data.id, 1, 128) &&
+        isValidString(data.teacherId, 1, 128) &&
+        isValidString(data.teacherCode, 1, 64) &&
+        isValidString(data.teacherName, 1, 200) &&
+        isValidDayOfWeek(data.dayOfWeek) &&
+        data.period is number && data.period >= 0 && data.period <= 12 &&
+        isValidString(data.startTime, 1, 20) &&
+        isValidString(data.endTime, 1, 20) &&
+        isValidString(data.subject, 1, 100) &&
+        isValidString(data.gradeLevel, 1, 50);
+    }
+
+    function isValidAttendanceSession(data) {
+      return data.keys().hasAll(['id', 'date', 'dayOfWeek', 'period', 'subject', 'gradeLevel', 'teacherId', 'teacherCode', 'teacherName', 'records', 'updatedAt']) &&
+        isValidString(data.id, 1, 128) &&
+        isValidString(data.date, 8, 20) &&
+        isValidDayOfWeek(data.dayOfWeek) &&
+        data.period is number && data.period >= 0 && data.period <= 12 &&
+        isValidString(data.subject, 1, 100) &&
+        isValidString(data.gradeLevel, 1, 50) &&
+        isValidString(data.teacherId, 1, 128) &&
+        isValidString(data.teacherCode, 1, 64) &&
+        isValidString(data.teacherName, 1, 200) &&
+        data.records is list &&
+        isValidString(data.updatedAt, 1, 100);
+    }
+
     // Test connection doc used at startup
     match /test/{testId} {
       allow read, write: if true;
@@ -113,6 +146,20 @@ service cloud.firestore {
       allow read: if true;
       allow create, update: if isValidId(resourceId) && isValidResource(incoming());
       allow delete: if isValidId(resourceId);
+    }
+
+    // Teaching schedules collection
+    match /teachingSchedules/{scheduleId} {
+      allow read: if true;
+      allow create, update: if isValidId(scheduleId) && isValidTeachingSchedule(incoming());
+      allow delete: if isValidId(scheduleId);
+    }
+
+    // Classroom attendance sessions collection
+    match /attendanceSessions/{sessionId} {
+      allow read: if true;
+      allow create, update: if isValidId(sessionId) && isValidAttendanceSession(incoming());
+      allow delete: if isValidId(sessionId);
     }
   }
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Send, Save, Sparkles, CheckCircle, Upload, FileText, Award, AlertCircle, HelpCircle, Printer } from 'lucide-react';
 import { Assignment, Submission, Question } from '../types';
 
@@ -17,19 +17,38 @@ export const WorksheetSubmissionModal: React.FC<WorksheetSubmissionModalProps> =
   onSubmitWorksheet,
   onOpenHintModal,
 }) => {
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<Record<string, string>>(() =>
+    submission?.answers ? { ...submission.answers } : {}
+  );
   const [savedDraftTime, setSavedDraftTime] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [attachedFiles, setAttachedFiles] = useState<{ name: string; size: string }[]>([]);
+  const [attachedFiles, setAttachedFiles] = useState<{ name: string; size: string; url?: string }[]>(
+    () => (submission?.files ? [...submission.files] : [])
+  );
 
-  // Load existing answers if submission exists
+  const hasUserEditedRef = useRef(false);
+  const initializedSubKeyRef = useRef<string | null>(
+    submission ? `${assignment.id}_${submission.id}` : null
+  );
+
+  // Sync initial submission only if modal opened before submission arrived and user hasn't started typing
   useEffect(() => {
-    if (submission?.answers) {
-      setAnswers(submission.answers);
+    const subKey = submission ? `${assignment.id}_${submission.id}` : null;
+    if (
+      submission?.answers &&
+      !hasUserEditedRef.current &&
+      initializedSubKeyRef.current !== subKey
+    ) {
+      setAnswers({ ...submission.answers });
+      if (submission.files) {
+        setAttachedFiles([...submission.files]);
+      }
+      initializedSubKeyRef.current = subKey;
     }
-  }, [submission]);
+  }, [assignment.id, submission?.id]);
 
   const handleAnswerChange = (qId: string, value: string) => {
+    hasUserEditedRef.current = true;
     setAnswers((prev) => ({
       ...prev,
       [qId]: value,
@@ -44,6 +63,7 @@ export const WorksheetSubmissionModal: React.FC<WorksheetSubmissionModalProps> =
   const handleFileSimulate = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      hasUserEditedRef.current = true;
       setAttachedFiles((prev) => [
         ...prev,
         { name: file.name, size: `${(file.size / 1024).toFixed(1)} KB` },

@@ -31,7 +31,7 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
   onOpenRosterModal,
   onDeleteAssignment,
   onEditAssignment,
-  subjects = ['ทั้งหมด', 'วิทยาศาสตร์', 'คณิตศาสตร์', 'ภาษาไทย', 'ภาษาอังกฤษ', 'สังคมศึกษา', 'เทคโนโลยี/คอมพิวเตอร์', 'ศิลปะและดนตรี'],
+  subjects = ['ทั้งหมด'],
   onOpenSettings,
 }) => {
   const filteredAssignments =

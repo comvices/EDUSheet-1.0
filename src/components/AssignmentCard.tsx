@@ -100,6 +100,22 @@ export const AssignmentCard: React.FC<AssignmentCardProps> = ({
           {assignment.description}
         </p>
 
+        {/* Teacher-only Assignment Visibility Indicator */}
+        {role === 'teacher' && (assignment.isPublished === false || (assignment.assignedStudentCodes && assignment.assignedStudentCodes.length > 0)) && (
+          <div className="flex flex-wrap items-center gap-1.5 mb-2.5 text-[11px]">
+            {assignment.isPublished === false && (
+              <span className="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 font-bold">
+                🔒 ฉบับร่าง (ซ่อนจากนักเรียน)
+              </span>
+            )}
+            {assignment.assignedStudentCodes && assignment.assignedStudentCodes.length > 0 && (
+              <span className="px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 font-bold">
+                👥 มอบหมายเฉพาะ {assignment.assignedStudentCodes.length} คน
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Due Date Indicator & Status Ribbon */}
         <div className="flex items-center justify-between text-xs py-2 px-3 bg-slate-50 dark:bg-slate-800/60 rounded-lg mb-4 border border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">

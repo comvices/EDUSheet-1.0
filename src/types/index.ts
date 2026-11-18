@@ -26,6 +26,8 @@ export interface Assignment {
   createdDate: string;
   teacherName: string;
   attachmentUrl?: string;
+  assignedStudentCodes?: string[]; // ถ้าระบุ จะให้นักเรียนที่มีรหัสตรงกันเท่านั้นที่เห็นใบงานนี้
+  isPublished?: boolean; // หากเป็น false จะซ่อนใบงานจากนักเรียนทั้งหมด (ฉบับร่าง)
 }
 
 export type SubmissionStatus = 'pending' | 'submitted' | 'graded' | 'needs_revision' | 'overdue';
@@ -98,6 +100,61 @@ export interface LearningResource {
   createdDate: string;
   teacherName: string;
   fileSize?: string;
+}
+
+export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday';
+
+export interface PeriodConfig {
+  id: string;
+  period: number; // 0 = คาบพักเที่ยง/คาบพัก, 1-12 = คาบเรียน
+  label: string; // ชื่อแสดงผล เช่น "คาบที่ 1", "พักเที่ยง", "คาบที่ 5"
+  startTime: string; // e.g. "08:30"
+  endTime: string; // e.g. "09:20"
+  isBreak?: boolean; // true สำหรับคาบพักเที่ยง / คาบพัก
+}
+
+export interface TeachingSchedule {
+  id: string;
+  teacherId: string;
+  teacherCode: string;
+  teacherName: string;
+  dayOfWeek: DayOfWeek;
+  period: number; // คาบที่ 0 - 12 (0 = คาบพัก/กิจกรรมพักเที่ยง)
+  startTime: string; // e.g. "08:30"
+  endTime: string; // e.g. "09:20"
+  subject: string;
+  gradeLevel: string; // e.g. "ม.3/1"
+  classroom?: string; // e.g. "ห้อง 301" หรือ "ห้องวิทย์ 2"
+  note?: string;
+}
+
+export type AttendanceStatus = 'present' | 'late' | 'absent' | 'leave';
+
+export interface StudentAttendanceRecord {
+  studentId: string;
+  studentCode: string;
+  studentName: string;
+  gradeLevel: string;
+  status: AttendanceStatus;
+  note?: string;
+}
+
+export interface AttendanceSession {
+  id: string;
+  scheduleId?: string; // อ้างอิงจากตารางสอน (ถ้าเป็นการเช็คชื่อในตาราง)
+  date: string; // YYYY-MM-DD
+  dayOfWeek: DayOfWeek;
+  period: number;
+  startTime?: string;
+  endTime?: string;
+  subject: string;
+  gradeLevel: string;
+  teacherId: string;
+  teacherCode: string;
+  teacherName: string;
+  topicTaught?: string; // หัวข้อที่สอนในคาบนี้
+  records: StudentAttendanceRecord[];
+  updatedAt: string;
 }
 
 export interface FilterState {

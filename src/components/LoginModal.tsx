@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { BookOpen, User, Lock, Eye, EyeOff, LogIn, GraduationCap, UserCheck, AlertCircle, Sparkles } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, LogIn, GraduationCap, UserCheck, AlertCircle } from 'lucide-react';
 import { StudentProfile, TeacherProfile, UserRole } from '../types';
-import { STUDENTS_ROSTER, TEACHERS_ROSTER } from '../data/mockData';
 
 interface LoginModalProps {
   onLoginSuccess: (user: StudentProfile | TeacherProfile, role: UserRole) => void;
@@ -11,12 +10,19 @@ interface LoginModalProps {
   teachersList?: TeacherProfile[];
 }
 
+const BUILTIN_ADMIN_TEACHER: TeacherProfile = {
+  id: 'tch_admin',
+  code: 'ADMIN',
+  name: 'ผู้ดูแลระบบ (Admin)',
+  password: '',
+  subject: 'ผู้ดูแลระบบ',
+  avatar: '',
+};
+
 export const LoginModal: React.FC<LoginModalProps> = ({
   onLoginSuccess,
-  onClose,
-  isDismissable = false,
-  studentsList = STUDENTS_ROSTER,
-  teachersList = TEACHERS_ROSTER,
+  studentsList = [],
+  teachersList = [],
 }) => {
   const [loginRole, setLoginRole] = useState<UserRole>('student');
   const [code, setCode] = useState('');
@@ -31,6 +37,49 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     setPassword('');
   };
 
+  const authenticateTeacherOrAdmin = (rawCode: string, rawPassword: string): boolean => {
+    const inputTrimmed = rawCode.trim();
+    const inputUpper = inputTrimmed.toUpperCase();
+    const cleanNumeric = inputUpper.replace(/^TCH-/, '');
+
+    // 1. Check exact / unambiguous matches in registered teachersList
+    const matchingTeachers = teachersList.filter((t) => {
+      const tCode = (t.code || '').trim().toUpperCase();
+      const tName = (t.name || '').trim().toLowerCase();
+      const cleanTCode = tCode.replace(/^TCH-/, '');
+
+      if (tCode === inputUpper) return true;
+      if (cleanNumeric && tCode.startsWith('TCH-') && cleanTCode === cleanNumeric) return true;
+      if (cleanNumeric && inputUpper.startsWith('TCH-') && cleanTCode === cleanNumeric) return true;
+      if (tName && tName === inputTrimmed.toLowerCase()) return true;
+      return false;
+    });
+
+    const passwordMatchedTeacher = matchingTeachers.find((t) => t.password === rawPassword);
+    if (passwordMatchedTeacher) {
+      onLoginSuccess(passwordMatchedTeacher, 'teacher');
+      return true;
+    }
+
+    // 2. Built-in System Admin account (always accessible with admin / admin123 unless explicitly overridden by a registered ADMIN teacher)
+    const hasExplicitAdminInDb = teachersList.some(
+      (t) => (t.code || '').trim().toUpperCase() === 'ADMIN'
+    );
+
+    if (inputUpper === 'ADMIN' && !hasExplicitAdminInDb && rawPassword === 'admin123') {
+      onLoginSuccess(BUILTIN_ADMIN_TEACHER, 'teacher');
+      return true;
+    }
+
+    if (matchingTeachers.length > 0 || (inputUpper === 'ADMIN' && !hasExplicitAdminInDb)) {
+      setErrorMsg('รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง');
+      return false;
+    }
+
+    setErrorMsg('ไม่พบรหัสประจำตัวครูผู้สอนนี้ในระบบ (ผู้ดูแลระบบใช้ชื่อผู้ใช้ admin)');
+    return false;
+  };
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -39,8 +88,16 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
     if (loginRole === 'student') {
       const foundStudent = studentsList.find(
-        (s) => s.code.toUpperCase() === inputCodeClean || s.code.replace('ST-', '') === inputCodeClean
+        (s) =>
+          s.code.trim().toUpperCase() === inputCodeClean ||
+          s.code.trim().toUpperCase().replace(/^ST-/, '') === inputCodeClean
       );
+
+      // Seamless Admin login even if user did not switch the Student/Teacher tab
+      if (!foundStudent && inputCodeClean === 'ADMIN') {
+        authenticateTeacherOrAdmin(code, password);
+        return;
+      }
 
       if (!foundStudent) {
         setErrorMsg('ไม่พบเลขประจำตัวนักเรียนนี้ในระบบ กรุณาตรวจสอบอีกครั้ง');
@@ -54,57 +111,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
       onLoginSuccess(foundStudent, 'student');
     } else {
-      const inputTrimmed = code.trim();
-      const inputUpper = inputTrimmed.toUpperCase();
-
-      // Look up in teachersList or allow default teacher accounts
-      const foundTeacher = teachersList.find((t) => {
-        const tCode = t.code?.toUpperCase() || '';
-        const tName = t.name?.toLowerCase() || '';
-        const cleanInput = inputUpper.replace('TCH-', '');
-        const cleanTCode = tCode.replace('TCH-', '');
-
-        return (
-          tCode === inputUpper ||
-          cleanTCode === cleanInput ||
-          tCode === `TCH-${cleanInput}` ||
-          inputUpper === 'ADMIN' ||
-          inputUpper === 'TEACHER' ||
-          tName.includes(inputTrimmed.toLowerCase())
-        );
-      }) || (
-        // Fallback to default teacher if roster in DB had custom format
-        inputUpper === 'ADMIN' || inputUpper === 'TCH-001'
-          ? teachersList[0] || TEACHERS_ROSTER[0]
-          : null
-      );
-
-      if (!foundTeacher) {
-        setErrorMsg('ไม่พบรหัสประจำตัวครูผู้สอนนี้ในระบบ (เช่น TCH-001, admin)');
-        return;
-      }
-
-      if (foundTeacher.password !== password) {
-        setErrorMsg('รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง');
-        return;
-      }
-
-      onLoginSuccess(foundTeacher, 'teacher');
+      authenticateTeacherOrAdmin(code, password);
     }
-  };
-
-  const handleQuickLoginStudent = (std: StudentProfile) => {
-    setCode(std.code);
-    setPassword(std.password);
-    setLoginRole('student');
-    onLoginSuccess(std, 'student');
-  };
-
-  const handleQuickLoginTeacher = (tch: TeacherProfile) => {
-    setCode(tch.code);
-    setPassword(tch.password);
-    setLoginRole('teacher');
-    onLoginSuccess(tch, 'teacher');
   };
 
   return (
@@ -150,7 +158,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               }`}
             >
               <UserCheck className="w-4 h-4" />
-              <span>ครูผู้สอน</span>
+              <span>ครูผู้สอน / Admin</span>
             </button>
           </div>
 
@@ -166,7 +174,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                {loginRole === 'student' ? 'เลขประจำตัวนักเรียน (Username / Code)' : 'รหัสประจำตัวครูผู้สอน / ชื่อผู้ใช้'}
+                {loginRole === 'student'
+                  ? 'เลขประจำตัวนักเรียน (Username / Code)'
+                  : 'รหัสประจำตัวครูผู้สอน / ผู้ดูแลระบบ (admin)'}
               </label>
               <div className="relative">
                 <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -175,7 +185,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   required
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  placeholder={loginRole === 'student' ? 'เช่น ST-68042 หรือ 68042' : 'เช่น TCH-001 หรือ admin'}
+                  placeholder={loginRole === 'student' ? 'เช่น ST-68042 หรือ 68042' : 'เช่น admin หรือ TCH-001'}
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                 />
               </div>
@@ -210,7 +220,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-md transition-colors flex items-center justify-center gap-2 cursor-pointer mt-2"
             >
               <LogIn className="w-4 h-4" />
-              <span>เข้าสู่ระบบ{loginRole === 'student' ? 'นักเรียน' : 'ครูผู้สอน'}</span>
+              <span>เข้าสู่ระบบ{loginRole === 'student' ? 'นักเรียน' : 'ครูผู้สอน / Admin'}</span>
             </button>
           </form>
         </div>
