@@ -109,7 +109,7 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
           </span>
           <span className="text-slate-400">·</span>
           <span className="text-slate-500">
-            จำแนกตามห้องเรียน ม.1/1 - ม.6/3
+            จำแนกตามห้องเรียนที่กำหนดไว้ในระบบ
           </span>
         </div>
       </div>

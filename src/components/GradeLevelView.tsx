@@ -33,10 +33,17 @@ export const GradeLevelView: React.FC<GradeLevelViewProps> = ({
   onOpenRosterModal,
   onDeleteAssignment,
   onEditAssignment,
-  gradeLevels = ['ป.4', 'ป.5', 'ป.6', 'ม.1', 'ม.2', 'ม.3', 'ม.4', 'ม.5', 'ม.6'],
+  gradeLevels = ['ทั้งหมด'],
   onOpenSettings,
 }) => {
-  const activeGradeList = gradeLevels.filter((g) => g !== 'ทั้งหมด');
+  const activeGradeList = gradeLevels.filter((g) => g && g !== 'ทั้งหมด');
+  const baseLevels = Array.from(
+    new Set(
+      activeGradeList.map((g) =>
+        g.includes('/') ? g.split('/')[0] : g.replace(/\s*\(ทุกห้อง\)$/, '')
+      )
+    )
+  );
 
   const filteredAssignments =
     role === 'student' || selectedGrade === 'ทั้งหมด'
@@ -96,87 +103,112 @@ export const GradeLevelView: React.FC<GradeLevelViewProps> = ({
         {/* Secondary Level Grouping & Room Selector (Teacher Only) */}
         {role === 'teacher' && (
           <div className="space-y-3 pt-3">
-            {/* Main Grade Levels Bar (ม.1 - ม.6 + ทั้งหมด) */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-              <button
-                onClick={() => setSelectedGrade('ทั้งหมด')}
-                className={`py-2 px-3.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                  selectedGrade === 'ทั้งหมด'
-                    ? 'bg-indigo-600 text-white shadow-sm font-bold'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-                }`}
-              >
-                ทุกระดับชั้น
-              </button>
-
-              {['ม.1', 'ม.2', 'ม.3', 'ม.4', 'ม.5', 'ม.6'].map((level) => {
-                // Check if selectedGrade starts with this level (e.g. selectedGrade "ม.1/1" starts with "ม.1")
-                const isCurrentLevelActive =
-                  selectedGrade === level ||
-                  selectedGrade.startsWith(`${level}/`) ||
-                  selectedGrade === `${level} (ทุกห้อง)`;
-                
-                const levelCount = assignments.filter(
-                  (a) => a.gradeLevel === level || a.gradeLevel.startsWith(`${level}/`) || a.gradeLevel === `${level} (ทุกห้อง)`
-                ).length;
-
-                return (
+            {activeGradeList.length === 0 ? (
+              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
+                <span>ยังไม่มีระดับชั้นหรือห้องเรียนที่คุณสร้างในระบบ</span>
+                {onOpenSettings && (
                   <button
-                    key={level}
-                    onClick={() => {
-                      // If room already selected in this level, keep or default to room 1
-                      const firstMatchingRoom = activeGradeList.find((g) => g.startsWith(`${level}/`)) || level;
-                      setSelectedGrade(firstMatchingRoom);
-                    }}
-                    className={`py-2 px-3.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-                      isCurrentLevelActive
-                        ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-bold shadow-xs'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    type="button"
+                    onClick={() => onOpenSettings('grades')}
+                    className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline cursor-pointer self-start sm:self-auto"
+                  >
+                    + เพิ่มระดับชั้น/ห้องเรียนในเมนูตั้งค่า
+                  </button>
+                )}
+              </div>
+            ) : (
+              <>
+                {/* Main Grade Levels Bar (derived strictly from user-created levels) */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                  <button
+                    onClick={() => setSelectedGrade('ทั้งหมด')}
+                    className={`py-2 px-3.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                      selectedGrade === 'ทั้งหมด'
+                        ? 'bg-indigo-600 text-white shadow-sm font-bold'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
                     }`}
                   >
-                    <span>ชั้น {level}</span>
-                    <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
-                      isCurrentLevelActive ? 'bg-white/20 text-white dark:bg-black/20 dark:text-slate-900' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                    }`}>
-                      {levelCount}
-                    </span>
+                    ทุกระดับชั้น
                   </button>
-                );
-              })}
-            </div>
 
-            {/* Sub-level Room Tabs (e.g. ห้อง 1, 2, 3 or Specific Rooms for the active level) */}
-            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100 dark:border-slate-800">
-              <span className="text-[11px] font-medium text-slate-400 mr-1">
-                เลือกดูตามห้อง:
-              </span>
-              {activeGradeList.map((g) => {
-                const count = assignments.filter((a) => {
-                  if (a.gradeLevel === g) return true;
-                  if (g.includes('/')) {
-                    const baseLevel = g.split('/')[0];
-                    if (a.gradeLevel === baseLevel || a.gradeLevel === `${baseLevel} (ทุกห้อง)`) return true;
-                  }
-                  return false;
-                }).length;
-                const isSelected = selectedGrade === g;
+                  {baseLevels.map((level) => {
+                    const isCurrentLevelActive =
+                      selectedGrade === level ||
+                      selectedGrade.startsWith(`${level}/`) ||
+                      selectedGrade === `${level} (ทุกห้อง)`;
 
-                return (
-                  <button
-                    key={g}
-                    onClick={() => setSelectedGrade(g)}
-                    className={`py-1.5 px-3 rounded-xl text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
-                      isSelected
-                        ? 'bg-indigo-600 text-white shadow-sm font-bold ring-2 ring-indigo-400/30'
-                        : 'bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40'
-                    }`}
-                  >
-                    <span>ชั้น {g}</span>
-                    <span className={`text-[10px] font-mono opacity-80`}>({count})</span>
-                  </button>
-                );
-              })}
-            </div>
+                    const levelCount = assignments.filter(
+                      (a) =>
+                        a.gradeLevel === level ||
+                        a.gradeLevel.startsWith(`${level}/`) ||
+                        a.gradeLevel === `${level} (ทุกห้อง)`
+                    ).length;
+
+                    return (
+                      <button
+                        key={level}
+                        onClick={() => {
+                          const firstMatchingRoom =
+                            activeGradeList.find((g) => g.startsWith(`${level}/`)) ||
+                            activeGradeList.find((g) => g === level) ||
+                            level;
+                          setSelectedGrade(firstMatchingRoom);
+                        }}
+                        className={`py-2 px-3.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+                          isCurrentLevelActive
+                            ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-bold shadow-xs'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                        }`}
+                      >
+                        <span>ชั้น {level}</span>
+                        <span
+                          className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
+                            isCurrentLevelActive
+                              ? 'bg-white/20 text-white dark:bg-black/20 dark:text-slate-900'
+                              : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                          }`}
+                        >
+                          {levelCount}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Sub-level Room Tabs (strictly user-created rooms) */}
+                <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+                  <span className="text-[11px] font-medium text-slate-400 mr-1">
+                    เลือกดูตามห้อง:
+                  </span>
+                  {activeGradeList.map((g) => {
+                    const count = assignments.filter((a) => {
+                      if (a.gradeLevel === g) return true;
+                      if (g.includes('/')) {
+                        const baseLevel = g.split('/')[0];
+                        if (a.gradeLevel === baseLevel || a.gradeLevel === `${baseLevel} (ทุกห้อง)`) return true;
+                      }
+                      return false;
+                    }).length;
+                    const isSelected = selectedGrade === g;
+
+                    return (
+                      <button
+                        key={g}
+                        onClick={() => setSelectedGrade(g)}
+                        className={`py-1.5 px-3 rounded-xl text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+                          isSelected
+                            ? 'bg-indigo-600 text-white shadow-sm font-bold ring-2 ring-indigo-400/30'
+                            : 'bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40'
+                        }`}
+                      >
+                        <span>ชั้น {g}</span>
+                        <span className="text-[10px] font-mono opacity-80">({count})</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

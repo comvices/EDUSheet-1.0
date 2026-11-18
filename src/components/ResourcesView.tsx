@@ -180,7 +180,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
           <div className="space-y-2 max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/30 border border-indigo-400/30 text-indigo-200 text-xs font-semibold backdrop-blur-xs">
               <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              <span>คลังสื่อการเรียนรู้แบบแยกตามห้องเรียน (ม.1/1 - ม.6/3)</span>
+              <span>คลังสื่อการเรียนรู้แบบแยกตามห้องเรียน</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold font-prompt leading-tight tracking-tight">
               📚 คลังสื่อการเรียนรู้ประจำวิชา

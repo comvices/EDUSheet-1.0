@@ -20,7 +20,7 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
   onCreateAssignment,
   onUpdateAssignment,
   editingAssignment,
-  gradeLevelsList = ['ม.1/1', 'ม.1/2', 'ม.1/3'],
+  gradeLevelsList = [],
   subjectsList = [],
   currentTeacherName = 'ครูผู้สอน',
   studentsList = [],
@@ -34,7 +34,7 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
   // Form State
   const [title, setTitle] = useState(editingAssignment?.title || '');
   const [subject, setSubject] = useState(editingAssignment?.subject || activeSubjects[0] || '');
-  const [gradeLevel, setGradeLevel] = useState(editingAssignment?.gradeLevel || activeGrades[0] || 'ม.1/1');
+  const [gradeLevel, setGradeLevel] = useState(editingAssignment?.gradeLevel || activeGrades[0] || '');
   const [category, setCategory] = useState<CategoryType>(editingAssignment?.category || 'แบบฝึกหัด');
   const [description, setDescription] = useState(editingAssignment?.description || '');
   const [instructions, setInstructions] = useState(editingAssignment?.instructions || 'จงตอบคำถามให้ถูกต้องตามหลักการ');

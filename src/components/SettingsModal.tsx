@@ -104,7 +104,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [manualName, setManualName] = useState('');
   const [manualPassword, setManualPassword] = useState('123456');
   const [manualGrade, setManualGrade] = useState(
-    activeGrades[0] || 'ม.1/1'
+    activeGrades[0] || ''
   );
 
   // Edit Student State

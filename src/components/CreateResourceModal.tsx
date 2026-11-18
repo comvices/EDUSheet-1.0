@@ -33,10 +33,10 @@ export const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [subject, setSubject] = useState(
-    subjectsList.find((s) => s !== 'ทั้งหมด') || 'วิทยาศาสตร์'
+    subjectsList.find((s) => s !== 'ทั้งหมด') || ''
   );
   const [gradeLevel, setGradeLevel] = useState(
-    gradeLevelsList.find((g) => g !== 'ทั้งหมด') || 'ม.1/1'
+    gradeLevelsList.find((g) => g !== 'ทั้งหมด') || 'ทั้งหมด'
   );
   const [type, setType] = useState<ResourceType>('video');
   const [url, setUrl] = useState('');
@@ -107,7 +107,7 @@ export const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
                 {editingResource ? 'แก้ไขสื่อการเรียนรู้' : 'เพิ่มสื่อการเรียนรู้ใหม่'}
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                คลังสื่อการเรียนรู้ประจำวิชาและห้องเรียน (ม.1/1 - ม.6/3)
+                คลังสื่อการเรียนรู้ประจำวิชาและห้องเรียนที่คุณกำหนด
               </p>
             </div>
           </div>
@@ -229,12 +229,6 @@ export const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
                 className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-medium text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="ทั้งหมด">ทั้งหมด (ทุกระดับชั้น)</option>
-                <option value="ม.1 (ทุกห้อง)">ม.1 (ทุกห้อง)</option>
-                <option value="ม.2 (ทุกห้อง)">ม.2 (ทุกห้อง)</option>
-                <option value="ม.3 (ทุกห้อง)">ม.3 (ทุกห้อง)</option>
-                <option value="ม.4 (ทุกห้อง)">ม.4 (ทุกห้อง)</option>
-                <option value="ม.5 (ทุกห้อง)">ม.5 (ทุกห้อง)</option>
-                <option value="ม.6 (ทุกห้อง)">ม.6 (ทุกห้อง)</option>
                 {gradeLevelsList
                   .filter((g) => g !== 'ทั้งหมด')
                   .map((gl) => (

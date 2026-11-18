@@ -146,6 +146,11 @@ export function subscribeSettings(
             subjects: data.subjects || [],
             periodConfigs: Array.isArray(data.periodConfigs) ? data.periodConfigs : undefined,
           });
+        } else {
+          onData({
+            gradeLevels: [],
+            subjects: [],
+          });
         }
       },
       (error) => {

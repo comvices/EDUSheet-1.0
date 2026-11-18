@@ -1,7 +1,7 @@
 import React from 'react';
 import { Filter, RotateCcw, Settings } from 'lucide-react';
 import { FilterState, UserRole } from '../types';
-import { GRADE_LEVELS_LIST, STATUS_LIST, CATEGORY_LIST } from '../data/mockData';
+import { STATUS_LIST, CATEGORY_LIST } from '../data/mockData';
 
 interface FilterBarProps {
   filters: FilterState;
@@ -21,7 +21,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   setFilters,
   onResetFilters,
   resultCount,
-  gradeLevels = GRADE_LEVELS_LIST,
+  gradeLevels = ['ทั้งหมด'],
   subjects = ['ทั้งหมด'],
   role = 'student',
   studentGradeLevel,

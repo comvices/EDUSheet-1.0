@@ -13,7 +13,6 @@ import {
   PeriodConfig,
 } from './types';
 import {
-  GRADE_LEVELS_LIST,
   DEFAULT_PERIOD_CONFIGS,
 } from './data/mockData';
 import {
@@ -68,6 +67,7 @@ import { SubmissionRosterModal } from './components/SubmissionRosterModal';
 import { ResourcesView } from './components/ResourcesView';
 import { CreateResourceModal } from './components/CreateResourceModal';
 import { AttendanceView } from './components/AttendanceView';
+import { GradebookView } from './components/GradebookView';
 import { CheckCircle2, KeyRound, LogOut, AlertTriangle } from 'lucide-react';
 
 const DEFAULT_GUEST_STUDENT: StudentProfile = {
@@ -122,10 +122,8 @@ export default function App() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
-  // Dynamic Grade Levels & Subjects Management State (loaded from Firestore, never seeded with mock subjects)
-  const [gradeLevelsList, setGradeLevelsList] = useState<string[]>(() =>
-    getInitialStorage('edusheet_grade_levels', GRADE_LEVELS_LIST)
-  );
+  // Dynamic Grade Levels & Subjects Management State (loaded strictly from Firestore, never seeded with mock grades/subjects)
+  const [gradeLevelsList, setGradeLevelsList] = useState<string[]>(['ทั้งหมด']);
   const [subjectsList, setSubjectsList] = useState<string[]>(['ทั้งหมด']);
   const [periodConfigs, setPeriodConfigs] = useState<PeriodConfig[]>(() =>
     getInitialStorage('edusheet_period_configs', DEFAULT_PERIOD_CONFIGS)
@@ -146,14 +144,9 @@ export default function App() {
       localStorage.removeItem('edusheet_schedules');
       localStorage.removeItem('edusheet_attendance');
       localStorage.removeItem('edusheet_subjects');
+      localStorage.removeItem('edusheet_grade_levels');
     } catch (e) {}
   }, []);
-
-  React.useEffect(() => {
-    try {
-      localStorage.setItem('edusheet_grade_levels', JSON.stringify(gradeLevelsList));
-    } catch (e) {}
-  }, [gradeLevelsList]);
 
   React.useEffect(() => {
     try {
@@ -180,12 +173,12 @@ export default function App() {
     });
 
     const unsubSettings = subscribeSettings((remoteSettings) => {
-      if (remoteSettings.gradeLevels && remoteSettings.gradeLevels.length > 0) {
-        setGradeLevelsList(remoteSettings.gradeLevels);
-      }
-      if (remoteSettings.subjects && remoteSettings.subjects.length > 0) {
-        setSubjectsList(remoteSettings.subjects);
-      }
+      const cleanedGrades = (remoteSettings.gradeLevels || []).filter((g) => g && g !== 'ทั้งหมด');
+      setGradeLevelsList(['ทั้งหมด', ...cleanedGrades]);
+
+      const cleanedSubjects = (remoteSettings.subjects || []).filter((s) => s && s !== 'ทั้งหมด');
+      setSubjectsList(['ทั้งหมด', ...cleanedSubjects]);
+
       if (remoteSettings.periodConfigs && remoteSettings.periodConfigs.length > 0) {
         setPeriodConfigs(remoteSettings.periodConfigs);
       }
@@ -226,7 +219,7 @@ export default function App() {
   });
 
   // Specialized View Tab States
-  const [selectedGradeInView, setSelectedGradeInView] = useState('ม.1/1');
+  const [selectedGradeInView, setSelectedGradeInView] = useState('ทั้งหมด');
   const [selectedSubjectInView, setSelectedSubjectInView] = useState('ทั้งหมด');
   const [selectedStatusInView, setSelectedStatusInView] = useState('all');
 
@@ -468,6 +461,63 @@ export default function App() {
     }
 
     showToast(`บันทึกผลการตรวจพร้อมกัน ${updates.length} คนเรียบร้อยแล้ว! ✨`);
+  };
+
+  // Direct Gradebook Cell Upsert (creates or updates Submission in Firestore)
+  const handleUpsertGradebookScore = (
+    assignment: Assignment,
+    student: StudentProfile,
+    existingSubmission: Submission | undefined,
+    score: number,
+    comment: string,
+    status: 'graded' | 'needs_revision'
+  ) => {
+    const nowIso = new Date().toISOString();
+    let savedSubmission: Submission;
+
+    if (existingSubmission) {
+      savedSubmission = {
+        ...existingSubmission,
+        score,
+        teacherComment: comment,
+        status,
+        gradedAt: nowIso,
+      };
+      setSubmissions((prev) =>
+        prev.map((s) => (s.id === existingSubmission.id ? savedSubmission : s))
+      );
+    } else {
+      savedSubmission = {
+        id: `sub_${assignment.id}_${student.code}_${Date.now()}`,
+        assignmentId: assignment.id,
+        studentId: student.id,
+        studentName: student.name,
+        studentCode: student.code,
+        gradeLevel: student.gradeLevel,
+        submissionDate: nowIso,
+        answers: {},
+        status,
+        score,
+        maxScore: assignment.totalPoints,
+        teacherComment: comment,
+        gradedAt: nowIso,
+      };
+      setSubmissions((prev) => [savedSubmission, ...prev]);
+    }
+
+    saveSubmissionToFirestore(savedSubmission);
+
+    const newNotif: NotificationItem = {
+      id: `notif_${Date.now()}`,
+      title: status === 'graded' ? '📝 อัปเดตคะแนนในสมุดเก็บคะแนน' : '✏️ ใบงานต้องแก้ไขเพิ่มเติม',
+      message: `ใบงาน "${assignment.title}" (${student.name}) ได้รับคะแนน ${score}/${assignment.totalPoints} คะแนน`,
+      date: 'เมื่อครู่นี้',
+      type: status === 'graded' ? 'graded' : 'revision',
+      isRead: false,
+      assignmentId: assignment.id,
+    };
+    setNotifications((prev) => [newNotif, ...prev]);
+    showToast(`บันทึกคะแนนของ "${student.name}" (${score}/${assignment.totalPoints}) ลงสมุดคะแนนแล้ว ✅`);
   };
 
   // Create Assignment Handler
@@ -715,7 +765,7 @@ export default function App() {
     setResources([]);
     setTeachingSchedules([]);
     setAttendanceSessions([]);
-    setGradeLevelsList(GRADE_LEVELS_LIST);
+    setGradeLevelsList(['ทั้งหมด']);
     setSubjectsList(['ทั้งหมด']);
     setPeriodConfigs(DEFAULT_PERIOD_CONFIGS);
     setNotifications([]);
@@ -735,7 +785,7 @@ export default function App() {
     setTeachingSchedules([]);
     setAttendanceSessions([]);
     setNotifications([]);
-    setGradeLevelsList(GRADE_LEVELS_LIST);
+    setGradeLevelsList(['ทั้งหมด']);
     setSubjectsList(['ทั้งหมด']);
     setPeriodConfigs(DEFAULT_PERIOD_CONFIGS);
     try {
@@ -1136,6 +1186,24 @@ export default function App() {
             onDeleteSchedule={handleDeleteSchedule}
             onSaveAttendanceSession={handleSaveAttendanceSession}
             onDeleteAttendanceSession={handleDeleteAttendanceSession}
+            onOpenSettings={role === 'teacher' ? handleOpenSettings : undefined}
+          />
+        )}
+
+        {/* Tab 7: Per-Room Gradebook / Scorebook */}
+        {activeTab === 'gradebook' && (
+          <GradebookView
+            role={role}
+            currentStudent={currentStudentUser}
+            studentsRoster={studentsRoster}
+            assignments={visibleAssignments}
+            submissions={visibleSubmissions}
+            gradeLevelsList={gradeLevelsList}
+            subjectsList={subjectsList}
+            onOpenGradingModal={(a, s) => setActiveGradingModalAsg({ assignment: a, submission: s })}
+            onOpenSubmitModal={(a) => setActiveSubmitModalAsg(a)}
+            onOpenRosterModal={(a) => setActiveRosterModalAsg(a)}
+            onUpsertCellScore={handleUpsertGradebookScore}
             onOpenSettings={role === 'teacher' ? handleOpenSettings : undefined}
           />
         )}
