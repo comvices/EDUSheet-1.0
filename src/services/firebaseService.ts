@@ -215,6 +215,25 @@ export async function saveSubmissionToFirestore(sub: Submission): Promise<void> 
   }
 }
 
+export async function saveMultipleSubmissionsToFirestore(
+  submissionsList: Submission[]
+): Promise<void> {
+  if (submissionsList.length === 0) return;
+  try {
+    const CHUNK_SIZE = 400;
+    for (let i = 0; i < submissionsList.length; i += CHUNK_SIZE) {
+      const batch = writeBatch(db);
+      const chunk = submissionsList.slice(i, i + CHUNK_SIZE);
+      for (const sub of chunk) {
+        batch.set(doc(db, SUBMISSIONS_COLLECTION, sub.id), sanitizeForFirestore(sub));
+      }
+      await batch.commit();
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, SUBMISSIONS_COLLECTION);
+  }
+}
+
 export async function saveStudentToFirestore(student: StudentProfile): Promise<void> {
   const path = `${STUDENTS_COLLECTION}/${student.id}`;
   try {

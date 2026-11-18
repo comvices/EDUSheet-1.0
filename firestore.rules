@@ -81,6 +81,7 @@ service cloud.firestore {
         isValidString(data.teacherName, 1, 200) &&
         isValidDayOfWeek(data.dayOfWeek) &&
         data.period is number && data.period >= 0 && data.period <= 12 &&
+        (!('endPeriod' in data) || (data.endPeriod is number && data.endPeriod >= 0 && data.endPeriod <= 12)) &&
         isValidString(data.startTime, 1, 20) &&
         isValidString(data.endTime, 1, 20) &&
         isValidString(data.subject, 1, 100) &&
@@ -93,6 +94,7 @@ service cloud.firestore {
         isValidString(data.date, 8, 20) &&
         isValidDayOfWeek(data.dayOfWeek) &&
         data.period is number && data.period >= 0 && data.period <= 12 &&
+        (!('endPeriod' in data) || (data.endPeriod is number && data.endPeriod >= 0 && data.endPeriod <= 12)) &&
         isValidString(data.subject, 1, 100) &&
         isValidString(data.gradeLevel, 1, 50) &&
         isValidString(data.teacherId, 1, 128) &&

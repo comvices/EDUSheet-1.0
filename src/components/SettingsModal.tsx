@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { StudentProfile, TeacherProfile, Assignment } from '../types';
+import { SaveConfirmModal, SaveConfirmDetail } from './SaveConfirmModal';
 
 export type SettingsTab = 'grades' | 'subjects' | 'students' | 'teachers';
 
@@ -126,6 +127,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     details?: string;
   } | null>(null);
   const [pendingResetAction, setPendingResetAction] = useState<'factory' | 'keep_users' | null>(null);
+  const [pendingSave, setPendingSave] = useState<{
+    title: string;
+    description: string;
+    details: SaveConfirmDetail[];
+    confirmLabel?: string;
+    variant?: 'emerald' | 'indigo' | 'amber';
+    onExecute: () => void;
+  } | null>(null);
 
   // Excel Upload State
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -150,15 +159,31 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       triggerLocalToast(`ระดับชั้น "${trimmed}" มีอยู่ในระบบแล้ว`);
       return;
     }
-    onAddGradeLevel(trimmed);
-    setNewGradeInput('');
-    triggerLocalToast(`เพิ่มระดับชั้น "${trimmed}" เรียบร้อยแล้ว`);
+    setPendingSave({
+      title: 'ยืนยันการบันทึกระดับชั้นใหม่?',
+      description: 'ระดับชั้นนี้จะถูกเพิ่มลงในระบบและพร้อมใช้งานทันที',
+      details: [{ label: 'ระดับชั้น / ห้องเรียน', value: trimmed }],
+      confirmLabel: 'ยืนยันเพิ่มระดับชั้น',
+      onExecute: () => {
+        onAddGradeLevel(trimmed);
+        setNewGradeInput('');
+        triggerLocalToast(`เพิ่มระดับชั้น "${trimmed}" เรียบร้อยแล้ว`);
+      },
+    });
   };
 
   const handleQuickAddGrade = (grade: string) => {
     if (!activeGrades.includes(grade)) {
-      onAddGradeLevel(grade);
-      triggerLocalToast(`เพิ่มระดับชั้น "${grade}" เรียบร้อยแล้ว`);
+      setPendingSave({
+        title: 'ยืนยันการเพิ่มระดับชั้น?',
+        description: 'ต้องการบันทึกระดับชั้นนี้เข้าสู่ระบบหรือไม่',
+        details: [{ label: 'ระดับชั้น', value: grade }],
+        confirmLabel: 'ยืนยันเพิ่มระดับชั้น',
+        onExecute: () => {
+          onAddGradeLevel(grade);
+          triggerLocalToast(`เพิ่มระดับชั้น "${grade}" เรียบร้อยแล้ว`);
+        },
+      });
     }
   };
 
@@ -171,15 +196,31 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       triggerLocalToast(`รายวิชา "${trimmed}" มีอยู่ในระบบแล้ว`);
       return;
     }
-    onAddSubject(trimmed);
-    setNewSubjectInput('');
-    triggerLocalToast(`เพิ่มรายวิชา "${trimmed}" เรียบร้อยแล้ว`);
+    setPendingSave({
+      title: 'ยืนยันการบันทึกรายวิชาใหม่?',
+      description: 'รายวิชานี้จะถูกเพิ่มลงในระบบและพร้อมใช้งานทันที',
+      details: [{ label: 'รายวิชา', value: trimmed }],
+      confirmLabel: 'ยืนยันเพิ่มรายวิชา',
+      onExecute: () => {
+        onAddSubject(trimmed);
+        setNewSubjectInput('');
+        triggerLocalToast(`เพิ่มรายวิชา "${trimmed}" เรียบร้อยแล้ว`);
+      },
+    });
   };
 
   const handleQuickAddSubject = (subject: string) => {
     if (!activeSubjects.includes(subject)) {
-      onAddSubject(subject);
-      triggerLocalToast(`เพิ่มรายวิชา "${subject}" เรียบร้อยแล้ว`);
+      setPendingSave({
+        title: 'ยืนยันการเพิ่มรายวิชา?',
+        description: 'ต้องการบันทึกรายวิชานี้เข้าสู่ระบบหรือไม่',
+        details: [{ label: 'รายวิชา', value: subject }],
+        confirmLabel: 'ยืนยันเพิ่มรายวิชา',
+        onExecute: () => {
+          onAddSubject(subject);
+          triggerLocalToast(`เพิ่มรายวิชา "${subject}" เรียบร้อยแล้ว`);
+        },
+      });
     }
   };
 
@@ -205,23 +246,47 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
     };
 
-    if (onAddTeacher) {
-      onAddTeacher(newTch);
-      triggerLocalToast(`เพิ่มบัญชีครูผู้สอน "${newTch.name}" เรียบร้อยแล้ว`);
-    }
-
-    setManualTeacherCode('');
-    setManualTeacherName('');
-    setManualTeacherPassword('admin123');
-    setManualTeacherSubject('');
+    setPendingSave({
+      title: 'ยืนยันการบันทึกบัญชีครูผู้สอนใหม่?',
+      description: 'ตรวจสอบรหัสและชื่อครูผู้สอนก่อนบันทึกลงฐานข้อมูล',
+      details: [
+        { label: 'รหัสครู', value: newTch.code },
+        { label: 'ชื่อ-สกุล', value: newTch.name },
+        { label: 'กลุ่มสาระ/วิชา', value: newTch.subject },
+      ],
+      confirmLabel: 'ยืนยันบันทึกครูผู้สอน',
+      onExecute: () => {
+        if (onAddTeacher) {
+          onAddTeacher(newTch);
+          triggerLocalToast(`เพิ่มบัญชีครูผู้สอน "${newTch.name}" เรียบร้อยแล้ว`);
+        }
+        setManualTeacherCode('');
+        setManualTeacherName('');
+        setManualTeacherPassword('admin123');
+        setManualTeacherSubject('');
+      },
+    });
   };
 
   const handleSaveTeacherEdit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingTeacher || !onUpdateTeacher) return;
-    onUpdateTeacher(editingTeacher);
-    triggerLocalToast(`บันทึกการแก้ไขครูผู้สอน "${editingTeacher.name}" เรียบร้อยแล้ว`);
-    setEditingTeacher(null);
+    const teacherSnapshot = { ...editingTeacher };
+    setPendingSave({
+      title: 'ยืนยันการบันทึกการแก้ไขครูผู้สอน?',
+      description: 'ตรวจสอบข้อมูลครูผู้สอนก่อนบันทึก',
+      details: [
+        { label: 'รหัสครู', value: teacherSnapshot.code },
+        { label: 'ชื่อ-สกุล', value: teacherSnapshot.name },
+        { label: 'รายวิชา', value: teacherSnapshot.subject },
+      ],
+      confirmLabel: 'ยืนยันบันทึกการแก้ไข',
+      onExecute: () => {
+        onUpdateTeacher(teacherSnapshot);
+        triggerLocalToast(`บันทึกการแก้ไขครูผู้สอน "${teacherSnapshot.name}" เรียบร้อยแล้ว`);
+        setEditingTeacher(null);
+      },
+    });
   };
 
   // 4. Delete Confirmed Handler
@@ -444,11 +509,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80',
     }));
 
-    onImportStudents(validStudents);
-    setParsedRows([]);
-    setExcelFileName(null);
-    setStudentSubTab('roster');
-    triggerLocalToast(`นำเข้าบัญชีนักเรียนเรียบร้อยแล้ว ${validStudents.length} รายการ!`);
+    setPendingSave({
+      title: 'ยืนยันการนำเข้าและบันทึกบัญชีนักเรียน?',
+      description: 'รายชื่อนักเรียนจาก Excel จะถูกบันทึกลงฐานข้อมูลระบบ',
+      details: [
+        { label: 'จำนวนนักเรียน', value: `${validStudents.length} คน` },
+        ...(excelFileName ? [{ label: 'ไฟล์ต้นทาง', value: excelFileName }] : []),
+      ],
+      confirmLabel: 'ยืนยันนำเข้าและบันทึก',
+      onExecute: () => {
+        onImportStudents(validStudents);
+        setParsedRows([]);
+        setExcelFileName(null);
+        setStudentSubTab('roster');
+        triggerLocalToast(`นำเข้าบัญชีนักเรียนเรียบร้อยแล้ว ${validStudents.length} รายการ!`);
+      },
+    });
   };
 
   const handleManualSubmit = (e: React.FormEvent) => {
@@ -464,20 +540,45 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       avatar: `https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=150&q=80`,
     };
 
-    onAddStudent(newStd);
-    setManualCode('');
-    setManualName('');
-    setManualPassword('123456');
-    setStudentSubTab('roster');
-    triggerLocalToast(`เพิ่มนักเรียน "${newStd.name}" เข้าสู่ระบบเรียบร้อยแล้ว!`);
+    setPendingSave({
+      title: 'ยืนยันการบันทึกบัญชีนักเรียนใหม่?',
+      description: 'ตรวจสอบข้อมูลนักเรียนก่อนบันทึกลงฐานข้อมูล',
+      details: [
+        { label: 'รหัสนักเรียน', value: newStd.code },
+        { label: 'ชื่อ-สกุล', value: newStd.name },
+        { label: 'ระดับชั้น', value: newStd.gradeLevel },
+      ],
+      confirmLabel: 'ยืนยันบันทึกนักเรียน',
+      onExecute: () => {
+        onAddStudent(newStd);
+        setManualCode('');
+        setManualName('');
+        setManualPassword('123456');
+        setStudentSubTab('roster');
+        triggerLocalToast(`เพิ่มนักเรียน "${newStd.name}" เข้าสู่ระบบเรียบร้อยแล้ว!`);
+      },
+    });
   };
 
   const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingStudent) return;
-    onUpdateStudent(editingStudent);
-    setEditingStudent(null);
-    triggerLocalToast(`อัปเดตข้อมูลนักเรียน "${editingStudent.name}" เรียบร้อยแล้ว`);
+    const studentSnapshot = { ...editingStudent };
+    setPendingSave({
+      title: 'ยืนยันการบันทึกการแก้ไขนักเรียน?',
+      description: 'ตรวจสอบข้อมูลนักเรียนก่อนบันทึกลงระบบ',
+      details: [
+        { label: 'รหัสนักเรียน', value: studentSnapshot.code },
+        { label: 'ชื่อ-สกุล', value: studentSnapshot.name },
+        { label: 'ระดับชั้น', value: studentSnapshot.gradeLevel },
+      ],
+      confirmLabel: 'ยืนยันบันทึกการแก้ไข',
+      onExecute: () => {
+        onUpdateStudent(studentSnapshot);
+        setEditingStudent(null);
+        triggerLocalToast(`อัปเดตข้อมูลนักเรียน "${studentSnapshot.name}" เรียบร้อยแล้ว`);
+      },
+    });
   };
 
   // Filtered Roster
@@ -693,12 +794,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         'ม.5/1', 'ม.5/2', 'ม.5/3',
                         'ม.6/1', 'ม.6/2', 'ม.6/3',
                       ];
-                      allSecondaryRooms.forEach((r) => {
-                        if (!activeGrades.includes(r)) {
-                          onAddGradeLevel(r);
-                        }
+                      const missing = allSecondaryRooms.filter((r) => !activeGrades.includes(r));
+                      if (missing.length === 0) {
+                        triggerLocalToast('ระดับชั้น ม.1/1 ถึง ม.6/3 มีครบทั้งหมดแล้ว');
+                        return;
+                      }
+                      setPendingSave({
+                        title: 'ยืนยันการเพิ่มระดับชั้น ม.1/1–ม.6/3?',
+                        description: 'ระบบจะบันทึกระดับชั้นที่ยังไม่มีเข้าสู่ฐานข้อมูล',
+                        details: [{ label: 'จำนวนห้องที่เพิ่ม', value: `${missing.length} ห้อง` }],
+                        confirmLabel: 'ยืนยันบันทึกทั้งหมด',
+                        onExecute: () => {
+                          missing.forEach((r) => onAddGradeLevel(r));
+                          triggerLocalToast('เพิ่มระดับชั้น ม.1/1 ถึง ม.6/3 ครบทั้ง 18 ห้องเรียบร้อยแล้ว! 🎓');
+                        },
                       });
-                      triggerLocalToast('เพิ่มระดับชั้น ม.1/1 ถึง ม.6/3 ครบทั้ง 18 ห้องเรียบร้อยแล้ว! 🎓');
                     }}
                     className="text-[11px] text-indigo-600 dark:text-indigo-400 font-bold hover:underline cursor-pointer flex items-center gap-1"
                   >
@@ -1059,8 +1169,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                                     <button
                                       onClick={() => {
-                                        onUpdateStudent({ ...std, password: '123456' });
-                                        triggerLocalToast(`รีเซ็ตรหัสผ่านของ ${std.name} เป็น 123456 เรียบร้อย`);
+                                        setPendingSave({
+                                          title: 'ยืนยันการบันทึกรีเซ็ตรหัสผ่านนักเรียน?',
+                                          description: 'รหัสผ่านของนักเรียนรายนี้จะถูกเปลี่ยนเป็น 123456',
+                                          variant: 'amber',
+                                          details: [
+                                            { label: 'นักเรียน', value: `${std.name} (${std.code})` },
+                                            { label: 'รหัสผ่านใหม่', value: '123456' },
+                                          ],
+                                          confirmLabel: 'ยืนยันรีเซ็ตรหัสผ่าน',
+                                          onExecute: () => {
+                                            onUpdateStudent({ ...std, password: '123456' });
+                                            triggerLocalToast(`รีเซ็ตรหัสผ่านของ ${std.name} เป็น 123456 เรียบร้อย`);
+                                          },
+                                        });
                                       }}
                                       className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 rounded-lg transition-colors cursor-pointer"
                                       title="รีเซ็ตรหัสผ่านเป็น 123456"
@@ -1827,6 +1949,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
         </div>
       )}
+
+      <SaveConfirmModal
+        isOpen={Boolean(pendingSave)}
+        title={pendingSave?.title}
+        description={pendingSave?.description}
+        details={pendingSave?.details}
+        confirmLabel={pendingSave?.confirmLabel}
+        variant={pendingSave?.variant}
+        onConfirm={() => {
+          if (!pendingSave) return;
+          pendingSave.onExecute();
+          setPendingSave(null);
+        }}
+        onCancel={() => setPendingSave(null)}
+      />
     </div>
   );
 };

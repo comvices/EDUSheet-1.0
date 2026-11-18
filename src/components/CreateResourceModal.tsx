@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { LearningResource, ResourceType } from '../types';
+import { SaveConfirmModal } from './SaveConfirmModal';
 
 interface CreateResourceModalProps {
   editingResource?: LearningResource | null;
@@ -41,6 +42,7 @@ export const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
   const [url, setUrl] = useState('');
   const [fileSize, setFileSize] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [pendingResource, setPendingResource] = useState<LearningResource | null>(null);
 
   useEffect(() => {
     if (editingResource) {
@@ -88,8 +90,7 @@ export const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
       ...(fileSize.trim() ? { fileSize: fileSize.trim() } : {}),
     };
 
-    onSaveResource(savedRes);
-    onClose();
+    setPendingResource(savedRes);
   };
 
   return (
@@ -312,6 +313,29 @@ export const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
           </div>
         </form>
       </div>
+
+      <SaveConfirmModal
+        isOpen={Boolean(pendingResource)}
+        title={editingResource ? 'ยืนยันการบันทึกการแก้ไขสื่อ?' : 'ยืนยันการเผยแพร่สื่อการเรียนรู้?'}
+        description="ตรวจสอบรายละเอียดสื่อการเรียนรู้ก่อนบันทึกลงระบบ"
+        details={
+          pendingResource
+            ? [
+                { label: 'ชื่อสื่อ', value: pendingResource.title },
+                { label: 'ประเภท', value: pendingResource.type },
+                { label: 'รายวิชา / ชั้น', value: `${pendingResource.subject} (${pendingResource.gradeLevel})` },
+              ]
+            : []
+        }
+        confirmLabel={editingResource ? 'ยืนยันบันทึกการแก้ไข' : 'ยืนยันเผยแพร่สื่อ'}
+        onConfirm={() => {
+          if (!pendingResource) return;
+          onSaveResource(pendingResource);
+          setPendingResource(null);
+          onClose();
+        }}
+        onCancel={() => setPendingResource(null)}
+      />
     </div>
   );
 };

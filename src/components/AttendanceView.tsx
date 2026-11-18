@@ -27,6 +27,7 @@ import {
   Save,
   Coffee,
   SlidersHorizontal,
+  Layers,
 } from 'lucide-react';
 import {
   AttendanceSession,
@@ -42,6 +43,7 @@ import {
 import { DAYS_OF_WEEK_LIST, DEFAULT_PERIOD_CONFIGS } from '../data/mockData';
 import { ScheduleFormModal } from './ScheduleFormModal';
 import { PeriodSettingsModal } from './PeriodSettingsModal';
+import { SaveConfirmModal } from './SaveConfirmModal';
 
 interface AttendanceViewProps {
   role: UserRole;
@@ -229,6 +231,58 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     return matched ? Boolean(matched.isBreak) : periodNum === 0;
   };
 
+  const getPeriodRangeDisplayLabel = (
+    periodNum: number,
+    endPeriodNum?: number,
+    compact = false
+  ): string => {
+    if (!endPeriodNum || endPeriodNum === periodNum) {
+      return getPeriodDisplayLabel(periodNum, compact);
+    }
+    const startLbl = getPeriodDisplayLabel(periodNum, compact);
+    const endLbl = getPeriodDisplayLabel(endPeriodNum, compact);
+    const startMatch = startLbl.match(/^(คาบที่|คาบ)\s*(\d+)$/);
+    const endMatch = endLbl.match(/^(คาบที่|คาบ)\s*(\d+)$/);
+    if (startMatch && endMatch) {
+      return `${startMatch[1]} ${startMatch[2]}–${endMatch[2]}`;
+    }
+    return `${startLbl} – ${endLbl}`;
+  };
+
+  const getPeriodSpanCount = (periodNum: number, endPeriodNum?: number): number => {
+    if (!endPeriodNum || endPeriodNum === periodNum) return 1;
+    const i1 = activePeriods.findIndex((p) => p.period === periodNum);
+    const i2 = activePeriods.findIndex((p) => p.period === endPeriodNum);
+    if (i1 >= 0 && i2 >= i1) {
+      const nonBreakCount = activePeriods.slice(i1, i2 + 1).filter((p) => !p.isBreak).length;
+      return Math.max(1, nonBreakCount || i2 - i1 + 1);
+    }
+    if (endPeriodNum > periodNum) return endPeriodNum - periodNum + 1;
+    return 2;
+  };
+
+  const areSchedulesConsecutive = (
+    prevEndPeriod: number,
+    prevEndTime: string,
+    nextStartPeriod: number,
+    nextStartTime: string
+  ): boolean => {
+    if (isBreakPeriodNum(prevEndPeriod) || isBreakPeriodNum(nextStartPeriod)) {
+      return false;
+    }
+    const idxPrev = activePeriods.findIndex((p) => p.period === prevEndPeriod);
+    const idxNext = activePeriods.findIndex((p) => p.period === nextStartPeriod);
+    if (idxPrev >= 0 && idxNext >= 0) {
+      if (idxNext <= idxPrev) return false;
+      const hasBreakBetween = activePeriods
+        .slice(idxPrev + 1, idxNext)
+        .some((p) => p.isBreak);
+      if (hasBreakBetween) return false;
+      return idxNext === idxPrev + 1;
+    }
+    return prevEndTime === nextStartTime || nextStartPeriod === prevEndPeriod + 1;
+  };
+
   const sortSchedulesChronologically = (
     a: { period: number; startTime?: string },
     b: { period: number; startTime?: string }
@@ -262,9 +316,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   const [activeSheet, setActiveSheet] = useState<{
     sessionId: string;
     scheduleId?: string;
+    coveredScheduleIds?: string[];
     date: string;
     dayOfWeek: DayOfWeek;
     period: number;
+    endPeriod?: number;
     startTime: string;
     endTime: string;
     subject: string;
@@ -288,6 +344,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     gradeLevelsList.filter((g) => g !== 'ทั้งหมด')[0] || ''
   );
   const [adhocPeriod, setAdhocPeriod] = useState<number>(defaultTeachingPeriod);
+  const [adhocEndPeriod, setAdhocEndPeriod] = useState<number>(defaultTeachingPeriod);
   const [adhocTeacherId, setAdhocTeacherId] = useState<string>(currentTeacher.id);
 
   // Schedule & Period Management states
@@ -306,9 +363,10 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   const [historyGradeFilter, setHistoryGradeFilter] = useState<string>('ทั้งหมด');
   const [historySearch, setHistorySearch] = useState<string>('');
 
-  // Custom Delete Confirmation Modal States
+  // Custom Delete & Save Confirmation Modal States
   const [deleteScheduleConfirm, setDeleteScheduleConfirm] = useState<TeachingSchedule | null>(null);
   const [deleteSessionConfirm, setDeleteSessionConfirm] = useState<AttendanceSession | null>(null);
+  const [isSaveSheetConfirmOpen, setIsSaveSheetConfirmOpen] = useState(false);
 
   // Sync teacher default filter when logged-in teacher changes
   useEffect(() => {
@@ -371,31 +429,119 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
       .sort(sortSchedulesChronologically);
   }, [schedules, currentDayOfWeek, selectedTeacherFilter, activePeriods]);
 
-  // Helper to find saved session for a schedule on selectedDate
-  const findSessionForSchedule = (schedule: TeachingSchedule, date: string) => {
+  // Group consecutive periods of the same teacher + subject + gradeLevel into ONE check-in block
+  const dailyScheduleBlocks = useMemo(() => {
+    interface DailyBlock {
+      id: string;
+      primary: TeachingSchedule;
+      schedules: TeachingSchedule[];
+      period: number;
+      endPeriod: number;
+      startTime: string;
+      endTime: string;
+      periodCount: number;
+    }
+
+    const blocks: DailyBlock[] = [];
+    for (const sch of dailyScheduledPeriods) {
+      const schEndPeriod =
+        sch.endPeriod && sch.endPeriod !== sch.period ? sch.endPeriod : sch.period;
+      const lastBlock = blocks[blocks.length - 1];
+
+      if (
+        lastBlock &&
+        lastBlock.primary.teacherId === sch.teacherId &&
+        lastBlock.primary.subject.trim() === sch.subject.trim() &&
+        lastBlock.primary.gradeLevel.trim() === sch.gradeLevel.trim() &&
+        areSchedulesConsecutive(
+          lastBlock.endPeriod,
+          lastBlock.endTime,
+          sch.period,
+          sch.startTime
+        )
+      ) {
+        lastBlock.schedules.push(sch);
+        lastBlock.endPeriod = schEndPeriod;
+        lastBlock.endTime = sch.endTime;
+        lastBlock.periodCount = getPeriodSpanCount(lastBlock.period, lastBlock.endPeriod);
+      } else {
+        blocks.push({
+          id: sch.id,
+          primary: sch,
+          schedules: [sch],
+          period: sch.period,
+          endPeriod: schEndPeriod,
+          startTime: sch.startTime,
+          endTime: sch.endTime,
+          periodCount: getPeriodSpanCount(sch.period, schEndPeriod),
+        });
+      }
+    }
+    return blocks;
+  }, [dailyScheduledPeriods, activePeriods]);
+
+  const periodRangesOverlap = (
+    p1Start: number,
+    p1End: number | undefined,
+    p2Start: number,
+    p2End: number | undefined
+  ): boolean => {
+    const toIndices = (a: number, b?: number): [number, number] => {
+      const i1 = activePeriods.findIndex((p) => p.period === a);
+      const i2 = activePeriods.findIndex((p) => p.period === (b ?? a));
+      if (i1 >= 0 && i2 >= i1) return [i1, i2];
+      if (i1 >= 0) return [i1, i1];
+      return [a, b ?? a];
+    };
+    const [s1, e1] = toIndices(p1Start, p1End);
+    const [s2, e2] = toIndices(p2Start, p2End);
+    return s1 <= e2 && s2 <= e1;
+  };
+
+  // Helper to find saved session for a schedule block on selectedDate
+  const findSessionForBlock = (
+    block: {
+      primary: TeachingSchedule;
+      schedules: TeachingSchedule[];
+      period: number;
+      endPeriod: number;
+    },
+    date: string
+  ) => {
+    const coveredIds = new Set(block.schedules.map((s) => s.id));
     return attendanceSessions.find(
       (s) =>
         s.date === date &&
-        (s.scheduleId === schedule.id ||
-          (s.teacherId === schedule.teacherId &&
-            s.period === schedule.period &&
-            s.gradeLevel === schedule.gradeLevel))
+        ((s.scheduleId && coveredIds.has(s.scheduleId)) ||
+          (s.teacherId === block.primary.teacherId &&
+            s.subject === block.primary.subject &&
+            s.gradeLevel === block.primary.gradeLevel &&
+            periodRangesOverlap(s.period, s.endPeriod, block.period, block.endPeriod)))
     );
   };
 
-  // Open Check-in Sheet from a TeachingSchedule
-  const handleOpenCheckinForSchedule = (
-    schedule: TeachingSchedule,
+  // Open Check-in Sheet from a merged consecutive block
+  const handleOpenCheckinForBlock = (
+    block: {
+      primary: TeachingSchedule;
+      schedules: TeachingSchedule[];
+      period: number;
+      endPeriod: number;
+      startTime: string;
+      endTime: string;
+    },
     targetDate: string = selectedDate
   ) => {
-    const dayOfWk = getDayOfWeekFromDateString(targetDate) || schedule.dayOfWeek;
-    const existing = findSessionForSchedule(schedule, targetDate);
+    const dayOfWk = getDayOfWeekFromDateString(targetDate) || block.primary.dayOfWeek;
+    const existing = findSessionForBlock(block, targetDate);
+    const coveredScheduleIds = block.schedules.map((s) => s.id);
+    const resolvedEndPeriod =
+      block.endPeriod !== block.period ? block.endPeriod : undefined;
 
     if (existing) {
-      // Also check if any new students were added to the room since last save
       const { students: roomStudents, isBaseFallback } = getStudentsForRoom(
         studentsRoster,
-        schedule.gradeLevel
+        block.primary.gradeLevel
       );
       const existingMap = new Map(
         existing.records.map((r) => [r.studentCode || r.studentId, r])
@@ -416,17 +562,19 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
 
       setActiveSheet({
         sessionId: existing.id,
-        scheduleId: schedule.id,
+        scheduleId: existing.scheduleId || block.primary.id,
+        coveredScheduleIds,
         date: targetDate,
         dayOfWeek: dayOfWk,
-        period: schedule.period,
-        startTime: schedule.startTime,
-        endTime: schedule.endTime,
-        subject: schedule.subject,
-        gradeLevel: schedule.gradeLevel,
-        teacherId: schedule.teacherId,
-        teacherCode: schedule.teacherCode,
-        teacherName: schedule.teacherName,
+        period: block.period,
+        ...(resolvedEndPeriod !== undefined ? { endPeriod: resolvedEndPeriod } : {}),
+        startTime: block.startTime,
+        endTime: block.endTime,
+        subject: block.primary.subject,
+        gradeLevel: block.primary.gradeLevel,
+        teacherId: block.primary.teacherId,
+        teacherCode: block.primary.teacherCode,
+        teacherName: block.primary.teacherName,
         topicTaught: existing.topicTaught || '',
         records: mergedRecords,
         isBaseFallback,
@@ -434,7 +582,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     } else {
       const { students: roomStudents, isBaseFallback } = getStudentsForRoom(
         studentsRoster,
-        schedule.gradeLevel
+        block.primary.gradeLevel
       );
       const initialRecords: StudentAttendanceRecord[] = roomStudents.map((st) => ({
         studentId: st.id,
@@ -445,18 +593,20 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
       }));
 
       setActiveSheet({
-        sessionId: `att_${targetDate.replace(/-/g, '')}_${schedule.id}`,
-        scheduleId: schedule.id,
+        sessionId: `att_${targetDate.replace(/-/g, '')}_${block.primary.id}`,
+        scheduleId: block.primary.id,
+        coveredScheduleIds,
         date: targetDate,
         dayOfWeek: dayOfWk,
-        period: schedule.period,
-        startTime: schedule.startTime,
-        endTime: schedule.endTime,
-        subject: schedule.subject,
-        gradeLevel: schedule.gradeLevel,
-        teacherId: schedule.teacherId,
-        teacherCode: schedule.teacherCode,
-        teacherName: schedule.teacherName,
+        period: block.period,
+        ...(resolvedEndPeriod !== undefined ? { endPeriod: resolvedEndPeriod } : {}),
+        startTime: block.startTime,
+        endTime: block.endTime,
+        subject: block.primary.subject,
+        gradeLevel: block.primary.gradeLevel,
+        teacherId: block.primary.teacherId,
+        teacherCode: block.primary.teacherCode,
+        teacherName: block.primary.teacherName,
         topicTaught: '',
         records: initialRecords,
         isBaseFallback,
@@ -464,6 +614,35 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     }
     setStudentSearch('');
     setCopiedReport(false);
+  };
+
+  // Open Check-in Sheet from a TeachingSchedule (merges with matching block if consecutive)
+  const handleOpenCheckinForSchedule = (
+    schedule: TeachingSchedule,
+    targetDate: string = selectedDate
+  ) => {
+    const matchedBlock = dailyScheduleBlocks.find((b) =>
+      b.schedules.some((s) => s.id === schedule.id)
+    );
+    if (matchedBlock) {
+      handleOpenCheckinForBlock(matchedBlock, targetDate);
+      return;
+    }
+
+    handleOpenCheckinForBlock(
+      {
+        primary: schedule,
+        schedules: [schedule],
+        period: schedule.period,
+        endPeriod:
+          schedule.endPeriod && schedule.endPeriod !== schedule.period
+            ? schedule.endPeriod
+            : schedule.period,
+        startTime: schedule.startTime,
+        endTime: schedule.endTime,
+      },
+      targetDate
+    );
   };
 
   // Open Check-in Sheet from an existing AttendanceSession (e.g. from History)
@@ -476,6 +655,9 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
       date: session.date,
       dayOfWeek: session.dayOfWeek,
       period: session.period,
+      ...(session.endPeriod && session.endPeriod !== session.period
+        ? { endPeriod: session.endPeriod }
+        : {}),
       startTime: session.startTime || '08:30',
       endTime: session.endTime || '09:20',
       subject: session.subject,
@@ -495,8 +677,10 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     e.preventDefault();
     const tch =
       teachersRoster.find((t) => t.id === adhocTeacherId) || currentTeacher;
-    const preset =
+    const startPreset =
       activePeriods.find((p) => p.period === adhocPeriod) || activePeriods[0];
+    const endPreset =
+      activePeriods.find((p) => p.period === adhocEndPeriod) || startPreset;
     const dayOfWk = getDayOfWeekFromDateString(selectedDate) || 'monday';
     const { students: roomStudents, isBaseFallback } = getStudentsForRoom(
       studentsRoster,
@@ -516,8 +700,9 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
       date: selectedDate,
       dayOfWeek: dayOfWk,
       period: adhocPeriod,
-      startTime: preset.startTime,
-      endTime: preset.endTime,
+      ...(adhocEndPeriod !== adhocPeriod ? { endPeriod: adhocEndPeriod } : {}),
+      startTime: startPreset.startTime,
+      endTime: endPreset.endTime,
       subject: adhocSubject,
       gradeLevel: adhocGrade,
       teacherId: tch.id,
@@ -591,6 +776,9 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
       date: activeSheet.date,
       dayOfWeek: activeSheet.dayOfWeek,
       period: activeSheet.period,
+      ...(activeSheet.endPeriod && activeSheet.endPeriod !== activeSheet.period
+        ? { endPeriod: activeSheet.endPeriod }
+        : {}),
       startTime: activeSheet.startTime,
       endTime: activeSheet.endTime,
       subject: activeSheet.subject,
@@ -647,7 +835,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
 
     const lines = [
       `📋 รายงานการเช็คชื่อเข้าเรียน`,
-      `📅 ${formatThaiDate(activeSheet.date)} (${getPeriodDisplayLabel(activeSheet.period)} | ${activeSheet.startTime}-${activeSheet.endTime})`,
+      `📅 ${formatThaiDate(activeSheet.date)} (${getPeriodRangeDisplayLabel(activeSheet.period, activeSheet.endPeriod)} | ${activeSheet.startTime}-${activeSheet.endTime})`,
       `📚 วิชา: ${activeSheet.subject} | ชั้น ${activeSheet.gradeLevel}`,
       `👩‍🏫 ผู้สอน: ${activeSheet.teacherName}`,
       ...(activeSheet.topicTaught.trim()
@@ -692,12 +880,14 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   const handleExportSessionExcel = (session: {
     date: string;
     period: number;
+    endPeriod?: number;
     subject: string;
     gradeLevel: string;
     teacherName: string;
     topicTaught?: string;
     records: StudentAttendanceRecord[];
   }) => {
+    const periodText = getPeriodRangeDisplayLabel(session.period, session.endPeriod);
     const rows = session.records.map((r, idx) => ({
       ลำดับ: idx + 1,
       รหัสนักเรียน: r.studentCode,
@@ -706,7 +896,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
       สถานะ: STATUS_META[r.status].label,
       หมายเหตุ: r.note || '-',
       วันที่: session.date,
-      คาบที่: getPeriodDisplayLabel(session.period),
+      คาบที่: periodText,
       วิชา: session.subject,
       ครูผู้สอน: session.teacherName,
       หัวข้อที่สอน: session.topicTaught || '-',
@@ -717,7 +907,12 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
     const safeSubject = session.subject.replace(/[\\/:*?"<>|]/g, '_');
     const safeGrade = session.gradeLevel.replace(/[\\/:*?"<>|]/g, '_');
-    const periodSlug = session.period === 0 ? 'พักเที่ยง' : `คาบ${session.period}`;
+    const periodSlug =
+      session.period === 0
+        ? 'พักเที่ยง'
+        : session.endPeriod && session.endPeriod !== session.period
+        ? `คาบ${session.period}-${session.endPeriod}`
+        : `คาบ${session.period}`;
     XLSX.writeFile(
       wb,
       `เช็คชื่อ_${safeSubject}_${safeGrade}_${session.date}_${periodSlug}.xlsx`
@@ -840,7 +1035,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
       sess.records.forEach((rec) => {
         rows.push({
           วันที่: sess.date,
-          คาบที่: getPeriodDisplayLabel(sess.period),
+          คาบที่: getPeriodRangeDisplayLabel(sess.period, sess.endPeriod),
           เวลา: `${sess.startTime || ''}-${sess.endTime || ''}`,
           รายวิชา: sess.subject,
           ชั้นเรียน: sess.gradeLevel,
@@ -1003,7 +1198,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                                     : 'text-indigo-600 dark:text-indigo-400'
                                 }`}
                               >
-                                {getPeriodDisplayLabel(item.period, true)}
+                                {getPeriodRangeDisplayLabel(item.period, item.endPeriod, true)}
                               </span>
                               <span className="text-slate-400 font-mono">
                                 {item.startTime}-{item.endTime}
@@ -1056,7 +1251,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                         {formatThaiDate(session.date)}
                       </span>
                       <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-                        {getPeriodDisplayLabel(session.period)}
+                        {getPeriodRangeDisplayLabel(session.period, session.endPeriod)}
                       </span>
                       <span className="font-bold text-indigo-600 dark:text-indigo-400">
                         วิชา {session.subject}
@@ -1304,11 +1499,15 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
 
           {/* Scheduled Periods List for Selected Day */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-sm sm:text-base font-bold font-prompt text-slate-900 dark:text-white flex items-center gap-2">
                 <Clock className="w-4.5 h-4.5 text-indigo-600" />
                 <span>
-                  คาบสอนประจำ{formatThaiDate(selectedDate)} ({dailyScheduledPeriods.length} คาบ)
+                  คาบสอนประจำ{formatThaiDate(selectedDate)} ({dailyScheduleBlocks.length} รายการ
+                  {dailyScheduledPeriods.length > dailyScheduleBlocks.length
+                    ? ` · รวมคาบสอนติดกัน`
+                    : ''}
+                  )
                 </span>
               </h2>
             </div>
@@ -1325,7 +1524,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                   </p>
                 </div>
               </div>
-            ) : dailyScheduledPeriods.length === 0 ? (
+            ) : dailyScheduleBlocks.length === 0 ? (
               <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 text-center space-y-3">
                 <CalendarClock className="w-10 h-10 text-slate-400 mx-auto" />
                 <div>
@@ -1358,13 +1557,21 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {dailyScheduledPeriods.map((sch) => {
-                  const savedSession = findSessionForSchedule(sch, selectedDate);
+                {dailyScheduleBlocks.map((block) => {
+                  const sch = block.primary;
+                  const savedSession = findSessionForBlock(block, selectedDate);
                   const { students: roomStudents } = getStudentsForRoom(
                     studentsRoster,
                     sch.gradeLevel
                   );
-                  const isActive = activeSheet?.scheduleId === sch.id && activeSheet?.date === selectedDate;
+                  const isActive =
+                    activeSheet?.date === selectedDate &&
+                    ((activeSheet?.scheduleId &&
+                      block.schedules.some((s) => s.id === activeSheet.scheduleId)) ||
+                      (activeSheet?.coveredScheduleIds &&
+                        block.schedules.some((s) =>
+                          activeSheet.coveredScheduleIds?.includes(s.id)
+                        )));
 
                   const presentCnt = savedSession
                     ? savedSession.records.filter((r) => r.status === 'present').length
@@ -1379,9 +1586,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                     ? savedSession.records.filter((r) => r.status === 'absent').length
                     : 0;
 
+                  const isMultiPeriod = block.periodCount > 1 || block.endPeriod !== block.period;
+
                   return (
                     <div
-                      key={sch.id}
+                      key={block.id}
                       className={`rounded-2xl border p-4 transition-all bg-white dark:bg-slate-900 shadow-xs flex flex-col justify-between gap-3 ${
                         isActive
                           ? 'border-indigo-500 ring-2 ring-indigo-500/20'
@@ -1391,20 +1600,20 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                       }`}
                     >
                       <div className="space-y-2.5">
-                        <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
                           <span
                             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ${
-                              isBreakPeriodNum(sch.period)
+                              isBreakPeriodNum(block.period)
                                 ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300'
                                 : 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300'
                             }`}
                           >
-                            {isBreakPeriodNum(sch.period) ? (
+                            {isBreakPeriodNum(block.period) ? (
                               <Coffee className="w-3.5 h-3.5" />
                             ) : (
                               <Clock className="w-3.5 h-3.5" />
                             )}
-                            {getPeriodDisplayLabel(sch.period)} ({sch.startTime}-{sch.endTime})
+                            {getPeriodRangeDisplayLabel(block.period, block.endPeriod)} ({block.startTime}-{block.endTime})
                           </span>
 
                           {savedSession ? (
@@ -1418,6 +1627,13 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                             </span>
                           )}
                         </div>
+
+                        {isMultiPeriod && (
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-violet-50 dark:bg-violet-950/50 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800 text-[11px] font-bold">
+                            <Layers className="w-3 h-3" />
+                            <span>สอน {block.periodCount} คาบติดกัน · เช็คชื่อครั้งเดียว</span>
+                          </div>
+                        )}
 
                         <div>
                           <div className="flex items-center justify-between gap-2">
@@ -1467,7 +1683,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
 
                       <button
                         type="button"
-                        onClick={() => handleOpenCheckinForSchedule(sch, selectedDate)}
+                        onClick={() => handleOpenCheckinForBlock(block, selectedDate)}
                         className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
                           savedSession
                             ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
@@ -1476,7 +1692,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                       >
                         <ClipboardCheck className="w-4 h-4" />
                         <span>
-                          {savedSession ? 'เปิดดู / แก้ไขการเช็คชื่อ' : 'เช็คชื่อเข้าเรียนคาบนี้'}
+                          {savedSession
+                            ? 'เปิดดู / แก้ไขการเช็คชื่อ'
+                            : isMultiPeriod
+                            ? `เช็คชื่อครั้งเดียว (${block.periodCount} คาบติดกัน)`
+                            : 'เช็คชื่อเข้าเรียนคาบนี้'}
                         </span>
                       </button>
                     </div>
@@ -1494,7 +1714,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="px-2.5 py-0.5 rounded-lg bg-indigo-600 text-white text-xs font-bold">
-                      {getPeriodDisplayLabel(activeSheet.period)} ({activeSheet.startTime}-{activeSheet.endTime})
+                      {getPeriodRangeDisplayLabel(activeSheet.period, activeSheet.endPeriod)} ({activeSheet.startTime}-{activeSheet.endTime})
                     </span>
                     <span className="text-sm sm:text-base font-bold font-prompt text-slate-900 dark:text-white">
                       วิชา {activeSheet.subject} · ชั้น {activeSheet.gradeLevel}
@@ -1766,7 +1986,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
 
                   <button
                     type="button"
-                    onClick={handleSaveActiveSheet}
+                    onClick={() => setIsSaveSheetConfirmOpen(true)}
                     className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md transition-colors flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Save className="w-4 h-4" />
@@ -1945,7 +2165,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                                 }`}
                               >
                                 {isBreakPeriodNum(sch.period) && <Coffee className="w-3 h-3" />}
-                                {getPeriodDisplayLabel(sch.period, true)}
+                                {getPeriodRangeDisplayLabel(sch.period, sch.endPeriod, true)}
                               </span>
                               <span className="font-mono text-slate-400">
                                 {sch.startTime}-{sch.endTime}
@@ -2043,98 +2263,138 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                  {DAYS_OF_WEEK_LIST.map((day) => (
-                    <tr key={day.id}>
-                      <td className="p-3 font-bold border-r border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
-                        <span
-                          className={`inline-block px-2.5 py-1 rounded-lg border text-[11px] ${day.badgeClass}`}
-                        >
-                          {day.label}
-                        </span>
-                      </td>
-                      {activePeriods.map((p) => {
-                        const hasDuplicatePeriodNum =
-                          activePeriods.filter((x) => x.period === p.period).length > 1;
-                        const cellSchedules = filteredSchedules.filter(
-                          (s) =>
-                            s.dayOfWeek === day.id &&
-                            s.period === p.period &&
-                            (!hasDuplicatePeriodNum || s.startTime === p.startTime)
-                        );
-                        return (
-                          <td
-                            key={p.id}
-                            className={`p-1.5 align-top border-r last:border-r-0 border-slate-200 dark:border-slate-700 ${
-                              p.isBreak
-                                ? 'bg-amber-50/40 dark:bg-amber-950/15 min-w-[96px]'
-                                : 'min-w-[115px]'
-                            }`}
+                  {DAYS_OF_WEEK_LIST.map((day) => {
+                    const skipCols = new Set<number>();
+                    return (
+                      <tr key={day.id}>
+                        <td className="p-3 font-bold border-r border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
+                          <span
+                            className={`inline-block px-2.5 py-1 rounded-lg border text-[11px] ${day.badgeClass}`}
                           >
-                            {cellSchedules.length === 0 ? (
-                              p.isBreak ? (
-                                <div className="h-14 flex flex-col items-center justify-center gap-0.5 text-amber-600/75 dark:text-amber-400/75 text-[10px] font-semibold">
-                                  <Coffee className="w-3.5 h-3.5" />
-                                  <span>{p.label}</span>
-                                </div>
+                            {day.label}
+                          </span>
+                        </td>
+                        {activePeriods.map((p, colIdx) => {
+                          if (skipCols.has(colIdx)) return null;
+
+                          const hasDuplicatePeriodNum =
+                            activePeriods.filter((x) => x.period === p.period).length > 1;
+                          const cellSchedules = filteredSchedules.filter(
+                            (s) =>
+                              s.dayOfWeek === day.id &&
+                              s.period === p.period &&
+                              (!hasDuplicatePeriodNum || s.startTime === p.startTime)
+                          );
+
+                          // Safely compute colSpan if a single multi-period schedule spans contiguous empty columns
+                          let colSpan = 1;
+                          if (cellSchedules.length === 1 && cellSchedules[0].endPeriod && cellSchedules[0].endPeriod !== cellSchedules[0].period) {
+                            const endIdx = activePeriods.findIndex(
+                              (ap) => ap.period === cellSchedules[0].endPeriod
+                            );
+                            if (endIdx > colIdx) {
+                              const spannedColsHaveOtherItems = activePeriods
+                                .slice(colIdx + 1, endIdx + 1)
+                                .some((ap) =>
+                                  filteredSchedules.some(
+                                    (other) =>
+                                      other.dayOfWeek === day.id &&
+                                      other.id !== cellSchedules[0].id &&
+                                      other.period === ap.period
+                                  )
+                                );
+                              if (!spannedColsHaveOtherItems) {
+                                colSpan = endIdx - colIdx + 1;
+                                for (let k = colIdx + 1; k <= endIdx; k++) {
+                                  skipCols.add(k);
+                                }
+                              }
+                            }
+                          }
+
+                          return (
+                            <td
+                              key={p.id}
+                              colSpan={colSpan}
+                              className={`p-1.5 align-top border-r last:border-r-0 border-slate-200 dark:border-slate-700 ${
+                                p.isBreak
+                                  ? 'bg-amber-50/40 dark:bg-amber-950/15 min-w-[96px]'
+                                  : 'min-w-[115px]'
+                              }`}
+                            >
+                              {cellSchedules.length === 0 ? (
+                                p.isBreak ? (
+                                  <div className="h-14 flex flex-col items-center justify-center gap-0.5 text-amber-600/75 dark:text-amber-400/75 text-[10px] font-semibold">
+                                    <Coffee className="w-3.5 h-3.5" />
+                                    <span>{p.label}</span>
+                                  </div>
+                                ) : (
+                                  <div className="h-14 flex items-center justify-center text-slate-300 dark:text-slate-700 text-[10px]">
+                                    -
+                                  </div>
+                                )
                               ) : (
-                                <div className="h-14 flex items-center justify-center text-slate-300 dark:text-slate-700 text-[10px]">
-                                  -
-                                </div>
-                              )
-                            ) : (
-                              <div className="space-y-1">
-                                {cellSchedules.map((sch) => (
-                                  <div
-                                    key={sch.id}
-                                    className={`p-2 rounded-lg border space-y-1 group ${
-                                      p.isBreak
-                                        ? 'bg-amber-100/80 dark:bg-amber-950/60 border-amber-300/80 dark:border-amber-800/70'
-                                        : 'bg-indigo-50/90 dark:bg-indigo-950/50 border-indigo-200/80 dark:border-indigo-800/60'
-                                    }`}
-                                  >
+                                <div className="space-y-1">
+                                  {cellSchedules.map((sch) => (
                                     <div
-                                      className={`font-bold leading-tight ${
+                                      key={sch.id}
+                                      className={`p-2 rounded-lg border space-y-1 group ${
                                         p.isBreak
-                                          ? 'text-amber-900 dark:text-amber-200'
-                                          : 'text-indigo-900 dark:text-indigo-200'
+                                          ? 'bg-amber-100/80 dark:bg-amber-950/60 border-amber-300/80 dark:border-amber-800/70'
+                                          : 'bg-indigo-50/90 dark:bg-indigo-950/50 border-indigo-200/80 dark:border-indigo-800/60'
                                       }`}
                                     >
-                                      {sch.subject}
+                                      <div className="flex items-start justify-between gap-1">
+                                        <div
+                                          className={`font-bold leading-tight ${
+                                            p.isBreak
+                                              ? 'text-amber-900 dark:text-amber-200'
+                                              : 'text-indigo-900 dark:text-indigo-200'
+                                          }`}
+                                        >
+                                          {sch.subject}
+                                        </div>
+                                        {sch.endPeriod && sch.endPeriod !== sch.period && (
+                                          <span className="shrink-0 px-1.5 py-0.5 rounded bg-violet-100 dark:bg-violet-900/70 text-violet-700 dark:text-violet-200 text-[9px] font-bold">
+                                            {getPeriodRangeDisplayLabel(sch.period, sch.endPeriod, true)}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                                        ชั้น {sch.gradeLevel}
+                                      </div>
+                                      <div className="text-[10px] text-slate-500 truncate">
+                                        {sch.teacherName}
+                                      </div>
+                                      <div className="flex items-center justify-between pt-1">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setEditingSchedule(sch);
+                                            setIsScheduleModalOpen(true);
+                                          }}
+                                          className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                                        >
+                                          แก้ไข
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setDeleteScheduleConfirm(sch)}
+                                          className="text-[10px] font-bold text-rose-500 hover:underline cursor-pointer"
+                                        >
+                                          ลบ
+                                        </button>
+                                      </div>
                                     </div>
-                                    <div className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
-                                      ชั้น {sch.gradeLevel}
-                                    </div>
-                                    <div className="text-[10px] text-slate-500 truncate">
-                                      {sch.teacherName}
-                                    </div>
-                                    <div className="flex items-center justify-between pt-1">
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setEditingSchedule(sch);
-                                          setIsScheduleModalOpen(true);
-                                        }}
-                                        className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
-                                      >
-                                        แก้ไข
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => setDeleteScheduleConfirm(sch)}
-                                        className="text-[10px] font-bold text-rose-500 hover:underline cursor-pointer"
-                                      >
-                                        ลบ
-                                      </button>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
+                                  ))}
+                                </div>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -2271,7 +2531,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                           {formatThaiDate(sess.date)}
                         </span>
                         <span className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold">
-                          {getPeriodDisplayLabel(sess.period)}
+                          {getPeriodRangeDisplayLabel(sess.period, sess.endPeriod)}
                         </span>
                         <span className="text-sm font-bold font-prompt text-slate-900 dark:text-white">
                           วิชา {sess.subject} · ชั้น {sess.gradeLevel}
@@ -2426,6 +2686,36 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
         />
       )}
 
+      {/* Save Attendance Confirmation Modal */}
+      {activeSheet && (
+        <SaveConfirmModal
+          isOpen={isSaveSheetConfirmOpen}
+          title="ยืนยันการบันทึกการเช็คชื่อ?"
+          description="กรุณาตรวจสอบสรุปยอดการเข้าเรียนก่อนบันทึกลงฐานข้อมูล"
+          details={[
+            { label: 'รายวิชา / ชั้น', value: `${activeSheet.subject} (${activeSheet.gradeLevel})` },
+            { label: 'วันที่เช็คชื่อ', value: formatThaiDate(activeSheet.date) },
+            {
+              label: 'ช่วงคาบเรียน',
+              value: `${getPeriodRangeDisplayLabel(activeSheet.period, activeSheet.endPeriod)} (${activeSheet.startTime}-${activeSheet.endTime})`,
+            },
+            {
+              label: 'สรุปยอดนักเรียน',
+              value: `มา ${sheetCounts.present} · สาย ${sheetCounts.late} · ลา ${sheetCounts.leave} · ขาด ${sheetCounts.absent} (รวม ${sheetCounts.total} คน)`,
+            },
+            ...(activeSheet.topicTaught.trim()
+              ? [{ label: 'หัวข้อที่สอน', value: activeSheet.topicTaught.trim() }]
+              : []),
+          ]}
+          confirmLabel="ยืนยันการบันทึกเช็คชื่อ"
+          onConfirm={() => {
+            setIsSaveSheetConfirmOpen(false);
+            handleSaveActiveSheet();
+          }}
+          onCancel={() => setIsSaveSheetConfirmOpen(false)}
+        />
+      )}
+
       {/* Ad-hoc / Substitute Period Modal */}
       {isAdhocModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-150">
@@ -2507,21 +2797,59 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  คาบเรียน
-                </label>
-                <select
-                  value={adhocPeriod}
-                  onChange={(e) => setAdhocPeriod(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs"
-                >
-                  {activePeriods.map((p) => (
-                    <option key={p.id} value={p.period}>
-                      {p.isBreak ? `☕ ${p.label}` : p.label} ({p.startTime} - {p.endTime})
-                    </option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    เริ่มคาบเรียน
+                  </label>
+                  <select
+                    value={adhocPeriod}
+                    onChange={(e) => {
+                      const nextP = Number(e.target.value);
+                      setAdhocPeriod(nextP);
+                      setAdhocEndPeriod(nextP);
+                    }}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs"
+                  >
+                    {activePeriods.map((p) => (
+                      <option key={p.id} value={p.period}>
+                        {p.isBreak ? `☕ ${p.label}` : p.label} ({p.startTime}-{p.endTime})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    ถึงคาบที่ (สอนควบติดกัน)
+                  </label>
+                  <select
+                    value={adhocEndPeriod}
+                    onChange={(e) => setAdhocEndPeriod(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs"
+                  >
+                    {(() => {
+                      const sIdx = activePeriods.findIndex((x) => x.period === adhocPeriod);
+                      if (sIdx < 0) {
+                        return <option value={adhocPeriod}>คาบเดียว</option>;
+                      }
+                      const opts: PeriodConfig[] = [activePeriods[sIdx]];
+                      if (!activePeriods[sIdx].isBreak) {
+                        for (let i = sIdx + 1; i < activePeriods.length; i++) {
+                          if (activePeriods[i].isBreak) break;
+                          opts.push(activePeriods[i]);
+                        }
+                      }
+                      return opts.map((p, idx) => (
+                        <option key={p.id} value={p.period}>
+                          {idx === 0
+                            ? `คาบเดียว (${p.label})`
+                            : `${p.label} (${idx + 1} คาบติดกัน)`}
+                        </option>
+                      ));
+                    })()}
+                  </select>
+                </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
@@ -2556,7 +2884,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 ยืนยันการลบคาบสอน?
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                คุณต้องการลบ{getPeriodDisplayLabel(deleteScheduleConfirm.period)} วิชา{' '}
+                คุณต้องการลบ{getPeriodRangeDisplayLabel(deleteScheduleConfirm.period, deleteScheduleConfirm.endPeriod)} วิชา{' '}
                 <strong>{deleteScheduleConfirm.subject}</strong> (ชั้น{' '}
                 {deleteScheduleConfirm.gradeLevel}) ออกจากตารางสอนหรือไม่?
                 ประวัติการเช็คชื่อที่บันทึกไว้แล้วยังคงอยู่ครบถ้วน
@@ -2598,7 +2926,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                 บันทึกวันที่ {formatThaiDate(deleteSessionConfirm.date)}{' '}
-                {getPeriodDisplayLabel(deleteSessionConfirm.period)} วิชา{' '}
+                {getPeriodRangeDisplayLabel(deleteSessionConfirm.period, deleteSessionConfirm.endPeriod)} วิชา{' '}
                 <strong>{deleteSessionConfirm.subject}</strong> จะถูกลบออกจากระบบอย่างถาวร
               </p>
             </div>

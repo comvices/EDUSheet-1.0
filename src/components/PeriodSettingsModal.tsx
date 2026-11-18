@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { PeriodConfig } from '../types';
 import { DEFAULT_PERIOD_CONFIGS } from '../data/mockData';
+import { SaveConfirmModal } from './SaveConfirmModal';
 
 interface PeriodSettingsModalProps {
   periodConfigs: PeriodConfig[];
@@ -40,6 +41,7 @@ export const PeriodSettingsModal: React.FC<PeriodSettingsModalProps> = ({
     periodConfigs.length > 0 ? periodConfigs.map((p) => ({ ...p })) : DEFAULT_PERIOD_CONFIGS.map((p) => ({ ...p }))
   );
   const [errorMsg, setErrorMsg] = useState<string>('');
+  const [pendingConfigs, setPendingConfigs] = useState<PeriodConfig[] | null>(null);
 
   const handleUpdateRow = (id: string, patch: Partial<PeriodConfig>) => {
     setDraftPeriods((prev) =>
@@ -159,13 +161,12 @@ export const PeriodSettingsModal: React.FC<PeriodSettingsModalProps> = ({
       }
     }
 
-    onSavePeriodConfigs(
+    setPendingConfigs(
       draftPeriods.map((row) => ({
         ...row,
         label: row.label.trim(),
       }))
     );
-    onClose();
   };
 
   return (
@@ -390,6 +391,34 @@ export const PeriodSettingsModal: React.FC<PeriodSettingsModalProps> = ({
           </div>
         </form>
       </div>
+
+      <SaveConfirmModal
+        isOpen={Boolean(pendingConfigs)}
+        title="ยืนยันการบันทึกการตั้งค่าคาบเรียน?"
+        description="เวลาและลำดับคาบที่แก้ไขจะมีผลกับหน้าเช็คชื่อและตารางสอนทันที"
+        details={
+          pendingConfigs
+            ? [
+                {
+                  label: 'จำนวนคาบสอน',
+                  value: `${pendingConfigs.filter((p) => !p.isBreak).length} คาบ`,
+                },
+                {
+                  label: 'จำนวนคาบพัก / พักเที่ยง',
+                  value: `${pendingConfigs.filter((p) => p.isBreak).length} ช่วง`,
+                },
+              ]
+            : []
+        }
+        confirmLabel="ยืนยันบันทึกการตั้งค่า"
+        onConfirm={() => {
+          if (!pendingConfigs) return;
+          onSavePeriodConfigs(pendingConfigs);
+          setPendingConfigs(null);
+          onClose();
+        }}
+        onCancel={() => setPendingConfigs(null)}
+      />
     </div>
   );
 };

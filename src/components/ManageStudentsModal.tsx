@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { StudentProfile } from '../types';
+import { SaveConfirmModal, SaveConfirmDetail } from './SaveConfirmModal';
 
 interface ManageStudentsModalProps {
   students: StudentProfile[];
@@ -43,6 +44,13 @@ export const ManageStudentsModal: React.FC<ManageStudentsModalProps> = ({
   // Roster Search & Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGradeFilter, setSelectedGradeFilter] = useState('ทั้งหมด');
+  const [pendingSave, setPendingSave] = useState<{
+    title: string;
+    description: string;
+    details: SaveConfirmDetail[];
+    confirmLabel?: string;
+    onExecute: () => void;
+  } | null>(null);
 
   // Manual Form State
   const [manualCode, setManualCode] = useState('');
@@ -216,10 +224,21 @@ export const ManageStudentsModal: React.FC<ManageStudentsModalProps> = ({
       avatar: r.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80',
     }));
 
-    onImportStudents(validStudents);
-    setParsedRows([]);
-    setExcelFileName(null);
-    setActiveTab('roster');
+    setPendingSave({
+      title: 'ยืนยันการนำเข้าและบันทึกบัญชีนักเรียน?',
+      description: 'รายชื่อนักเรียนจาก Excel จะถูกบันทึกลงระบบ',
+      details: [
+        { label: 'จำนวนนักเรียน', value: `${validStudents.length} คน` },
+        ...(excelFileName ? [{ label: 'ไฟล์ต้นทาง', value: excelFileName }] : []),
+      ],
+      confirmLabel: 'ยืนยันนำเข้าและบันทึก',
+      onExecute: () => {
+        onImportStudents(validStudents);
+        setParsedRows([]);
+        setExcelFileName(null);
+        setActiveTab('roster');
+      },
+    });
   };
 
   // Handle Submit Manual Add
@@ -236,19 +255,44 @@ export const ManageStudentsModal: React.FC<ManageStudentsModalProps> = ({
       avatar: `https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=150&q=80`,
     };
 
-    onAddStudent(newStd);
-    setManualCode('');
-    setManualName('');
-    setManualPassword('123456');
-    setActiveTab('roster');
+    setPendingSave({
+      title: 'ยืนยันการบันทึกบัญชีนักเรียนใหม่?',
+      description: 'ตรวจสอบข้อมูลนักเรียนก่อนบันทึกลงระบบ',
+      details: [
+        { label: 'รหัสนักเรียน', value: newStd.code },
+        { label: 'ชื่อ-สกุล', value: newStd.name },
+        { label: 'ระดับชั้น', value: newStd.gradeLevel },
+      ],
+      confirmLabel: 'ยืนยันบันทึกนักเรียน',
+      onExecute: () => {
+        onAddStudent(newStd);
+        setManualCode('');
+        setManualName('');
+        setManualPassword('123456');
+        setActiveTab('roster');
+      },
+    });
   };
 
   // Save Student Edit
   const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingStudent) return;
-    onUpdateStudent(editingStudent);
-    setEditingStudent(null);
+    const studentSnapshot = { ...editingStudent };
+    setPendingSave({
+      title: 'ยืนยันการบันทึกการแก้ไขนักเรียน?',
+      description: 'ตรวจสอบข้อมูลนักเรียนก่อนบันทึกลงระบบ',
+      details: [
+        { label: 'รหัสนักเรียน', value: studentSnapshot.code },
+        { label: 'ชื่อ-สกุล', value: studentSnapshot.name },
+        { label: 'ระดับชั้น', value: studentSnapshot.gradeLevel },
+      ],
+      confirmLabel: 'ยืนยันบันทึกการแก้ไข',
+      onExecute: () => {
+        onUpdateStudent(studentSnapshot);
+        setEditingStudent(null);
+      },
+    });
   };
 
   // Filtered Roster
@@ -749,6 +793,20 @@ export const ManageStudentsModal: React.FC<ManageStudentsModalProps> = ({
           </div>
         </div>
       )}
+
+      <SaveConfirmModal
+        isOpen={Boolean(pendingSave)}
+        title={pendingSave?.title}
+        description={pendingSave?.description}
+        details={pendingSave?.details}
+        confirmLabel={pendingSave?.confirmLabel}
+        onConfirm={() => {
+          if (!pendingSave) return;
+          pendingSave.onExecute();
+          setPendingSave(null);
+        }}
+        onCancel={() => setPendingSave(null)}
+      />
     </div>
   );
 };

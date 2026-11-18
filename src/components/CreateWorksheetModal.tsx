@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { X, Sparkles, Plus, Trash2, Save, FilePlus, Edit3, Users, EyeOff, Eye, Search } from 'lucide-react';
 import { Assignment, Question, CategoryType, StudentProfile } from '../types';
 import { CATEGORY_LIST } from '../data/mockData';
+import { SaveConfirmModal } from './SaveConfirmModal';
 
 interface CreateWorksheetModalProps {
   onClose: () => void;
@@ -53,6 +54,7 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
   );
   const [studentPickerSearch, setStudentPickerSearch] = useState('');
   const [validationError, setValidationError] = useState('');
+  const [pendingAssignment, setPendingAssignment] = useState<Assignment | null>(null);
 
   const sortedStudentsForPicker = useMemo(() => {
     const query = studentPickerSearch.trim().toLowerCase();
@@ -229,7 +231,7 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
           : editingAssignment.dueDate,
         ...targetingPayload,
       };
-      onUpdateAssignment(updatedAsg);
+      setPendingAssignment(updatedAsg);
     } else {
       const newAsg: Assignment = {
         id: `asg_${Date.now()}`,
@@ -248,10 +250,8 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
         teacherName: currentTeacherName,
         ...targetingPayload,
       };
-      onCreateAssignment(newAsg);
+      setPendingAssignment(newAsg);
     }
-
-    onClose();
   };
 
   return (
@@ -731,6 +731,34 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
           )}
         </div>
       </div>
+
+      <SaveConfirmModal
+        isOpen={Boolean(pendingAssignment)}
+        title={isEditMode ? 'ยืนยันการบันทึกการแก้ไขใบงาน?' : 'ยืนยันการบันทึกและเผยแพร่ใบงาน?'}
+        description="ตรวจสอบรายละเอียดใบงานก่อนบันทึกลงระบบ"
+        details={
+          pendingAssignment
+            ? [
+                { label: 'ชื่อใบงาน', value: pendingAssignment.title },
+                { label: 'รายวิชา / ชั้น', value: `${pendingAssignment.subject} (${pendingAssignment.gradeLevel})` },
+                { label: 'จำนวนข้อ / คะแนน', value: `${pendingAssignment.questions.length} ข้อ (${pendingAssignment.totalPoints} คะแนน)` },
+                { label: 'สถานะการมองเห็น', value: pendingAssignment.isPublished === false ? 'ซ่อนชั่วคราว (ร่าง)' : 'เผยแพร่ให้นักเรียนเห็น' },
+              ]
+            : []
+        }
+        confirmLabel={isEditMode ? 'ยืนยันบันทึกการแก้ไข' : 'ยืนยันสร้างและบันทึก'}
+        onConfirm={() => {
+          if (!pendingAssignment) return;
+          if (isEditMode && onUpdateAssignment) {
+            onUpdateAssignment(pendingAssignment);
+          } else {
+            onCreateAssignment(pendingAssignment);
+          }
+          setPendingAssignment(null);
+          onClose();
+        }}
+        onCancel={() => setPendingAssignment(null)}
+      />
     </div>
   );
 };

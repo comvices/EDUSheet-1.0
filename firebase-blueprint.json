@@ -288,6 +288,10 @@
           "type": "number",
           "description": "Period number (0-12, where 0 represents break/lunch period)"
         },
+        "endPeriod": {
+          "type": "number",
+          "description": "Optional ending period number for consecutive multi-period classes (0-12)"
+        },
         "startTime": {
           "type": "string",
           "description": "Start time HH:mm",
@@ -350,6 +354,10 @@
         "period": {
           "type": "number",
           "description": "Period number"
+        },
+        "endPeriod": {
+          "type": "number",
+          "description": "Optional ending period number when checking attendance for consecutive periods (0-12)"
         },
         "startTime": {
           "type": "string",

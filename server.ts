@@ -43,7 +43,292 @@ interface GradingQuestionInput {
   answerKey?: string;
 }
 
-// API Route: AI Auto-Grading & Draft Feedback for Teachers
+interface BatchSubmissionInput {
+  submissionId: string;
+  studentName?: string;
+  studentCode?: string;
+  answers?: Record<string, string>;
+  files?: Array<{ name: string; size?: string }>;
+}
+
+interface GradedItemFeedback {
+  questionIndex: number;
+  questionId: string;
+  status: 'correct' | 'partial' | 'incorrect' | 'unanswered';
+  score: number;
+  maxScore: number;
+  comment: string;
+}
+
+interface GradedSubmissionResult {
+  suggestedScore: number;
+  maxPoints: number;
+  recommendedStatus: 'graded' | 'needs_revision';
+  overallFeedback: string;
+  strengths: string[];
+  improvements: string[];
+  itemFeedback: GradedItemFeedback[];
+}
+
+interface PreparedGradingItem {
+  questionIndex: number;
+  id: string;
+  type: GradingQuestionInput['type'];
+  questionText: string;
+  options: string[];
+  answerKey: string;
+  maxScore: number;
+  studentAnswer: string;
+  isUnanswered: boolean;
+  deterministicMatch: boolean | null;
+}
+
+function formatGeminiErrorMessage(err: any): { statusCode: number; userMessage: string } {
+  const rawMsg = String(err?.message || err || '');
+  const lower = rawMsg.toLowerCase();
+
+  if (rawMsg.includes('ยังไม่ได้ตั้งค่า GEMINI_API_KEY')) {
+    return { statusCode: 400, userMessage: rawMsg };
+  }
+  if (rawMsg.includes('429') || lower.includes('resource_exhausted') || lower.includes('quota')) {
+    return {
+      statusCode: 429,
+      userMessage:
+        'โควตาการใช้งาน Gemini API ฟรีครบกำหนดชั่วคราวแล้ว (429 RESOURCE_EXHAUSTED) กรุณารอสักครู่แล้วลองใหม่ หรือเพิ่มคีย์แบบชำระเงินในเมนู Settings > Secrets',
+    };
+  }
+  if (
+    rawMsg.includes('403') ||
+    rawMsg.includes('400') ||
+    lower.includes('permission_denied') ||
+    lower.includes('api_key_invalid') ||
+    lower.includes('api key not valid')
+  ) {
+    return {
+      statusCode: 403,
+      userMessage:
+        'API Key ของ Gemini ไม่ถูกต้องหรือไม่มีสิทธิ์ใช้งาน กรุณาตรวจสอบการตั้งค่าคีย์ใน Settings > Secrets',
+    };
+  }
+  if (rawMsg.includes('404') || lower.includes('not_found')) {
+    return {
+      statusCode: 404,
+      userMessage: 'ไม่พบโมเดล AI ที่เรียกใช้งาน กรุณาลองใหม่อีกครั้ง',
+    };
+  }
+  return {
+    statusCode: 500,
+    userMessage: 'ไม่สามารถเชื่อมต่อระบบประเมินผล AI ได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง',
+  };
+}
+
+async function callGeminiJsonWithFallback(params: {
+  ai: GoogleGenAI;
+  prompt: string;
+  systemInstruction: string;
+  responseSchema: Record<string, any>;
+}): Promise<any> {
+  const { ai, prompt, systemInstruction, responseSchema } = params;
+
+  const candidates: Array<{ model: string; thinkingLevel: ThinkingLevel }> = [
+    { model: 'gemini-4-hydrogen', thinkingLevel: ThinkingLevel.LOW },
+    { model: 'gemini-3.1-flash-lite', thinkingLevel: ThinkingLevel.MINIMAL },
+  ];
+
+  let lastError: any = null;
+  for (let i = 0; i < candidates.length; i++) {
+    const candidate = candidates[i];
+    try {
+      const response = await ai.models.generateContent({
+        model: candidate.model,
+        contents: prompt,
+        config: {
+          systemInstruction,
+          thinkingConfig: { thinkingLevel: candidate.thinkingLevel },
+          responseMimeType: 'application/json',
+          responseSchema,
+        },
+      });
+      const rawText = (response.text || '').trim();
+      if (!rawText) {
+        throw new Error('AI ไม่ส่งผลลัพธ์กลับมา');
+      }
+      return JSON.parse(rawText);
+    } catch (err: any) {
+      lastError = err;
+      const msg = String(err?.message || err);
+      const isQuotaOrOverload =
+        msg.includes('429') ||
+        msg.includes('RESOURCE_EXHAUSTED') ||
+        msg.includes('503') ||
+        msg.includes('404');
+      // Try next fallback model if available
+      if (isQuotaOrOverload && i < candidates.length - 1) {
+        console.warn(`Model ${candidate.model} unavailable (${msg.slice(0, 120)}), trying fallback model...`);
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastError;
+}
+
+function prepareSubmissionItems(
+  typedQuestions: GradingQuestionInput[],
+  answers?: Record<string, string>,
+  files?: Array<{ name: string; size?: string }>
+): { preparedItems: PreparedGradingItem[]; attachedFiles: Array<{ name: string; size?: string }> } {
+  const answerMap: Record<string, string> =
+    answers && typeof answers === 'object' ? answers : {};
+  const attachedFiles: Array<{ name: string; size?: string }> = Array.isArray(files)
+    ? files
+    : [];
+
+  const preparedItems: PreparedGradingItem[] = typedQuestions.map((q, idx) => {
+    const rawAnswer = (answerMap[q.id] ?? '').toString().trim();
+    const qMax = Number(q.maxPoints) || 0;
+    const key = (q.answerKey ?? '').toString().trim();
+
+    const hasFilesForUpload = q.type === 'file_upload' && attachedFiles.length > 0;
+    const isUnanswered =
+      q.type === 'file_upload' ? !rawAnswer && !hasFilesForUpload : rawAnswer.length === 0;
+
+    let deterministicMatch: boolean | null = null;
+    if (!isUnanswered && key.length > 0) {
+      if (q.type === 'multiple_choice') {
+        deterministicMatch = normalizeAnswerText(rawAnswer) === normalizeAnswerText(key);
+      } else if (
+        q.type === 'fill_blank' &&
+        normalizeAnswerText(rawAnswer) === normalizeAnswerText(key)
+      ) {
+        deterministicMatch = true;
+      }
+    }
+
+    return {
+      questionIndex: idx,
+      id: q.id,
+      type: q.type,
+      questionText: q.text,
+      options: q.options || [],
+      answerKey:
+        key || '(ครูไม่ได้ระบุเฉลยไว้ — ให้ประเมินตามความถูกต้องทางวิชาการอย่างยุติธรรม)',
+      maxScore: qMax,
+      studentAnswer: isUnanswered
+        ? '[ไม่ได้ตอบ]'
+        : rawAnswer || `(แนบไฟล์: ${attachedFiles.map((f) => f.name).join(', ')})`,
+      isUnanswered,
+      deterministicMatch,
+    };
+  });
+
+  return { preparedItems, attachedFiles };
+}
+
+function finalizeGradedResult(
+  preparedItems: PreparedGradingItem[],
+  aiParsed: {
+    overallFeedback?: string;
+    strengths?: string[];
+    improvements?: string[];
+    itemFeedback?: Array<{
+      questionIndex: number;
+      status: string;
+      score: number;
+      comment: string;
+    }>;
+  },
+  maxPoints?: number
+): GradedSubmissionResult {
+  const aiFeedbackMap = new Map<number, { status: string; score: number; comment: string }>();
+  if (Array.isArray(aiParsed?.itemFeedback)) {
+    for (const item of aiParsed.itemFeedback) {
+      aiFeedbackMap.set(Number(item.questionIndex), item);
+    }
+  }
+
+  const verifiedItemFeedback: GradedItemFeedback[] = preparedItems.map((item) => {
+    const aiItem = aiFeedbackMap.get(item.questionIndex);
+    let finalScore = Number(aiItem?.score ?? 0);
+    let finalStatus = (aiItem?.status || 'incorrect').toLowerCase();
+    let finalComment = (aiItem?.comment || '').trim();
+
+    if (item.isUnanswered) {
+      finalScore = 0;
+      finalStatus = 'unanswered';
+      if (!finalComment) {
+        finalComment = 'นักเรียนยังไม่ได้ระบุคำตอบในข้อนี้ (0 คะแนน)';
+      }
+    } else if (item.deterministicMatch !== null) {
+      if (item.deterministicMatch) {
+        finalScore = item.maxScore;
+        finalStatus = 'correct';
+        if (!finalComment) {
+          finalComment = `ตอบถูกต้องตรงตามเฉลย (${item.answerKey})`;
+        }
+      } else {
+        finalScore = 0;
+        finalStatus = 'incorrect';
+        finalComment = `ตอบไม่ถูกต้อง (คำตอบที่เลือก: "${item.studentAnswer}" — เฉลยคือ: "${item.answerKey}")`;
+      }
+    } else {
+      if (!Number.isFinite(finalScore)) finalScore = 0;
+      finalScore = Math.max(0, Math.min(item.maxScore, Math.round(finalScore * 2) / 2));
+
+      if (finalScore >= item.maxScore && item.maxScore > 0) {
+        finalStatus = 'correct';
+      } else if (finalScore > 0) {
+        finalStatus = 'partial';
+      } else {
+        finalStatus = 'incorrect';
+      }
+    }
+
+    return {
+      questionIndex: item.questionIndex,
+      questionId: item.id,
+      status: finalStatus as GradedItemFeedback['status'],
+      score: finalScore,
+      maxScore: item.maxScore,
+      comment: finalComment || 'ประเมินตามเกณฑ์ของใบงานเรียบร้อยแล้ว',
+    };
+  });
+
+  const sumItemScores = verifiedItemFeedback.reduce((acc, it) => acc + it.score, 0);
+  const sumQuestionMax = preparedItems.reduce((acc, it) => acc + it.maxScore, 0);
+  const targetMaxPoints = Number(maxPoints) > 0 ? Number(maxPoints) : sumQuestionMax;
+
+  let suggestedScore = sumItemScores;
+  if (sumQuestionMax > 0 && targetMaxPoints !== sumQuestionMax) {
+    suggestedScore = (sumItemScores / sumQuestionMax) * targetMaxPoints;
+  }
+  suggestedScore = Math.max(0, Math.min(targetMaxPoints, Math.round(suggestedScore * 2) / 2));
+
+  const recommendedStatus =
+    targetMaxPoints > 0 && suggestedScore / targetMaxPoints < 0.5 ? 'needs_revision' : 'graded';
+
+  const correctCount = verifiedItemFeedback.filter((i) => i.status === 'correct').length;
+  const unansweredCount = verifiedItemFeedback.filter((i) => i.status === 'unanswered').length;
+
+  const fallbackOverall =
+    unansweredCount === verifiedItemFeedback.length
+      ? 'ยังไม่ได้ระบุคำตอบในใบงาน กรุณาทำใบงานให้ครบถ้วนและส่งใหม่อีกครั้ง'
+      : `ทำถูกต้อง ${correctCount} จาก ${verifiedItemFeedback.length} ข้อ ได้คะแนนรวม ${suggestedScore}/${targetMaxPoints} คะแนน`;
+
+  return {
+    suggestedScore,
+    maxPoints: targetMaxPoints,
+    recommendedStatus,
+    overallFeedback: aiParsed?.overallFeedback?.trim() || fallbackOverall,
+    strengths: Array.isArray(aiParsed?.strengths) ? aiParsed.strengths.filter(Boolean) : [],
+    improvements: Array.isArray(aiParsed?.improvements)
+      ? aiParsed.improvements.filter(Boolean)
+      : [],
+    itemFeedback: verifiedItemFeedback,
+  };
+}
+
+// API Route: AI Auto-Grading & Draft Feedback for Single Submission
 app.post('/api/ai/grade', async (req, res) => {
   try {
     const {
@@ -63,120 +348,75 @@ app.post('/api/ai/grade', async (req, res) => {
 
     const ai = getAiClient();
     const typedQuestions = questions as GradingQuestionInput[];
-    const answerMap: Record<string, string> = answers && typeof answers === 'object' ? answers : {};
-    const attachedFiles: Array<{ name: string; size?: string }> = Array.isArray(files) ? files : [];
+    const { preparedItems, attachedFiles } = prepareSubmissionItems(
+      typedQuestions,
+      answers,
+      files
+    );
 
-    // Prepare structured items with deterministic pre-evaluation for objective & blank items
-    const preparedItems = typedQuestions.map((q, idx) => {
-      const rawAnswer = (answerMap[q.id] ?? '').toString().trim();
-      const qMax = Number(q.maxPoints) || 0;
-      const key = (q.answerKey ?? '').toString().trim();
+    const itemsForAi = preparedItems.filter(
+      (item) => !item.isUnanswered && item.deterministicMatch === null
+    );
 
-      const hasFilesForUpload = q.type === 'file_upload' && attachedFiles.length > 0;
-      const isUnanswered = q.type === 'file_upload' ? !rawAnswer && !hasFilesForUpload : rawAnswer.length === 0;
+    let aiParsed: any = {};
+    if (itemsForAi.length > 0) {
+      const compactPayload = itemsForAi.map((it) => ({
+        questionIndex: it.questionIndex,
+        type: it.type,
+        questionText: it.questionText,
+        answerKey: it.answerKey,
+        maxScore: it.maxScore,
+        studentAnswer: it.studentAnswer,
+      }));
 
-      let deterministicMatch: boolean | null = null;
-      if (!isUnanswered && q.type === 'multiple_choice' && key.length > 0) {
-        deterministicMatch = normalizeAnswerText(rawAnswer) === normalizeAnswerText(key);
-      }
+      const systemInstruction = `คุณคือผู้เชี่ยวชาญการตรวจใบงานไทย ตรวจอย่างรวดเร็ว เที่ยงตรง และกระชับ
+กฎการให้คะแนนแต่ละข้อ:
+1. fill_blank: เทียบความหมาย/คำศัพท์/ตัวเลขกับเฉลย ถูกครบได้เต็ม maxScore ถูกบางส่วนได้ตามสัดส่วน ผิดได้ 0
+2. text (อัตนัย/วิธีทำ): ให้คะแนนตามประเด็นสำคัญจากเฉลยและหลักวิชา "${subject || 'ทั่วไป'}" ชั้น "${gradeLevel || 'มัธยมศึกษา'}" (เต็ม maxScore, บางส่วน .5, คัดลอกโจทย์หรือตอบไม่ตรงประเด็นได้ 0)
+3. file_upload: ประเมินจากคำอธิบายและแนะนำให้ครูตรวจสอบไฟล์แนบเพิ่มเติม
+4. comment ต่อข้อ: สั้น กระชับ ชัดเจน 1-2 ประโยคภาษาไทย
+5. overallFeedback: สรุปภาพรวม 1-2 ประโยคภาษาไทย`;
 
-      return {
-        questionIndex: idx,
-        id: q.id,
-        type: q.type,
-        questionText: q.text,
-        options: q.options || [],
-        answerKey: key || '(ครูไม่ได้ระบุเฉลยไว้ — ให้ประเมินตามความถูกต้องทางวิชาการอย่างยุติธรรม)',
-        maxScore: qMax,
-        studentAnswer: isUnanswered
-          ? '[ไม่ได้ตอบ]'
-          : rawAnswer || `(แนบไฟล์: ${attachedFiles.map((f) => f.name).join(', ')})`,
-        isUnanswered,
-        deterministicMatch,
-      };
-    });
+      const prompt = `ใบงาน: "${assignmentTitle}" | วิชา: "${subject || '-'}" | ชั้น: "${gradeLevel || '-'}"
+คำชี้แจง: "${instructions || '-'}"
+ไฟล์แนบ: ${attachedFiles.length > 0 ? attachedFiles.map((f) => f.name).join(', ') : 'ไม่มี'}
 
-    const systemInstruction = `คุณคือครูผู้เชี่ยวชาญในการตรวจใบงานของโรงเรียนไทย (AI Grading Specialist)
-หน้าที่ของคุณคือประเมินคำตอบของนักเรียน **อย่างเที่ยงตรง ยุติธรรม และแม่นยำตามหลักวิชาการ** ทีละข้อเทียบกับเฉลย/เกณฑ์การตรวจ
+รายการข้อที่ต้องประเมิน (${compactPayload.length} ข้อ):
+${JSON.stringify(compactPayload)}`;
 
-กฎเหล็กในการให้คะแนนแต่ละข้อ (ต้องปฏิบัติตามอย่างเคร่งครัด):
-1. **ไม่ได้ตอบ / เว้นว่าง ("[ไม่ได้ตอบ]")**: ต้องได้ **0 คะแนน** เสมอ สถานะ "unanswered" ห้ามให้คะแนนสงสารเด็ดขาด
-2. **ข้อสอบปรนัย (multiple_choice)**:
-   - หากตรงกับเฉลย (answerKey) ให้คะแนนเต็ม maxScore และสถานะ "correct"
-   - หากไม่ตรงกับเฉลย ให้ **0 คะแนน** เสมอ และสถานะ "incorrect" พร้อมอธิบายสั้นๆ ว่าคำตอบที่ถูกต้องตามเฉลยคืออะไร
-3. **เติมคำในช่องว่าง (fill_blank)**:
-   - ตรวจสอบความถูกต้องของคำศัพท์/ตัวเลข/แนวคิดเทียบกับเฉลย
-   - หากถูกครบถ้วนหรือมีความหมายตรงตามหลักวิชาการ (แม้สะกดต่างกันเล็กน้อยหรือใช้คำพ้องความหมายที่ถูกต้อง) ให้เต็ม maxScore
-   - หากตอบถูกเพียงบางส่วน ให้คะแนนตามสัดส่วน (status: "partial")
-   - หากตอบผิดหรือไม่เกี่ยวข้อง ให้ 0 คะแนน (status: "incorrect")
-4. **อัตนัย / แสดงวิธีทำ / เรียงความ (text)**:
-   - วิเคราะห์องค์ประกอบสำคัญ (Rubric / Key Points) จากเฉลยหรือหลักวิชาการของวิชา "${subject || 'ทั่วไป'}" ระดับชั้น "${gradeLevel || 'มัธยมศึกษา'}"
-   - ให้คะแนนเต็มเฉพาะเมื่อตอบถูกต้องและครบถ้วนตามประเด็นสำคัญ
-   - หากถูกบางส่วน ขาดรายละเอียดสำคัญ หรือแสดงวิธีทำถูกแต่คิดเลขผิดบางขั้น ให้คะแนนตามสัดส่วนอย่างสมเหตุสมผล (status: "partial") พร้อมระบุชัดเจนว่าส่วนใดถูกและส่วนใดขาด/ผิด
-   - หากคัดลอกโจทย์มาตอบโดยไม่ตอบคำถาม ตอบมั่ว ไม่ตรงประเด็น หรือผิดหลักการโดยสิ้นเชิง ให้ **0 คะแนน** (status: "incorrect")
-5. **แนบไฟล์ (file_upload)**:
-   - หากนักเรียนเขียนอธิบายหรือแนบไฟล์มา ให้ประเมินจากคำอธิบายที่มีและแนะนำให้ครูตรวจสอบไฟล์แนบเพิ่มเติม
-6. **ขอบเขตคะแนน**: คะแนนของแต่ละข้อ ("score") ต้องอยู่ระหว่าง 0 ถึง maxScore ของข้อนั้นเท่านั้น (ใช้เลขจำนวนเต็ม หรือทศนิยม .5 ได้เมื่อเหมาะสม)
-7. ใช้ภาษาไทยที่สุภาพ สร้างสรรค์ ตรงประเด็น ไม่อวยเกินจริง หากตอบผิดต้องชี้จุดผิดอย่างสุภาพและตรงไปตรงมา`;
-
-    const prompt = `ข้อมูลใบงาน:
-- ชื่อใบงาน: "${assignmentTitle}"
-- รายวิชา: "${subject || 'ไม่ระบุ'}"
-- ระดับชั้น: "${gradeLevel || 'ไม่ระบุ'}"
-- คำชี้แจงใบงาน: "${instructions || 'ให้ทำตามคำสั่งในแต่ละข้อ'}"
-- ไฟล์ที่นักเรียนแนบมาทั้งหมด: ${attachedFiles.length > 0 ? attachedFiles.map((f) => f.name).join(', ') : 'ไม่มีไฟล์แนบ'}
-
-รายการโจทย์ เฉลย และคำตอบของนักเรียน (จำนวน ${preparedItems.length} ข้อ):
-${JSON.stringify(preparedItems, null, 2)}
-
-กรุณาตรวจให้คะแนนและอธิบายเหตุผลทีละข้อให้ครบทั้ง ${preparedItems.length} ข้อ (questionIndex 0 ถึง ${preparedItems.length - 1})`;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-4-hydrogen',
-      contents: prompt,
-      config: {
+      aiParsed = await callGeminiJsonWithFallback({
+        ai,
+        prompt,
         systemInstruction,
-        thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH },
-        responseMimeType: 'application/json',
         responseSchema: {
           type: Type.OBJECT,
           properties: {
             overallFeedback: {
               type: Type.STRING,
-              description:
-                'สรุปภาพรวมการทำใบงานของนักเรียน 2-4 ประโยค ระบุสิ่งที่ทำได้ดีและจุดที่ควรปรับปรุงอย่างตรงไปตรงมาและให้กำลังใจ',
+              description: 'สรุปภาพรวม 1-2 ประโยคภาษาไทย',
             },
             strengths: {
               type: Type.ARRAY,
               items: { type: Type.STRING },
-              description: 'จุดแข็งจากคำตอบของนักเรียน (หากไม่มีจุดแข็งให้ระบุตามจริงหรือปล่อยว่าง)',
+              description: 'จุดแข็งสั้นๆ 1-2 ข้อ',
             },
             improvements: {
               type: Type.ARRAY,
               items: { type: Type.STRING },
-              description: 'ข้อเสนอแนะเฉพาะเจาะจงเพื่อปรับปรุงคำตอบให้สมบูรณ์ขึ้น',
+              description: 'ข้อเสนอแนะสั้นๆ 1-2 ข้อ',
             },
             itemFeedback: {
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  questionIndex: {
-                    type: Type.INTEGER,
-                    description: 'ลำดับข้อ (เริ่มจาก 0)',
-                  },
+                  questionIndex: { type: Type.INTEGER },
                   status: {
                     type: Type.STRING,
-                    description: 'สถานะคำตอบ: "correct" | "partial" | "incorrect" | "unanswered"',
+                    description: '"correct" | "partial" | "incorrect"',
                   },
-                  score: {
-                    type: Type.NUMBER,
-                    description: 'คะแนนที่ได้สำหรับข้อนี้ (0 ถึง maxScore)',
-                  },
-                  comment: {
-                    type: Type.STRING,
-                    description: 'เหตุผลการให้คะแนนและข้อแนะนำเฉพาะข้อนี้ (ภาษาไทย)',
-                  },
+                  score: { type: Type.NUMBER },
+                  comment: { type: Type.STRING },
                 },
                 required: ['questionIndex', 'status', 'score', 'comment'],
               },
@@ -184,117 +424,176 @@ ${JSON.stringify(preparedItems, null, 2)}
           },
           required: ['overallFeedback', 'strengths', 'improvements', 'itemFeedback'],
         },
-      },
+      });
+    }
+
+    const result = finalizeGradedResult(preparedItems, aiParsed, maxPoints);
+    return res.json({ success: true, result });
+  } catch (err: any) {
+    console.error('AI Grade error:', err);
+    const formatted = formatGeminiErrorMessage(err);
+    return res.status(formatted.statusCode).json({
+      error: 'เกิดข้อผิดพลาดในการประเมินด้วย AI',
+      message: formatted.userMessage,
     });
+  }
+});
 
-    const rawText = (response.text || '').trim();
-    if (!rawText) {
-      throw new Error('AI ไม่ส่งผลลัพธ์กลับมา');
+// API Route: Single-Call Multi-Student Batch AI Auto-Grading
+app.post('/api/ai/grade-batch', async (req, res) => {
+  try {
+    const {
+      assignmentTitle,
+      subject,
+      gradeLevel,
+      instructions,
+      questions,
+      maxPoints,
+      submissions,
+    } = req.body;
+
+    if (
+      !assignmentTitle ||
+      !Array.isArray(questions) ||
+      questions.length === 0 ||
+      !Array.isArray(submissions) ||
+      submissions.length === 0
+    ) {
+      return res.status(400).json({ error: 'ข้อมูลใบงานหรือรายชื่อการส่งงานไม่ครบถ้วน' });
     }
 
-    const aiParsed = JSON.parse(rawText) as {
-      overallFeedback?: string;
-      strengths?: string[];
-      improvements?: string[];
-      itemFeedback?: Array<{
-        questionIndex: number;
-        status: string;
-        score: number;
-        comment: string;
-      }>;
-    };
+    const ai = getAiClient();
+    const typedQuestions = questions as GradingQuestionInput[];
+    const typedSubmissions = (submissions as BatchSubmissionInput[]).slice(0, 15);
 
-    const aiFeedbackMap = new Map<number, { status: string; score: number; comment: string }>();
-    if (Array.isArray(aiParsed.itemFeedback)) {
-      for (const item of aiParsed.itemFeedback) {
-        aiFeedbackMap.set(Number(item.questionIndex), item);
-      }
-    }
-
-    // Reconcile and deterministically verify every question's score
-    const verifiedItemFeedback = preparedItems.map((item) => {
-      const aiItem = aiFeedbackMap.get(item.questionIndex);
-      let finalScore = Number(aiItem?.score ?? 0);
-      let finalStatus = (aiItem?.status || 'incorrect').toLowerCase();
-      let finalComment = (aiItem?.comment || '').trim();
-
-      if (item.isUnanswered) {
-        finalScore = 0;
-        finalStatus = 'unanswered';
-        if (!finalComment) {
-          finalComment = 'นักเรียนยังไม่ได้ระบุคำตอบในข้อนี้ (0 คะแนน)';
-        }
-      } else if (item.deterministicMatch !== null) {
-        if (item.deterministicMatch) {
-          finalScore = item.maxScore;
-          finalStatus = 'correct';
-          if (!finalComment) {
-            finalComment = `ตอบถูกต้องตรงตามเฉลย (${item.answerKey})`;
-          }
-        } else {
-          finalScore = 0;
-          finalStatus = 'incorrect';
-          finalComment = `ตอบไม่ถูกต้อง (คำตอบที่เลือก: "${item.studentAnswer}" — เฉลยที่ถูกต้องคือ: "${item.answerKey}")`;
-        }
-      } else {
-        // Clamp open-ended / fill_blank scores within [0, maxScore] and round to nearest 0.5
-        if (!Number.isFinite(finalScore)) finalScore = 0;
-        finalScore = Math.max(0, Math.min(item.maxScore, Math.round(finalScore * 2) / 2));
-
-        if (finalScore >= item.maxScore && item.maxScore > 0) {
-          finalStatus = 'correct';
-        } else if (finalScore > 0) {
-          finalStatus = 'partial';
-        } else {
-          finalStatus = 'incorrect';
-        }
-      }
-
+    const preparedSubmissions = typedSubmissions.map((sub) => {
+      const { preparedItems, attachedFiles } = prepareSubmissionItems(
+        typedQuestions,
+        sub.answers,
+        sub.files
+      );
+      const itemsForAi = preparedItems.filter(
+        (item) => !item.isUnanswered && item.deterministicMatch === null
+      );
       return {
-        questionIndex: item.questionIndex,
-        questionId: item.id,
-        status: finalStatus as 'correct' | 'partial' | 'incorrect' | 'unanswered',
-        score: finalScore,
-        maxScore: item.maxScore,
-        comment: finalComment || 'ประเมินตามเกณฑ์ของใบงานเรียบร้อยแล้ว',
+        sub,
+        preparedItems,
+        attachedFiles,
+        itemsForAi,
       };
     });
 
-    const sumItemScores = verifiedItemFeedback.reduce((acc, it) => acc + it.score, 0);
-    const sumQuestionMax = preparedItems.reduce((acc, it) => acc + it.maxScore, 0);
-    const targetMaxPoints = Number(maxPoints) > 0 ? Number(maxPoints) : sumQuestionMax;
+    const subsNeedingAi = preparedSubmissions.filter((entry) => entry.itemsForAi.length > 0);
+    const aiResultsMap = new Map<string, any>();
 
-    // Reconcile total suggestedScore with assignment totalPoints
-    let suggestedScore = sumItemScores;
-    if (sumQuestionMax > 0 && targetMaxPoints !== sumQuestionMax) {
-      suggestedScore = (sumItemScores / sumQuestionMax) * targetMaxPoints;
+    // Pack ALL students needing AI evaluation into ONE single API request to maximize speed & preserve quota!
+    if (subsNeedingAi.length > 0) {
+      const sharedQuestionsMeta = typedQuestions.map((q, idx) => ({
+        questionIndex: idx,
+        type: q.type,
+        questionText: q.text,
+        answerKey:
+          (q.answerKey ?? '').toString().trim() ||
+          '(ครูไม่ได้ระบุเฉลยไว้ — ให้ประเมินตามความถูกต้องทางวิชาการอย่างยุติธรรม)',
+        maxScore: Number(q.maxPoints) || 0,
+      }));
+
+      const studentAnswersBatch = subsNeedingAi.map((entry) => ({
+        submissionId: entry.sub.submissionId,
+        studentName: entry.sub.studentName || '',
+        files: entry.attachedFiles.map((f) => f.name),
+        answersToGrade: entry.itemsForAi.map((it) => ({
+          questionIndex: it.questionIndex,
+          studentAnswer: it.studentAnswer,
+        })),
+      }));
+
+      const systemInstruction = `คุณคือผู้เชี่ยวชาญการตรวจใบงานไทย จงตรวจคำตอบของนักเรียนหลายคนพร้อมกันในครั้งเดียวอย่างเที่ยงตรง รวดเร็ว และกระชับ
+กฎการให้คะแนน:
+1. fill_blank: เทียบความหมาย/คำศัพท์/ตัวเลขกับเฉลย ถูกครบได้เต็ม maxScore ถูกบางส่วนได้ตามสัดส่วน ผิดได้ 0
+2. text (อัตนัย/วิธีทำ): ประเมินเทียบกับเฉลยและหลักวิชา "${subject || 'ทั่วไป'}" ชั้น "${gradeLevel || 'มัธยมศึกษา'}" (เต็ม maxScore, บางส่วน .5, คัดลอกโจทย์/ไม่ตรงประเด็นได้ 0)
+3. file_upload: ประเมินจากคำอธิบายและแนะนำให้ครูตรวจสอบไฟล์แนบ
+4. comment ต่อข้อ: สั้นกระชับ 1 ประโยคภาษาไทย
+5. overallFeedback ต่อคน: สรุปภาพรวม 1-2 ประโยคภาษาไทย`;
+
+      const prompt = `ใบงาน: "${assignmentTitle}" | วิชา: "${subject || '-'}" | ชั้น: "${gradeLevel || '-'}"
+คำชี้แจง: "${instructions || '-'}"
+
+เกณฑ์โจทย์และเฉลย:
+${JSON.stringify(sharedQuestionsMeta)}
+
+คำตอบของนักเรียนที่ต้องประเมิน (${subsNeedingAi.length} คน):
+${JSON.stringify(studentAnswersBatch)}
+
+ส่งผลลัพธ์ในอาร์เรย์ results ให้ครบทุก submissionId`;
+
+      const aiBatchParsed = await callGeminiJsonWithFallback({
+        ai,
+        prompt,
+        systemInstruction,
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            results: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  submissionId: { type: Type.STRING },
+                  overallFeedback: { type: Type.STRING },
+                  strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  improvements: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  itemFeedback: {
+                    type: Type.ARRAY,
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        questionIndex: { type: Type.INTEGER },
+                        status: { type: Type.STRING },
+                        score: { type: Type.NUMBER },
+                        comment: { type: Type.STRING },
+                      },
+                      required: ['questionIndex', 'status', 'score', 'comment'],
+                    },
+                  },
+                },
+                required: ['submissionId', 'overallFeedback', 'itemFeedback'],
+              },
+            },
+          },
+          required: ['results'],
+        },
+      });
+
+      if (Array.isArray(aiBatchParsed?.results)) {
+        for (const r of aiBatchParsed.results) {
+          if (r?.submissionId) {
+            aiResultsMap.set(String(r.submissionId), r);
+          }
+        }
+      }
     }
-    suggestedScore = Math.max(0, Math.min(targetMaxPoints, Math.round(suggestedScore * 2) / 2));
 
-    const recommendedStatus =
-      targetMaxPoints > 0 && suggestedScore / targetMaxPoints < 0.5 ? 'needs_revision' : 'graded';
+    const results = preparedSubmissions.map((entry) => {
+      const aiParsed = aiResultsMap.get(entry.sub.submissionId) || {};
+      const result = finalizeGradedResult(entry.preparedItems, aiParsed, maxPoints);
+      return {
+        submissionId: entry.sub.submissionId,
+        success: true,
+        result,
+      };
+    });
 
     return res.json({
       success: true,
-      result: {
-        suggestedScore,
-        maxPoints: targetMaxPoints,
-        recommendedStatus,
-        overallFeedback:
-          aiParsed.overallFeedback?.trim() ||
-          `ได้คะแนนรวม ${suggestedScore} จาก ${targetMaxPoints} คะแนน`,
-        strengths: Array.isArray(aiParsed.strengths) ? aiParsed.strengths.filter(Boolean) : [],
-        improvements: Array.isArray(aiParsed.improvements)
-          ? aiParsed.improvements.filter(Boolean)
-          : [],
-        itemFeedback: verifiedItemFeedback,
-      },
+      results,
     });
   } catch (err: any) {
-    console.error('AI Grade error:', err);
-    return res.status(500).json({
-      error: 'เกิดข้อผิดพลาดในการประเมินด้วย AI',
-      message: err?.message || String(err),
+    console.error('AI Batch Grade error:', err);
+    const formatted = formatGeminiErrorMessage(err);
+    return res.status(formatted.statusCode).json({
+      error: 'เกิดข้อผิดพลาดในการตรวจงานแบบกลุ่มด้วย AI',
+      message: formatted.userMessage,
     });
   }
 });
@@ -311,51 +610,48 @@ app.post('/api/ai/generate-worksheet', async (req, res) => {
 
 กรุณาส่งผลลัพธ์เป็น JSON Object ตาม schema โดยระบุเฉลยคำตอบ (answerKey) ที่ชัดเจนสำหรับใช้ตรวจงานด้วย`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-4-hydrogen',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            title: { type: Type.STRING },
-            description: { type: Type.STRING },
-            instructions: { type: Type.STRING },
-            category: { type: Type.STRING },
-            totalPoints: { type: Type.NUMBER },
-            questions: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  id: { type: Type.STRING },
-                  text: { type: Type.STRING },
-                  type: { type: Type.STRING },
-                  options: {
-                    type: Type.ARRAY,
-                    items: { type: Type.STRING },
-                  },
-                  maxPoints: { type: Type.NUMBER },
-                  answerKey: { type: Type.STRING },
+    const parsed = await callGeminiJsonWithFallback({
+      ai,
+      prompt,
+      systemInstruction:
+        'คุณคือผู้เชี่ยวชาญการออกแบบใบงานไทย สร้างคำถามและเฉลยคำตอบ (answerKey) ที่ชัดเจนถูกต้องทางวิชาการ',
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          title: { type: Type.STRING },
+          description: { type: Type.STRING },
+          instructions: { type: Type.STRING },
+          category: { type: Type.STRING },
+          totalPoints: { type: Type.NUMBER },
+          questions: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                id: { type: Type.STRING },
+                text: { type: Type.STRING },
+                type: { type: Type.STRING },
+                options: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
                 },
-                required: ['id', 'text', 'type', 'maxPoints', 'answerKey'],
+                maxPoints: { type: Type.NUMBER },
+                answerKey: { type: Type.STRING },
               },
+              required: ['id', 'text', 'type', 'maxPoints', 'answerKey'],
             },
           },
-          required: ['title', 'description', 'instructions', 'totalPoints', 'questions'],
         },
+        required: ['title', 'description', 'instructions', 'totalPoints', 'questions'],
       },
     });
-
-    const text = response.text || '{}';
-    const parsed = JSON.parse(text);
     return res.json({ success: true, worksheet: parsed });
   } catch (err: any) {
     console.error('AI Generator error:', err);
-    return res.status(500).json({
+    const formatted = formatGeminiErrorMessage(err);
+    return res.status(formatted.statusCode).json({
       error: 'ไม่สามารถสร้างใบงานด้วย AI ได้ในขณะนี้',
-      message: err?.message || String(err),
+      message: formatted.userMessage,
     });
   }
 });

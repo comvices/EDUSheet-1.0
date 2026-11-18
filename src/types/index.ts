@@ -120,6 +120,7 @@ export interface TeachingSchedule {
   teacherName: string;
   dayOfWeek: DayOfWeek;
   period: number; // คาบที่ 0 - 12 (0 = คาบพัก/กิจกรรมพักเที่ยง)
+  endPeriod?: number; // กรณีสอนควบหลายคาบติดกัน เช่น 1 ถึง 2 (หากสอนคาบเดียวไม่ระบุหรือเท่ากับ period)
   startTime: string; // e.g. "08:30"
   endTime: string; // e.g. "09:20"
   subject: string;
@@ -145,6 +146,7 @@ export interface AttendanceSession {
   date: string; // YYYY-MM-DD
   dayOfWeek: DayOfWeek;
   period: number;
+  endPeriod?: number; // กรณีเช็คชื่อครั้งเดียวครอบคลุมหลายคาบติดกัน
   startTime?: string;
   endTime?: string;
   subject: string;

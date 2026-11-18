@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Send, Save, Sparkles, CheckCircle, Upload, FileText, Award, AlertCircle, HelpCircle, Printer } from 'lucide-react';
 import { Assignment, Submission, Question } from '../types';
+import { SaveConfirmModal } from './SaveConfirmModal';
 
 interface WorksheetSubmissionModalProps {
   assignment: Assignment;
@@ -22,6 +23,8 @@ export const WorksheetSubmissionModal: React.FC<WorksheetSubmissionModalProps> =
   );
   const [savedDraftTime, setSavedDraftTime] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitConfirmOpen, setIsSubmitConfirmOpen] = useState(false);
+  const [isDraftConfirmOpen, setIsDraftConfirmOpen] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<{ name: string; size: string; url?: string }[]>(
     () => (submission?.files ? [...submission.files] : [])
   );
@@ -55,9 +58,13 @@ export const WorksheetSubmissionModal: React.FC<WorksheetSubmissionModalProps> =
     }));
   };
 
-  const handleSaveDraft = () => {
+  const executeSaveDraft = () => {
     const timeStr = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
     setSavedDraftTime(timeStr);
+  };
+
+  const handleSaveDraft = () => {
+    setIsDraftConfirmOpen(true);
   };
 
   const handleFileSimulate = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -73,12 +80,17 @@ export const WorksheetSubmissionModal: React.FC<WorksheetSubmissionModalProps> =
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitConfirmOpen(true);
+  };
+
+  const executeSubmitWorksheet = () => {
+    setIsSubmitConfirmOpen(false);
     setIsSubmitting(true);
     setTimeout(() => {
       onSubmitWorksheet(assignment.id, answers, attachedFiles);
       setIsSubmitting(false);
       onClose();
-    }, 600);
+    }, 400);
   };
 
   const isReadOnly = submission?.status === 'graded';
@@ -337,6 +349,46 @@ export const WorksheetSubmissionModal: React.FC<WorksheetSubmissionModalProps> =
           </div>
         </div>
       </div>
+
+      <SaveConfirmModal
+        isOpen={isDraftConfirmOpen}
+        title="ยืนยันการบันทึกร่างใบงาน?"
+        description="บันทึกร่างคำตอบปัจจุบันชั่วคราวก่อนส่งงานจริง"
+        variant="indigo"
+        details={[
+          { label: 'ใบงาน', value: assignment.title },
+          {
+            label: 'ข้อที่ตอบแล้ว',
+            value: `${assignment.questions.filter((q) => (answers[q.id] || '').trim().length > 0).length} / ${assignment.questions.length} ข้อ`,
+          },
+        ]}
+        confirmLabel="ยืนยันบันทึกร่าง"
+        onConfirm={() => {
+          setIsDraftConfirmOpen(false);
+          executeSaveDraft();
+        }}
+        onCancel={() => setIsDraftConfirmOpen(false)}
+      />
+
+      <SaveConfirmModal
+        isOpen={isSubmitConfirmOpen}
+        title="ยืนยันการส่งและบันทึกใบงาน?"
+        description="เมื่อยืนยันแล้ว ระบบจะส่งคำตอบของคุณให้ครูผู้สอนตรวจ"
+        details={[
+          { label: 'ใบงาน', value: assignment.title },
+          { label: 'รายวิชา', value: assignment.subject },
+          {
+            label: 'จำนวนข้อที่ตอบแล้ว',
+            value: `${assignment.questions.filter((q) => (answers[q.id] || '').trim().length > 0).length} / ${assignment.questions.length} ข้อ`,
+          },
+          ...(attachedFiles.length > 0
+            ? [{ label: 'ไฟล์แนบ', value: `${attachedFiles.length} ไฟล์` }]
+            : []),
+        ]}
+        confirmLabel="ยืนยันส่งใบงาน"
+        onConfirm={executeSubmitWorksheet}
+        onCancel={() => setIsSubmitConfirmOpen(false)}
+      />
     </div>
   );
 };

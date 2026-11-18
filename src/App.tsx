@@ -25,6 +25,7 @@ import {
   saveAssignmentToFirestore,
   deleteAssignmentFromFirestore,
   saveSubmissionToFirestore,
+  saveMultipleSubmissionsToFirestore,
   saveStudentToFirestore,
   saveMultipleStudentsToFirestore,
   deleteStudentFromFirestore,
@@ -414,6 +415,59 @@ export default function App() {
     }
 
     showToast(status === 'graded' ? 'บันทึกผลการตรวจเรียบร้อยแล้ว!' : 'แจ้งให้นักเรียนแก้ไขเรียบร้อยแล้ว!');
+  };
+
+  // Batch Teacher Grade Save Handler (for Multi-Student AI Grading)
+  const handleBatchSaveGrades = (
+    updates: Array<{
+      submissionId: string;
+      score: number;
+      comment: string;
+      status: 'graded' | 'needs_revision';
+      aiGraded?: boolean;
+    }>
+  ) => {
+    if (updates.length === 0) return;
+    const nowIso = new Date().toISOString();
+    const updateMap = new Map(updates.map((u) => [u.submissionId, u]));
+    const updatedForFirestore: Submission[] = [];
+
+    setSubmissions((prev) =>
+      prev.map((s) => {
+        const u = updateMap.get(s.id);
+        if (!u) return s;
+        const nextSub: Submission = {
+          ...s,
+          score: u.score,
+          teacherComment: u.comment,
+          status: u.status,
+          gradedAt: nowIso,
+          ...(u.aiGraded !== undefined ? { aiGraded: u.aiGraded } : {}),
+        };
+        updatedForFirestore.push(nextSub);
+        return nextSub;
+      })
+    );
+
+    if (updatedForFirestore.length > 0) {
+      saveMultipleSubmissionsToFirestore(updatedForFirestore);
+    }
+
+    const firstAsg = assignments.find((a) => a.id === updatedForFirestore[0]?.assignmentId);
+    if (firstAsg) {
+      const newNotif: NotificationItem = {
+        id: `notif_${Date.now()}`,
+        title: `✨ บันทึกการตรวจด้วย AI จำนวน ${updates.length} คน`,
+        message: `ใบงาน "${firstAsg.title}" บันทึกผลการตรวจพร้อมกันเรียบร้อยแล้ว`,
+        date: 'เมื่อครู่นี้',
+        type: 'graded',
+        isRead: false,
+        assignmentId: firstAsg.id,
+      };
+      setNotifications((prev) => [newNotif, ...prev]);
+    }
+
+    showToast(`บันทึกผลการตรวจพร้อมกัน ${updates.length} คนเรียบร้อยแล้ว! ✨`);
   };
 
   // Create Assignment Handler
@@ -852,14 +906,6 @@ export default function App() {
 
       {/* Main Container (Responsive padding with mobile bottom nav safe-area) */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 pb-24 md:pb-10">
-        {/* Toast Alert Banner */}
-        {toastMessage && (
-          <div className="fixed top-20 right-4 z-50 bg-slate-900 text-white dark:bg-indigo-600 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-indigo-400/30 animate-in fade-in slide-in-from-top-4 duration-300">
-            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-            <span className="text-xs font-semibold">{toastMessage}</span>
-          </div>
-        )}
-
 
 
         {/* Tab 1: Home Dashboard */}
@@ -1154,6 +1200,7 @@ export default function App() {
             const asg = assignments.find((a) => a.id === sub.assignmentId) || activeRosterModalAsg;
             setActiveGradingModalAsg({ assignment: asg, submission: sub });
           }}
+          onBatchSaveGrades={handleBatchSaveGrades}
         />
       )}
 
@@ -1297,6 +1344,21 @@ export default function App() {
           onClose={() => setIsInfoModalOpen(false)}
           onOpenSettings={role === 'teacher' ? () => handleOpenSettings('grades') : undefined}
         />
+      )}
+
+      {/* Global Save & Action Confirmation Toast Banner (Above all modals) */}
+      {toastMessage && (
+        <div className="fixed top-5 right-4 left-4 sm:left-auto sm:max-w-md z-[120] bg-slate-900/95 dark:bg-emerald-950/95 text-white px-4 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 border border-emerald-400/40 backdrop-blur-md animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+              ยืนยันการบันทึกสำเร็จ
+            </p>
+            <p className="text-xs font-semibold text-white break-words">{toastMessage}</p>
+          </div>
+        </div>
       )}
 
       {/* Clean Footer with fully functional interactive links */}

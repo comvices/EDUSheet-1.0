@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { X, CalendarClock, AlertTriangle, Save, Plus, Clock, Coffee } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { X, CalendarClock, AlertTriangle, Save, Plus, Clock, Coffee, Layers } from 'lucide-react';
 import { DayOfWeek, PeriodConfig, TeacherProfile, TeachingSchedule } from '../types';
 import { DAYS_OF_WEEK_LIST, DEFAULT_PERIOD_CONFIGS } from '../data/mockData';
+import { SaveConfirmModal } from './SaveConfirmModal';
 
 interface ScheduleFormModalProps {
   editingSchedule: TeachingSchedule | null;
@@ -26,15 +27,21 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
   onClose,
   onSaveSchedule,
 }) => {
-  const activePeriods = periodConfigs.length > 0 ? periodConfigs : DEFAULT_PERIOD_CONFIGS;
+  const activePeriods = useMemo(
+    () => (periodConfigs.length > 0 ? periodConfigs : DEFAULT_PERIOD_CONFIGS),
+    [periodConfigs]
+  );
   const defaultPeriodObj = activePeriods.find((p) => !p.isBreak) || activePeriods[0];
 
   const selectableSubjects = subjectsList.filter((s) => s !== 'ทั้งหมด');
   const selectableGrades = gradeLevelsList.filter((g) => g !== 'ทั้งหมด');
 
   const initialPeriod = editingSchedule?.period ?? defaultPeriodObj.period;
+  const initialEndPeriod = editingSchedule?.endPeriod ?? initialPeriod;
   const initialPeriodMeta =
     activePeriods.find((p) => p.period === initialPeriod) || defaultPeriodObj;
+  const initialEndMeta =
+    activePeriods.find((p) => p.period === initialEndPeriod) || initialPeriodMeta;
 
   const [teacherId, setTeacherId] = useState<string>(
     editingSchedule?.teacherId || currentTeacher.id
@@ -43,11 +50,12 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
     editingSchedule?.dayOfWeek || 'monday'
   );
   const [period, setPeriod] = useState<number>(initialPeriod);
+  const [endPeriod, setEndPeriod] = useState<number>(initialEndPeriod);
   const [startTime, setStartTime] = useState<string>(
     editingSchedule?.startTime || initialPeriodMeta.startTime
   );
   const [endTime, setEndTime] = useState<string>(
-    editingSchedule?.endTime || initialPeriodMeta.endTime
+    editingSchedule?.endTime || initialEndMeta.endTime
   );
   const [subject, setSubject] = useState<string>(
     editingSchedule?.subject || selectableSubjects[0] || ''
@@ -60,19 +68,26 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
   );
   const [note, setNote] = useState<string>(editingSchedule?.note || '');
   const [errorMsg, setErrorMsg] = useState<string>('');
+  const [pendingSchedule, setPendingSchedule] = useState<TeachingSchedule | null>(null);
 
-  useEffect(() => {
-    if (!editingSchedule) {
-      const preset = activePeriods.find((p) => p.period === period);
-      if (preset) {
-        setStartTime(preset.startTime);
-        setEndTime(preset.endTime);
-      }
+  const startIdx = activePeriods.findIndex((p) => p.period === period);
+
+  // Consecutive periods available starting from `period` (stops before any break period)
+  const consecutiveEndOptions = useMemo(() => {
+    if (startIdx < 0) return [];
+    const startObj = activePeriods[startIdx];
+    if (startObj.isBreak) return [startObj];
+    const result: PeriodConfig[] = [startObj];
+    for (let i = startIdx + 1; i < activePeriods.length; i++) {
+      if (activePeriods[i].isBreak) break;
+      result.push(activePeriods[i]);
     }
-  }, [period, editingSchedule, activePeriods]);
+    return result;
+  }, [activePeriods, startIdx]);
 
   const handlePeriodChange = (nextPeriod: number) => {
     setPeriod(nextPeriod);
+    setEndPeriod(nextPeriod);
     const preset = activePeriods.find((p) => p.period === nextPeriod);
     if (preset) {
       setStartTime(preset.startTime);
@@ -80,18 +95,40 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
     }
   };
 
+  const handleEndPeriodChange = (nextEndPeriod: number) => {
+    setEndPeriod(nextEndPeriod);
+    const preset = activePeriods.find((p) => p.period === nextEndPeriod);
+    if (preset) {
+      setEndTime(preset.endTime);
+    }
+  };
+
   const selectedPeriodConfig = activePeriods.find((p) => p.period === period);
+  const spanCount = useMemo(() => {
+    const endIdx = consecutiveEndOptions.findIndex((p) => p.period === endPeriod);
+    return endIdx >= 0 ? endIdx + 1 : 1;
+  }, [consecutiveEndOptions, endPeriod]);
 
   const selectedTeacher =
     teachersList.find((t) => t.id === teacherId) || currentTeacher;
 
-  const conflictingSchedule = existingSchedules.find(
-    (s) =>
-      s.id !== editingSchedule?.id &&
-      s.teacherId === teacherId &&
-      s.dayOfWeek === dayOfWeek &&
-      s.period === period
-  );
+  const conflictingSchedule = useMemo(() => {
+    const getRangeIndices = (pStart: number, pEnd?: number): [number, number] => {
+      const i1 = activePeriods.findIndex((p) => p.period === pStart);
+      const i2 = activePeriods.findIndex((p) => p.period === (pEnd ?? pStart));
+      if (i1 >= 0 && i2 >= i1) return [i1, i2];
+      if (i1 >= 0) return [i1, i1];
+      return [pStart, pEnd ?? pStart];
+    };
+    const [curStart, curEnd] = getRangeIndices(period, endPeriod);
+
+    return existingSchedules.find((s) => {
+      if (s.id === editingSchedule?.id) return false;
+      if (s.teacherId !== teacherId || s.dayOfWeek !== dayOfWeek) return false;
+      const [sStart, sEnd] = getRangeIndices(s.period, s.endPeriod);
+      return curStart <= sEnd && sStart <= curEnd;
+    });
+  }, [existingSchedules, editingSchedule?.id, teacherId, dayOfWeek, period, endPeriod, activePeriods]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,6 +154,7 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
       teacherName: selectedTeacher.name,
       dayOfWeek,
       period,
+      ...(endPeriod !== period ? { endPeriod } : {}),
       startTime,
       endTime,
       subject: subject.trim(),
@@ -125,9 +163,19 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
       ...(note.trim() ? { note: note.trim() } : {}),
     };
 
-    onSaveSchedule(scheduleData);
-    onClose();
+    setPendingSchedule(scheduleData);
   };
+
+  const selectedDayLabel =
+    DAYS_OF_WEEK_LIST.find((d) => d.id === (pendingSchedule?.dayOfWeek || dayOfWeek))?.label ||
+    dayOfWeek;
+  const pendingPeriodLabel = pendingSchedule
+    ? pendingSchedule.endPeriod && pendingSchedule.endPeriod !== pendingSchedule.period
+      ? `คาบที่ ${pendingSchedule.period}–${pendingSchedule.endPeriod}`
+      : pendingSchedule.period === 0
+      ? 'พักเที่ยง'
+      : `คาบที่ ${pendingSchedule.period}`
+    : '';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-150">
@@ -143,7 +191,7 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
                 {editingSchedule ? 'แก้ไขคาบสอนในตารางสอน' : 'เพิ่มคาบสอนในตารางสอน'}
               </h3>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                กำหนดข้อมูลรายวิชา ห้องเรียน และคาบเวลา เพื่อใช้อ้างอิงในการเช็คชื่อ
+                กำหนดข้อมูลรายวิชา ห้องเรียน และคาบเวลา (รองรับการสอนควบหลายคาบติดกัน)
               </p>
             </div>
           </div>
@@ -171,7 +219,7 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
               <div>
                 <p className="font-bold">พบคาบสอนซ้ำซ้อนสำหรับครูท่านนี้</p>
                 <p className="mt-0.5">
-                  วันและคาบนี้มีวิชา <strong>{conflictingSchedule.subject}</strong> (ชั้น{' '}
+                  วันและช่วงคาบนี้มีวิชา <strong>{conflictingSchedule.subject}</strong> (ชั้น{' '}
                   {conflictingSchedule.gradeLevel}) อยู่แล้ว กรุณาตรวจสอบก่อนบันทึก
                 </p>
               </div>
@@ -183,6 +231,15 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
               <Coffee className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
               <span>
                 ช่วงเวลานี้เป็น <strong>{selectedPeriodConfig.label}</strong> (สามารถใช้บันทึกกิจกรรมชมรม ชุมนุม หรือคาบสอนเสริมได้)
+              </span>
+            </div>
+          )}
+
+          {spanCount > 1 && (
+            <div className="p-3 bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/70 rounded-xl text-xs text-indigo-800 dark:text-indigo-200 flex items-center gap-2">
+              <Layers className="w-4 h-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
+              <span>
+                สอนควบ <strong>{spanCount} คาบติดกัน</strong> (เวลา {startTime}–{endTime}) ระบบจะให้เช็คชื่อเพียงครั้งเดียวสำหรับช่วงคาบนี้
               </span>
             </div>
           )}
@@ -232,11 +289,11 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
             </div>
           </div>
 
-          {/* Period & Time */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Period Range & Time */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                คาบเรียน
+                เริ่มคาบเรียน
               </label>
               <select
                 value={period}
@@ -251,6 +308,30 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
                 {!activePeriods.some((p) => p.period === period) && (
                   <option value={period}>
                     {period === 0 ? 'พักเที่ยง' : `คาบที่ ${period}`}
+                  </option>
+                )}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                ถึงคาบที่ (สำหรับสอนควบคาบติดกัน)
+              </label>
+              <select
+                value={endPeriod}
+                onChange={(e) => handleEndPeriodChange(Number(e.target.value))}
+                className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+              >
+                {consecutiveEndOptions.map((p, idx) => (
+                  <option key={p.id} value={p.period}>
+                    {idx === 0
+                      ? `คาบเดียว (${p.label})`
+                      : `${p.label} — สอน ${idx + 1} คาบติดกัน (ถึง ${p.endTime})`}
+                  </option>
+                ))}
+                {!consecutiveEndOptions.some((p) => p.period === endPeriod) && (
+                  <option value={endPeriod}>
+                    {endPeriod === period ? 'คาบเดียว' : `ถึงคาบที่ ${endPeriod}`}
                   </option>
                 )}
               </select>
@@ -380,6 +461,37 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
           </div>
         </form>
       </div>
+
+      <SaveConfirmModal
+        isOpen={Boolean(pendingSchedule)}
+        title={editingSchedule ? 'ยืนยันการบันทึกการแก้ไขคาบสอน?' : 'ยืนยันการเพิ่มคาบสอนลงตาราง?'}
+        description="ตรวจสอบข้อมูลคาบสอนก่อนบันทึกลงตารางสอน"
+        details={
+          pendingSchedule
+            ? [
+                { label: 'ครูผู้สอน', value: pendingSchedule.teacherName },
+                { label: 'วัน', value: selectedDayLabel },
+                {
+                  label: 'คาบและเวลา',
+                  value: `${pendingPeriodLabel} (${pendingSchedule.startTime}–${pendingSchedule.endTime})`,
+                },
+                { label: 'รายวิชา', value: pendingSchedule.subject },
+                { label: 'ชั้นเรียน', value: pendingSchedule.gradeLevel },
+                ...(pendingSchedule.classroom
+                  ? [{ label: 'ห้องเรียน', value: pendingSchedule.classroom }]
+                  : []),
+              ]
+            : []
+        }
+        confirmLabel={editingSchedule ? 'ยืนยันบันทึกการแก้ไข' : 'ยืนยันเพิ่มลงตารางสอน'}
+        onConfirm={() => {
+          if (!pendingSchedule) return;
+          onSaveSchedule(pendingSchedule);
+          setPendingSchedule(null);
+          onClose();
+        }}
+        onCancel={() => setPendingSchedule(null)}
+      />
     </div>
   );
 };

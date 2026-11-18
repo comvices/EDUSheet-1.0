@@ -15,6 +15,7 @@ import {
   Paperclip,
 } from 'lucide-react';
 import { Assignment, Submission } from '../types';
+import { SaveConfirmModal } from './SaveConfirmModal';
 
 interface ItemFeedbackResult {
   questionIndex: number;
@@ -62,6 +63,10 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiFeedbackResult, setAiFeedbackResult] = useState<AiFeedbackResult | null>(null);
   const [usedAiGrading, setUsedAiGrading] = useState<boolean>(Boolean(submission?.aiGraded));
+  const [pendingGradeAction, setPendingGradeAction] = useState<{
+    status: 'graded' | 'needs_revision';
+    clampedScore: number;
+  } | null>(null);
 
   // Call server-side Gemini AI for Auto-Grading assistance
   const handleRunAiGrading = async () => {
@@ -89,8 +94,14 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.success || !data.result) {
+      const rawBody = await res.text();
+      let data: any = null;
+      try {
+        data = rawBody ? JSON.parse(rawBody) : null;
+      } catch {
+        data = null;
+      }
+      if (!res.ok || !data?.success || !data?.result) {
         throw new Error(data?.message || data?.error || 'ไม่สามารถประเมินคำตอบด้วย AI ได้');
       }
 
@@ -153,15 +164,13 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
   const handleApproveGrade = () => {
     if (!submission) return;
     const clampedScore = Math.max(0, Math.min(assignment.totalPoints, Number(score) || 0));
-    onSaveGrade(submission.id, clampedScore, teacherComment, 'graded', usedAiGrading);
-    onClose();
+    setPendingGradeAction({ status: 'graded', clampedScore });
   };
 
   const handleRequestRevision = () => {
     if (!submission) return;
     const clampedScore = Math.max(0, Math.min(assignment.totalPoints, Number(score) || 0));
-    onSaveGrade(submission.id, clampedScore, teacherComment, 'needs_revision', usedAiGrading);
-    onClose();
+    setPendingGradeAction({ status: 'needs_revision', clampedScore });
   };
 
   const getItemBadge = (item: ItemFeedbackResult) => {
@@ -514,6 +523,54 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
           </div>
         </div>
       </div>
+
+      <SaveConfirmModal
+        isOpen={Boolean(pendingGradeAction && submission)}
+        title={
+          pendingGradeAction?.status === 'needs_revision'
+            ? 'ยืนยันการบันทึกและส่งกลับแก้ไข?'
+            : 'ยืนยันการบันทึกผลการตรวจใบงาน?'
+        }
+        description="กรุณาตรวจสอบคะแนนและความเห็นครูผู้สอนก่อนบันทึก"
+        variant={pendingGradeAction?.status === 'needs_revision' ? 'amber' : 'emerald'}
+        details={
+          pendingGradeAction && submission
+            ? [
+                { label: 'นักเรียน', value: `${submission.studentName} (${submission.studentCode})` },
+                { label: 'ใบงาน', value: assignment.title },
+                {
+                  label: 'คะแนนที่ได้',
+                  value: `${pendingGradeAction.clampedScore} / ${assignment.totalPoints} คะแนน`,
+                },
+                {
+                  label: 'สถานะ',
+                  value:
+                    pendingGradeAction.status === 'needs_revision'
+                      ? 'ส่งกลับให้นักเรียนแก้ไข'
+                      : 'ตรวจแล้ว (อนุมัติคะแนน)',
+                },
+              ]
+            : []
+        }
+        confirmLabel={
+          pendingGradeAction?.status === 'needs_revision'
+            ? 'ยืนยันส่งกลับแก้ไข'
+            : 'ยืนยันบันทึกการตรวจ'
+        }
+        onConfirm={() => {
+          if (!pendingGradeAction || !submission) return;
+          onSaveGrade(
+            submission.id,
+            pendingGradeAction.clampedScore,
+            teacherComment,
+            pendingGradeAction.status,
+            usedAiGrading
+          );
+          setPendingGradeAction(null);
+          onClose();
+        }}
+        onCancel={() => setPendingGradeAction(null)}
+      />
     </div>
   );
 };

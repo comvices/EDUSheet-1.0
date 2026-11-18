@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Plus, Trash2, Edit2, Check, BookOpen, GraduationCap, Settings } from 'lucide-react';
+import { SaveConfirmModal, SaveConfirmDetail } from './SaveConfirmModal';
 
 interface ManageCategoriesModalProps {
   gradeLevels: string[];
@@ -23,19 +24,44 @@ export const ManageCategoriesModal: React.FC<ManageCategoriesModalProps> = ({
   const [activeTab, setActiveTab] = useState<'grades' | 'subjects'>('grades');
   const [newGradeInput, setNewGradeInput] = useState('');
   const [newSubjectInput, setNewSubjectInput] = useState('');
+  const [pendingSave, setPendingSave] = useState<{
+    title: string;
+    description: string;
+    details: SaveConfirmDetail[];
+    confirmLabel?: string;
+    onExecute: () => void;
+  } | null>(null);
 
   const handleAddGrade = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newGradeInput.trim()) return;
-    onAddGradeLevel(newGradeInput.trim());
-    setNewGradeInput('');
+    const trimmed = newGradeInput.trim();
+    if (!trimmed) return;
+    setPendingSave({
+      title: 'ยืนยันการบันทึกระดับชั้นใหม่?',
+      description: 'ระดับชั้นนี้จะถูกเพิ่มลงในระบบ',
+      details: [{ label: 'ระดับชั้น', value: trimmed }],
+      confirmLabel: 'ยืนยันเพิ่มระดับชั้น',
+      onExecute: () => {
+        onAddGradeLevel(trimmed);
+        setNewGradeInput('');
+      },
+    });
   };
 
   const handleAddSubjectSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newSubjectInput.trim()) return;
-    onAddSubject(newSubjectInput.trim());
-    setNewSubjectInput('');
+    const trimmed = newSubjectInput.trim();
+    if (!trimmed) return;
+    setPendingSave({
+      title: 'ยืนยันการบันทึกรายวิชาใหม่?',
+      description: 'รายวิชานี้จะถูกเพิ่มลงในระบบ',
+      details: [{ label: 'รายวิชา', value: trimmed }],
+      confirmLabel: 'ยืนยันเพิ่มรายวิชา',
+      onExecute: () => {
+        onAddSubject(trimmed);
+        setNewSubjectInput('');
+      },
+    });
   };
 
   return (
@@ -185,6 +211,20 @@ export const ManageCategoriesModal: React.FC<ManageCategoriesModalProps> = ({
           </button>
         </div>
       </div>
+
+      <SaveConfirmModal
+        isOpen={Boolean(pendingSave)}
+        title={pendingSave?.title}
+        description={pendingSave?.description}
+        details={pendingSave?.details}
+        confirmLabel={pendingSave?.confirmLabel}
+        onConfirm={() => {
+          if (!pendingSave) return;
+          pendingSave.onExecute();
+          setPendingSave(null);
+        }}
+        onCancel={() => setPendingSave(null)}
+      />
     </div>
   );
 };
