@@ -195,6 +195,14 @@
         "periodConfigs": {
           "type": "array",
           "description": "Array of configured class periods including lunch break"
+        },
+        "studentGradebookEnabled": {
+          "type": "boolean",
+          "description": "Whether students can access their gradebook view"
+        },
+        "gradebookDisabledRooms": {
+          "type": "array",
+          "description": "List of specific classroom names where student gradebook access is disabled"
         }
       },
       "required": ["id"]

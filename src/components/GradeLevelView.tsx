@@ -1,5 +1,5 @@
 import React from 'react';
-import { GraduationCap, BookOpen, ChevronRight, Settings } from 'lucide-react';
+import { GraduationCap, BookOpen, ChevronRight, Settings, FolderGit2 } from 'lucide-react';
 import { Assignment, Submission, UserRole } from '../types';
 import { AssignmentCard } from './AssignmentCard';
 
@@ -18,6 +18,8 @@ interface GradeLevelViewProps {
   onEditAssignment?: (assignmentId: Assignment) => void;
   gradeLevels?: string[];
   onOpenSettings?: (tab?: 'grades' | 'subjects' | 'students') => void;
+  onOpenSplitWorksheetsModal?: (baseGrade?: string) => void;
+  splitEligibleCount?: number;
 }
 
 export const GradeLevelView: React.FC<GradeLevelViewProps> = ({
@@ -35,6 +37,8 @@ export const GradeLevelView: React.FC<GradeLevelViewProps> = ({
   onEditAssignment,
   gradeLevels = ['ทั้งหมด'],
   onOpenSettings,
+  onOpenSplitWorksheetsModal,
+  splitEligibleCount = 0,
 }) => {
   const activeGradeList = gradeLevels.filter((g) => g && g !== 'ทั้งหมด');
   const baseLevels = Array.from(
@@ -80,14 +84,32 @@ export const GradeLevelView: React.FC<GradeLevelViewProps> = ({
             </div>
           </div>
 
-          {role === 'teacher' && onOpenSettings && (
-            <button
-              onClick={() => onOpenSettings('grades')}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold cursor-pointer transition-colors shrink-0 self-start sm:self-auto"
-            >
-              <Settings className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-              <span>⚙️ จัดการระดับชั้น (เมนูตั้งค่า)</span>
-            </button>
+          {role === 'teacher' && (
+            <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto shrink-0">
+              {onOpenSplitWorksheetsModal && (
+                <button
+                  type="button"
+                  onClick={() => onOpenSplitWorksheetsModal(selectedGrade !== 'ทั้งหมด' ? selectedGrade : undefined)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:hover:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-xl text-xs font-bold cursor-pointer transition-colors whitespace-nowrap shrink-0"
+                >
+                  <FolderGit2 className="w-3.5 h-3.5" />
+                  <span>
+                    โยกใบงานแยกตามห้อง
+                    {splitEligibleCount > 0 ? ` (${splitEligibleCount})` : ''}
+                  </span>
+                </button>
+              )}
+
+              {onOpenSettings && (
+                <button
+                  onClick={() => onOpenSettings('grades')}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold cursor-pointer transition-colors whitespace-nowrap shrink-0"
+                >
+                  <Settings className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                  <span>⚙️ จัดการระดับชั้น (เมนูตั้งค่า)</span>
+                </button>
+              )}
+            </div>
           )}
         </div>
 

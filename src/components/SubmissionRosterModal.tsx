@@ -18,6 +18,7 @@ import {
   Save,
   Zap,
   RotateCcw,
+  FolderGit2,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Assignment, Submission, StudentProfile } from '../types';
@@ -52,6 +53,7 @@ interface SubmissionRosterModalProps {
   onClose: () => void;
   onSelectStudentSubmission: (submission: Submission) => void;
   onBatchSaveGrades?: (updates: BatchGradeSaveItem[]) => void;
+  onOpenSplitThisWorksheet?: (assignment: Assignment) => void;
 }
 
 export const SubmissionRosterModal: React.FC<SubmissionRosterModalProps> = ({
@@ -61,8 +63,10 @@ export const SubmissionRosterModal: React.FC<SubmissionRosterModalProps> = ({
   onClose,
   onSelectStudentSubmission,
   onBatchSaveGrades,
+  onOpenSplitThisWorksheet,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [roomFilter, setRoomFilter] = useState<string>('ทั้งหมด');
   const [activeTab, setActiveTab] = useState<'submitted' | 'missing'>('submitted');
   const [statusFilter, setStatusFilter] = useState<'all' | 'submitted' | 'graded' | 'needs_revision'>('all');
   const [hasCopiedNames, setHasCopiedNames] = useState(false);
@@ -109,17 +113,51 @@ export const SubmissionRosterModal: React.FC<SubmissionRosterModalProps> = ({
     [assignmentSubmissions]
   );
 
+  const studentRoomByCode = useMemo(() => {
+    const map = new Map<string, string>();
+    students.forEach((s) => {
+      if (s.code && s.gradeLevel) {
+        map.set(s.code.toUpperCase().trim(), s.gradeLevel);
+      }
+    });
+    return map;
+  }, [students]);
+
+  const getSubmissionEffectiveRoom = (sub: Submission): string => {
+    const fromRoster = sub.studentCode
+      ? studentRoomByCode.get(sub.studentCode.toUpperCase().trim())
+      : undefined;
+    return fromRoster || sub.gradeLevel || '';
+  };
+
+  const availableRoomsInModal = useMemo(() => {
+    const set = new Set<string>();
+    assignmentSubmissions.forEach((s) => {
+      const r = getSubmissionEffectiveRoom(s);
+      if (r) set.add(r);
+    });
+    targetedStudents.forEach((s) => {
+      if (s.gradeLevel) set.add(s.gradeLevel);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
+  }, [assignmentSubmissions, targetedStudents, studentRoomByCode]);
+
   const missingStudents = useMemo(
     () =>
-      targetedStudents.filter(
-        (std) => !submittedStudentCodes.has(std.code?.toUpperCase().trim())
-      ),
-    [targetedStudents, submittedStudentCodes]
+      targetedStudents.filter((std) => {
+        if (submittedStudentCodes.has(std.code?.toUpperCase().trim())) return false;
+        if (roomFilter !== 'ทั้งหมด' && std.gradeLevel !== roomFilter) return false;
+        return true;
+      }),
+    [targetedStudents, submittedStudentCodes, roomFilter]
   );
 
   const filteredSubmissions = useMemo(
     () =>
       assignmentSubmissions.filter((s) => {
+        if (roomFilter !== 'ทั้งหมด') {
+          if (getSubmissionEffectiveRoom(s) !== roomFilter) return false;
+        }
         if (searchTerm) {
           const q = searchTerm.toLowerCase();
           const matchName = s.studentName.toLowerCase().includes(q);
@@ -129,7 +167,7 @@ export const SubmissionRosterModal: React.FC<SubmissionRosterModalProps> = ({
         if (statusFilter !== 'all' && s.status !== statusFilter) return false;
         return true;
       }),
-    [assignmentSubmissions, searchTerm, statusFilter]
+    [assignmentSubmissions, roomFilter, searchTerm, statusFilter, studentRoomByCode]
   );
 
   // Calculate statistics
@@ -606,6 +644,44 @@ export const SubmissionRosterModal: React.FC<SubmissionRosterModalProps> = ({
                 </div>
               )}
             </div>
+
+            {availableRoomsInModal.length > 1 && (
+              <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
+                <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
+                  <span className="text-slate-500 dark:text-slate-400 font-semibold mr-1">
+                    แยกดูตามห้อง:
+                  </span>
+                  {['ทั้งหมด', ...availableRoomsInModal].map((rm) => (
+                    <button
+                      key={rm}
+                      type="button"
+                      onClick={() => setRoomFilter(rm)}
+                      className={`px-2.5 py-1 rounded-lg font-semibold border transition-colors cursor-pointer ${
+                        roomFilter === rm
+                          ? 'bg-indigo-600 text-white border-indigo-600'
+                          : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-indigo-400'
+                      }`}
+                    >
+                      {rm === 'ทั้งหมด' ? 'ทุกห้อง' : `ห้อง ${rm}`}
+                    </button>
+                  ))}
+                </div>
+
+                {onOpenSplitThisWorksheet && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenSplitThisWorksheet(assignment);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 text-[11px] font-bold cursor-pointer"
+                  >
+                    <FolderGit2 className="w-3.5 h-3.5" />
+                    <span>โยกแยกใบงานนี้ตามห้องนักเรียน</span>
+                  </button>
+                )}
+              </div>
+            )}
 
             {activeTab === 'submitted' && onBatchSaveGrades && filteredSubmissions.length > 0 && (
               <div className="flex items-center justify-between gap-2 flex-wrap text-[11px] pt-1 border-t border-slate-200/70 dark:border-slate-700/60">

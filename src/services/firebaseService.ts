@@ -132,6 +132,8 @@ export function subscribeSettings(
     gradeLevels: string[];
     subjects: string[];
     periodConfigs?: PeriodConfig[];
+    studentGradebookEnabled?: boolean;
+    gradebookDisabledRooms?: string[];
   }) => void
 ) {
   try {
@@ -145,11 +147,18 @@ export function subscribeSettings(
             gradeLevels: data.gradeLevels || [],
             subjects: data.subjects || [],
             periodConfigs: Array.isArray(data.periodConfigs) ? data.periodConfigs : undefined,
+            studentGradebookEnabled:
+              typeof data.studentGradebookEnabled === 'boolean' ? data.studentGradebookEnabled : true,
+            gradebookDisabledRooms: Array.isArray(data.gradebookDisabledRooms)
+              ? data.gradebookDisabledRooms
+              : [],
           });
         } else {
           onData({
             gradeLevels: [],
             subjects: [],
+            studentGradebookEnabled: true,
+            gradebookDisabledRooms: [],
           });
         }
       },
@@ -239,6 +248,52 @@ export async function saveMultipleSubmissionsToFirestore(
   }
 }
 
+export async function batchMigrateWorksheetsAndSubmissions(params: {
+  upsertAssignments: Assignment[];
+  deleteAssignmentIds: string[];
+  upsertSubmissions: Submission[];
+}): Promise<void> {
+  const { upsertAssignments, deleteAssignmentIds, upsertSubmissions } = params;
+  type Op =
+    | { kind: 'setAsg'; data: Assignment }
+    | { kind: 'delAsg'; id: string }
+    | { kind: 'setSub'; data: Submission };
+
+  const ops: Op[] = [
+    ...upsertAssignments.map((data) => ({ kind: 'setAsg' as const, data })),
+    ...deleteAssignmentIds.map((id) => ({ kind: 'delAsg' as const, id })),
+    ...upsertSubmissions.map((data) => ({ kind: 'setSub' as const, data })),
+  ];
+
+  if (ops.length === 0) return;
+
+  try {
+    const CHUNK_SIZE = 400;
+    for (let i = 0; i < ops.length; i += CHUNK_SIZE) {
+      const batch = writeBatch(db);
+      const chunk = ops.slice(i, i + CHUNK_SIZE);
+      for (const op of chunk) {
+        if (op.kind === 'setAsg') {
+          batch.set(
+            doc(db, ASSIGNMENTS_COLLECTION, op.data.id),
+            sanitizeForFirestore(op.data)
+          );
+        } else if (op.kind === 'delAsg') {
+          batch.delete(doc(db, ASSIGNMENTS_COLLECTION, op.id));
+        } else {
+          batch.set(
+            doc(db, SUBMISSIONS_COLLECTION, op.data.id),
+            sanitizeForFirestore(op.data)
+          );
+        }
+      }
+      await batch.commit();
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `${ASSIGNMENTS_COLLECTION}_migration`);
+  }
+}
+
 export async function saveStudentToFirestore(student: StudentProfile): Promise<void> {
   const path = `${STUDENTS_COLLECTION}/${student.id}`;
   try {
@@ -317,6 +372,26 @@ export async function savePeriodConfigsToFirestore(
       sanitizeForFirestore({
         id: MAIN_SETTINGS_DOC,
         periodConfigs,
+      }),
+      { merge: true }
+    );
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function saveGradebookVisibilityToFirestore(
+  studentGradebookEnabled: boolean,
+  gradebookDisabledRooms: string[]
+): Promise<void> {
+  const path = `${SETTINGS_COLLECTION}/${MAIN_SETTINGS_DOC}`;
+  try {
+    await setDoc(
+      doc(db, SETTINGS_COLLECTION, MAIN_SETTINGS_DOC),
+      sanitizeForFirestore({
+        id: MAIN_SETTINGS_DOC,
+        studentGradebookEnabled,
+        gradebookDisabledRooms,
       }),
       { merge: true }
     );

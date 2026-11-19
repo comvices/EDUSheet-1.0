@@ -12,6 +12,9 @@ import {
   AlertCircle,
   Edit3,
   Eye,
+  EyeOff,
+  Lock,
+  Unlock,
   X,
   Check,
   Users,
@@ -31,6 +34,9 @@ interface GradebookViewProps {
   submissions: Submission[];
   gradeLevelsList: string[];
   subjectsList: string[];
+  studentGradebookEnabled?: boolean;
+  gradebookDisabledRooms?: string[];
+  onUpdateGradebookVisibility?: (enabled: boolean, disabledRooms: string[]) => void;
   onOpenGradingModal: (assignment: Assignment, submission?: Submission) => void;
   onOpenSubmitModal: (assignment: Assignment) => void;
   onOpenRosterModal: (assignment: Assignment) => void;
@@ -83,6 +89,9 @@ export const GradebookView: React.FC<GradebookViewProps> = ({
   submissions,
   gradeLevelsList,
   subjectsList,
+  studentGradebookEnabled = true,
+  gradebookDisabledRooms = [],
+  onUpdateGradebookVisibility,
   onOpenGradingModal,
   onOpenSubmitModal,
   onOpenRosterModal,
@@ -129,6 +138,18 @@ export const GradebookView: React.FC<GradebookViewProps> = ({
     numericScore: number;
     details: SaveConfirmDetail[];
   } | null>(null);
+  const [pendingVisibilityChange, setPendingVisibilityChange] = useState<{
+    title: string;
+    description: string;
+    details: SaveConfirmDetail[];
+    confirmLabel: string;
+    variant: 'emerald' | 'amber';
+    nextEnabled: boolean;
+    nextDisabledRooms: string[];
+  } | null>(null);
+
+  const isSelectedRoomDisabledForStudents =
+    !studentGradebookEnabled || (selectedRoom ? gradebookDisabledRooms.includes(selectedRoom) : false);
 
   // Available subjects present in settings or assignments for this room
   const subjectOptions = useMemo(() => {
@@ -492,6 +513,102 @@ export const GradebookView: React.FC<GradebookViewProps> = ({
           <div className="flex flex-wrap items-center gap-2 print:hidden">
             {role === 'teacher' && (
               <>
+                {onUpdateGradebookVisibility && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextEnabled = !studentGradebookEnabled;
+                      setPendingVisibilityChange({
+                        title: nextEnabled
+                          ? 'ยืนยันการเปิดสมุดคะแนนของนักเรียน?'
+                          : 'ยืนยันการปิดสมุดคะแนนของนักเรียน?',
+                        description: nextEnabled
+                          ? 'นักเรียนจะสามารถมองเห็นเมนู "สมุดคะแนน" และดูคะแนนใบงานของตนเองได้ (ยกเว้นห้องที่ถูกปิดเฉพาะห้อง)'
+                          : 'นักเรียนทุกคนจะไม่สามารถมองเห็นเมนู "สมุดคะแนน" จนกว่าครูจะเปิดใช้งานอีกครั้ง',
+                        details: [
+                          {
+                            label: 'สถานะเดิม',
+                            value: studentGradebookEnabled ? 'เปิดให้นักเรียนดู' : 'ปิดไม่ให้นักเรียนดู',
+                          },
+                          {
+                            label: 'สถานะใหม่',
+                            value: nextEnabled ? 'เปิดให้นักเรียนดู' : 'ปิดไม่ให้นักเรียนดู',
+                          },
+                        ],
+                        confirmLabel: nextEnabled ? 'ยืนยันเปิดสมุดคะแนน' : 'ยืนยันปิดสมุดคะแนน',
+                        variant: nextEnabled ? 'emerald' : 'amber',
+                        nextEnabled,
+                        nextDisabledRooms: gradebookDisabledRooms,
+                      });
+                    }}
+                    className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                      studentGradebookEnabled
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-950/60'
+                        : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-950/60'
+                    }`}
+                  >
+                    {studentGradebookEnabled ? (
+                      <>
+                        <Unlock className="w-4 h-4" />
+                        <span>สมุดคะแนนนักเรียน: เปิดอยู่</span>
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="w-4 h-4" />
+                        <span>สมุดคะแนนนักเรียน: ปิดอยู่</span>
+                      </>
+                    )}
+                  </button>
+                )}
+
+                {onUpdateGradebookVisibility && studentGradebookEnabled && selectedRoom && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const currentlyDisabled = gradebookDisabledRooms.includes(selectedRoom);
+                      const nextDisabledRooms = currentlyDisabled
+                        ? gradebookDisabledRooms.filter((r) => r !== selectedRoom)
+                        : [...gradebookDisabledRooms, selectedRoom];
+                      setPendingVisibilityChange({
+                        title: currentlyDisabled
+                          ? `ยืนยันเปิดสมุดคะแนนให้นักเรียนห้อง ${selectedRoom}?`
+                          : `ยืนยันปิดสมุดคะแนนนักเรียนเฉพาะห้อง ${selectedRoom}?`,
+                        description: currentlyDisabled
+                          ? `นักเรียนในห้อง ${selectedRoom} จะสามารถเปิดดูสมุดคะแนนของตนเองได้`
+                          : `นักเรียนในห้อง ${selectedRoom} จะถูกซ่อนเมนูสมุดคะแนนไว้ชั่วคราว (ห้องอื่นยังใช้งานได้ตามปกติ)`,
+                        details: [
+                          { label: 'ห้องเรียน', value: selectedRoom },
+                          {
+                            label: 'การตั้งค่าใหม่',
+                            value: currentlyDisabled ? 'เปิดให้นักเรียนดู' : 'ปิดเฉพาะห้องนี้',
+                          },
+                        ],
+                        confirmLabel: currentlyDisabled ? 'ยืนยันเปิดห้องนี้' : 'ยืนยันปิดเฉพาะห้องนี้',
+                        variant: currentlyDisabled ? 'emerald' : 'amber',
+                        nextEnabled: studentGradebookEnabled,
+                        nextDisabledRooms,
+                      });
+                    }}
+                    className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                      gradebookDisabledRooms.includes(selectedRoom)
+                        ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800 hover:bg-amber-100'
+                        : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    {gradebookDisabledRooms.includes(selectedRoom) ? (
+                      <>
+                        <EyeOff className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                        <span>ห้อง {selectedRoom}: ปิดนักเรียนอยู่</span>
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                        <span>ห้อง {selectedRoom}: เปิดให้นักเรียนดู</span>
+                      </>
+                    )}
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={handleExportExcel}
@@ -514,6 +631,17 @@ export const GradebookView: React.FC<GradebookViewProps> = ({
             )}
           </div>
         </div>
+
+        {role === 'teacher' && isSelectedRoomDisabledForStudents && (
+          <div className="mt-4 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/70 text-xs text-amber-800 dark:text-amber-200 flex items-center gap-2 print:hidden">
+            <Lock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+            <span>
+              {!studentGradebookEnabled
+                ? 'ขณะนี้ปิดสมุดคะแนนสำหรับนักเรียนทุกคนอยู่ (ครูยังดูและบันทึกคะแนนได้ตามปกติ หากต้องการให้นักเรียนดูได้ กดปุ่ม "สมุดคะแนนนักเรียน: ปิดอยู่" ด้านบน)'
+                : `ขณะนี้ปิดสมุดคะแนนสำหรับนักเรียนห้อง ${selectedRoom} ชั่วคราว (กดปุ่มด้านบนเพื่อเปิดให้ห้อง ${selectedRoom} ดูได้)`}
+            </span>
+          </div>
+        )}
 
         {/* Room Selector & Subject / Search Filter Bar */}
         <div className="mt-5 pt-5 border-t border-slate-200 dark:border-slate-800 space-y-3 print:hidden">
@@ -1207,7 +1335,7 @@ export const GradebookView: React.FC<GradebookViewProps> = ({
         </div>
       )}
 
-      {/* Pre-Save Confirmation Modal */}
+      {/* Pre-Save Confirmation Modal (Inline Score) */}
       <SaveConfirmModal
         isOpen={Boolean(pendingConfirm)}
         title="ยืนยันการบันทึกคะแนนลงสมุดเก็บคะแนน?"
@@ -1217,6 +1345,26 @@ export const GradebookView: React.FC<GradebookViewProps> = ({
         variant="emerald"
         onConfirm={handleConfirmSaveInlineScore}
         onCancel={() => setPendingConfirm(null)}
+      />
+
+      {/* Pre-Save Confirmation Modal (Student Gradebook Open/Close Toggle) */}
+      <SaveConfirmModal
+        isOpen={Boolean(pendingVisibilityChange)}
+        title={pendingVisibilityChange?.title || 'ยืนยันการเปลี่ยนสถานะสมุดคะแนนนักเรียน?'}
+        description={pendingVisibilityChange?.description || ''}
+        details={pendingVisibilityChange?.details || []}
+        confirmLabel={pendingVisibilityChange?.confirmLabel || 'ยืนยันการบันทึก'}
+        variant={pendingVisibilityChange?.variant || 'emerald'}
+        onConfirm={() => {
+          if (pendingVisibilityChange && onUpdateGradebookVisibility) {
+            onUpdateGradebookVisibility(
+              pendingVisibilityChange.nextEnabled,
+              pendingVisibilityChange.nextDisabledRooms
+            );
+          }
+          setPendingVisibilityChange(null);
+        }}
+        onCancel={() => setPendingVisibilityChange(null)}
       />
     </div>
   );

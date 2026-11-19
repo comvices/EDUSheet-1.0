@@ -41,6 +41,7 @@ interface HeaderProps {
   student: StudentProfile;
   teacher: TeacherProfile;
   isLoggedIn: boolean;
+  showGradebookTab?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -59,6 +60,7 @@ export const Header: React.FC<HeaderProps> = ({
   student,
   teacher,
   isLoggedIn,
+  showGradebookTab = true,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [settingsDropdownOpen, setSettingsDropdownOpen] = useState(false);
@@ -191,17 +193,19 @@ export const Header: React.FC<HeaderProps> = ({
                 <ClipboardCheck className="w-4 h-4 text-emerald-500" />
                 <span>เช็คชื่อเรียน</span>
               </button>
-              <button
-                onClick={() => handleTabClick('gradebook')}
-                className={`px-2.5 py-2 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'gradebook'
-                    ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold'
-                    : 'hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
-                }`}
-              >
-                <FileSpreadsheet className="w-4 h-4 text-indigo-500" />
-                <span>สมุดคะแนน</span>
-              </button>
+              {showGradebookTab && (
+                <button
+                  onClick={() => handleTabClick('gradebook')}
+                  className={`px-2.5 py-2 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === 'gradebook'
+                      ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold'
+                      : 'hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-indigo-500" />
+                  <span>สมุดคะแนน</span>
+                </button>
+              )}
             </nav>
 
             {/* Zone 3: Actions, Tools & Role Selector */}
@@ -531,17 +535,19 @@ export const Header: React.FC<HeaderProps> = ({
                   <span>เช็คชื่อเรียน</span>
                 </button>
 
-                <button
-                  onClick={() => handleTabClick('gradebook')}
-                  className={`col-span-2 py-2 px-3 rounded-xl text-xs font-semibold flex items-center gap-2 border transition-colors cursor-pointer ${
-                    activeTab === 'gradebook'
-                      ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-bold'
-                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
-                  }`}
-                >
-                  <FileSpreadsheet className="w-4 h-4 text-indigo-600" />
-                  <span>สมุดเก็บคะแนนรายห้อง</span>
-                </button>
+                {showGradebookTab && (
+                  <button
+                    onClick={() => handleTabClick('gradebook')}
+                    className={`col-span-2 py-2 px-3 rounded-xl text-xs font-semibold flex items-center gap-2 border transition-colors cursor-pointer ${
+                      activeTab === 'gradebook'
+                        ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-bold'
+                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                    }`}
+                  >
+                    <FileSpreadsheet className="w-4 h-4 text-indigo-600" />
+                    <span>สมุดเก็บคะแนนรายห้อง</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -660,17 +666,31 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="text-[10px] mt-0.5">หน้าแรก</span>
         </button>
 
-        <button
-          onClick={() => handleTabClick('gradebook')}
-          className={`flex flex-col items-center py-1 px-2 rounded-xl transition-all cursor-pointer ${
-            activeTab === 'gradebook'
-              ? 'text-indigo-600 dark:text-indigo-400 font-bold'
-              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-          }`}
-        >
-          <FileSpreadsheet className="w-5 h-5" />
-          <span className="text-[10px] mt-0.5">สมุดคะแนน</span>
-        </button>
+        {showGradebookTab ? (
+          <button
+            onClick={() => handleTabClick('gradebook')}
+            className={`flex flex-col items-center py-1 px-2 rounded-xl transition-all cursor-pointer ${
+              activeTab === 'gradebook'
+                ? 'text-indigo-600 dark:text-indigo-400 font-bold'
+                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+          >
+            <FileSpreadsheet className="w-5 h-5" />
+            <span className="text-[10px] mt-0.5">สมุดคะแนน</span>
+          </button>
+        ) : (
+          <button
+            onClick={() => handleTabClick('grades')}
+            className={`flex flex-col items-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+              activeTab === 'grades'
+                ? 'text-indigo-600 dark:text-indigo-400 font-bold'
+                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+          >
+            <GraduationCap className="w-5 h-5" />
+            <span className="text-[10px] mt-0.5">ระดับชั้น</span>
+          </button>
+        )}
 
         <button
           onClick={() => handleTabClick('attendance')}

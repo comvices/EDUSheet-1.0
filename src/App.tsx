@@ -25,6 +25,7 @@ import {
   deleteAssignmentFromFirestore,
   saveSubmissionToFirestore,
   saveMultipleSubmissionsToFirestore,
+  batchMigrateWorksheetsAndSubmissions,
   saveStudentToFirestore,
   saveMultipleStudentsToFirestore,
   deleteStudentFromFirestore,
@@ -32,6 +33,7 @@ import {
   deleteTeacherFromFirestore,
   saveSettingsToFirestore,
   savePeriodConfigsToFirestore,
+  saveGradebookVisibilityToFirestore,
   subscribeResources,
   saveResourceToFirestore,
   deleteResourceFromFirestore,
@@ -68,7 +70,13 @@ import { ResourcesView } from './components/ResourcesView';
 import { CreateResourceModal } from './components/CreateResourceModal';
 import { AttendanceView } from './components/AttendanceView';
 import { GradebookView } from './components/GradebookView';
-import { CheckCircle2, KeyRound, LogOut, AlertTriangle } from 'lucide-react';
+import {
+  SplitWorksheetsModal,
+  buildGradeSplitMigrationPlan,
+  GradeSplitMigrationPlan,
+  extractBaseGrade,
+} from './components/SplitWorksheetsModal';
+import { CheckCircle2, KeyRound, LogOut, AlertTriangle, FolderGit2 } from 'lucide-react';
 
 const DEFAULT_GUEST_STUDENT: StudentProfile = {
   id: 'guest_student',
@@ -128,6 +136,8 @@ export default function App() {
   const [periodConfigs, setPeriodConfigs] = useState<PeriodConfig[]>(() =>
     getInitialStorage('edusheet_period_configs', DEFAULT_PERIOD_CONFIGS)
   );
+  const [studentGradebookEnabled, setStudentGradebookEnabled] = useState<boolean>(true);
+  const [gradebookDisabledRooms, setGradebookDisabledRooms] = useState<string[]>([]);
   const [resources, setResources] = useState<LearningResource[]>([]);
   const [teachingSchedules, setTeachingSchedules] = useState<TeachingSchedule[]>([]);
   const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>([]);
@@ -181,6 +191,12 @@ export default function App() {
 
       if (remoteSettings.periodConfigs && remoteSettings.periodConfigs.length > 0) {
         setPeriodConfigs(remoteSettings.periodConfigs);
+      }
+      if (typeof remoteSettings.studentGradebookEnabled === 'boolean') {
+        setStudentGradebookEnabled(remoteSettings.studentGradebookEnabled);
+      }
+      if (Array.isArray(remoteSettings.gradebookDisabledRooms)) {
+        setGradebookDisabledRooms(remoteSettings.gradebookDisabledRooms);
       }
     });
 
@@ -247,6 +263,11 @@ export default function App() {
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [infoModalTab, setInfoModalTab] = useState<InfoModalTab>('guide');
+  const [splitModalState, setSplitModalState] = useState<{
+    isOpen: boolean;
+    baseGrade?: string;
+    focusAssignmentId?: string;
+  }>({ isOpen: false });
 
   const handleOpenSettings = (tab: SettingsTab = 'grades') => {
     setSettingsInitialTab(tab);
@@ -554,6 +575,38 @@ export default function App() {
     showToast(`ลบใบงาน "${targetAsg?.title || ''}" ออกจากระบบเรียบร้อยแล้ว 🗑️`);
   };
 
+  // Batch Migrate / Split Worksheets & Submissions by Student Configured Classroom
+  const handleExecuteSplitMigration = async (plan: GradeSplitMigrationPlan) => {
+    if (plan.items.length === 0) return;
+
+    const upsertAsgMap = new Map(plan.upsertAssignments.map((a) => [a.id, a]));
+    const deleteAsgSet = new Set(plan.deleteAssignmentIds);
+    const upsertSubMap = new Map(plan.upsertSubmissions.map((s) => [s.id, s]));
+
+    setAssignments((prev) => {
+      const updated = prev
+        .filter((a) => !deleteAsgSet.has(a.id))
+        .map((a) => upsertAsgMap.get(a.id) || a);
+      const existingIds = new Set(updated.map((a) => a.id));
+      const newlyCreated = plan.upsertAssignments.filter((a) => !existingIds.has(a.id));
+      return [...newlyCreated, ...updated];
+    });
+
+    setSubmissions((prev) =>
+      prev.map((s) => upsertSubMap.get(s.id) || s)
+    );
+
+    await batchMigrateWorksheetsAndSubmissions({
+      upsertAssignments: plan.upsertAssignments,
+      deleteAssignmentIds: plan.deleteAssignmentIds,
+      upsertSubmissions: plan.upsertSubmissions,
+    });
+
+    showToast(
+      `โยกใบงานชั้น ${plan.baseGrade} แยกตามห้องเรียบร้อยแล้ว (${plan.items.length} เรื่อง · จัดเรียงงานส่ง ${plan.upsertSubmissions.length} รายการ) ✅`
+    );
+  };
+
   // Learning Resources Handlers
   const handleSaveResource = (res: LearningResource) => {
     const existingIdx = resources.findIndex((r) => r.id === res.id);
@@ -622,6 +675,17 @@ export default function App() {
     setPeriodConfigs(nextConfigs);
     savePeriodConfigsToFirestore(nextConfigs);
     showToast('บันทึกการตั้งค่าคาบเรียนและคาบพักเที่ยงเรียบร้อยแล้ว ⏰');
+  };
+
+  const handleSaveGradebookVisibility = (nextEnabled: boolean, nextDisabledRooms: string[]) => {
+    setStudentGradebookEnabled(nextEnabled);
+    setGradebookDisabledRooms(nextDisabledRooms);
+    saveGradebookVisibilityToFirestore(nextEnabled, nextDisabledRooms);
+    showToast(
+      nextEnabled
+        ? 'อัปเดตสถานะ: เปิดสมุดคะแนนให้นักเรียนเข้าดูได้แล้ว 🔓'
+        : 'อัปเดตสถานะ: ปิดสมุดคะแนนของนักเรียนชั่วคราวแล้ว 🔒'
+    );
   };
 
   // Category & Grade Level Management Handlers
@@ -768,6 +832,8 @@ export default function App() {
     setGradeLevelsList(['ทั้งหมด']);
     setSubjectsList(['ทั้งหมด']);
     setPeriodConfigs(DEFAULT_PERIOD_CONFIGS);
+    setStudentGradebookEnabled(true);
+    setGradebookDisabledRooms([]);
     setNotifications([]);
     try {
       localStorage.removeItem('edusheet_grade_levels');
@@ -788,6 +854,8 @@ export default function App() {
     setGradeLevelsList(['ทั้งหมด']);
     setSubjectsList(['ทั้งหมด']);
     setPeriodConfigs(DEFAULT_PERIOD_CONFIGS);
+    setStudentGradebookEnabled(true);
+    setGradebookDisabledRooms([]);
     try {
       localStorage.removeItem('edusheet_grade_levels');
       localStorage.removeItem('edusheet_subjects');
@@ -930,6 +998,29 @@ export default function App() {
     return diffHours > 0 && diffHours <= 24 && (!s || s.status === 'pending');
   }).length;
 
+  const isGradebookVisibleToCurrentUser =
+    role === 'teacher' ||
+    (studentGradebookEnabled &&
+      (!currentStudentUser.gradeLevel ||
+        !gradebookDisabledRooms.includes(currentStudentUser.gradeLevel)));
+
+  const m6MigrationPlan = React.useMemo(() => {
+    if (role !== 'teacher') return null;
+    return buildGradeSplitMigrationPlan({
+      baseGrade: 'ม.6',
+      assignments,
+      submissions,
+      studentsRoster,
+      gradeLevelsList,
+    });
+  }, [role, assignments, submissions, studentsRoster, gradeLevelsList]);
+
+  React.useEffect(() => {
+    if (role === 'student' && !isGradebookVisibleToCurrentUser && activeTab === 'gradebook') {
+      setActiveTab('home');
+    }
+  }, [role, isGradebookVisibleToCurrentUser, activeTab]);
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sarabun">
       {/* 3-Zone Header Contract */}
@@ -952,6 +1043,7 @@ export default function App() {
         student={currentStudentUser}
         teacher={currentTeacherUser}
         isLoggedIn={isLoggedIn}
+        showGradebookTab={isGradebookVisibleToCurrentUser}
       />
 
       {/* Main Container (Responsive padding with mobile bottom nav safe-area) */}
@@ -1008,6 +1100,32 @@ export default function App() {
                 onOpenManageCategories={() => handleOpenSettings('grades')}
                 onOpenSettings={handleOpenSettings}
               />
+            )}
+
+            {/* Actionable Prompt when ม.6 Worksheets need splitting by student room */}
+            {role === 'teacher' && m6MigrationPlan && m6MigrationPlan.items.length > 0 && (
+              <div className="mb-5 p-4 bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
+                    <FolderGit2 className="w-5 h-5" />
+                  </div>
+                  <div className="text-xs">
+                    <p className="font-bold text-indigo-950 dark:text-indigo-100">
+                      พบใบงานระดับชั้น ม.6 จำนวน {m6MigrationPlan.items.length} เรื่อง ที่ยังไม่ได้แยกตามห้องของนักเรียน
+                    </p>
+                    <p className="text-indigo-700 dark:text-indigo-300 mt-0.5">
+                      สามารถโยกไปเก็บเป็นใบงานแยกตามห้อง ({m6MigrationPlan.availableTargetRooms.join(', ')}) พร้อมย้ายรายการส่งงานของนักเรียนให้ตรงห้องอัตโนมัติ
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSplitModalState({ isOpen: true, baseGrade: 'ม.6' })}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold whitespace-nowrap shrink-0 cursor-pointer transition-colors"
+                >
+                  โยกใบงาน ม.6 แยกตามห้อง
+                </button>
+              </div>
             )}
 
             {/* Assignments Grid */}
@@ -1103,6 +1221,13 @@ export default function App() {
             }}
             gradeLevels={gradeLevelsList}
             onOpenSettings={handleOpenSettings}
+            onOpenSplitWorksheetsModal={(base) =>
+              setSplitModalState({
+                isOpen: true,
+                baseGrade: base ? extractBaseGrade(base) || 'ม.6' : 'ม.6',
+              })
+            }
+            splitEligibleCount={m6MigrationPlan?.items.length || 0}
           />
         )}
 
@@ -1192,20 +1317,34 @@ export default function App() {
 
         {/* Tab 7: Per-Room Gradebook / Scorebook */}
         {activeTab === 'gradebook' && (
-          <GradebookView
-            role={role}
-            currentStudent={currentStudentUser}
-            studentsRoster={studentsRoster}
-            assignments={visibleAssignments}
-            submissions={visibleSubmissions}
-            gradeLevelsList={gradeLevelsList}
-            subjectsList={subjectsList}
-            onOpenGradingModal={(a, s) => setActiveGradingModalAsg({ assignment: a, submission: s })}
-            onOpenSubmitModal={(a) => setActiveSubmitModalAsg(a)}
-            onOpenRosterModal={(a) => setActiveRosterModalAsg(a)}
-            onUpsertCellScore={handleUpsertGradebookScore}
-            onOpenSettings={role === 'teacher' ? handleOpenSettings : undefined}
-          />
+          isGradebookVisibleToCurrentUser ? (
+            <GradebookView
+              role={role}
+              currentStudent={currentStudentUser}
+              studentsRoster={studentsRoster}
+              assignments={visibleAssignments}
+              submissions={visibleSubmissions}
+              gradeLevelsList={gradeLevelsList}
+              subjectsList={subjectsList}
+              studentGradebookEnabled={studentGradebookEnabled}
+              gradebookDisabledRooms={gradebookDisabledRooms}
+              onUpdateGradebookVisibility={handleSaveGradebookVisibility}
+              onOpenGradingModal={(a, s) => setActiveGradingModalAsg({ assignment: a, submission: s })}
+              onOpenSubmitModal={(a) => setActiveSubmitModalAsg(a)}
+              onOpenRosterModal={(a) => setActiveRosterModalAsg(a)}
+              onUpsertCellScore={handleUpsertGradebookScore}
+              onOpenSettings={role === 'teacher' ? handleOpenSettings : undefined}
+            />
+          ) : (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-10 text-center space-y-3">
+              <p className="text-base font-bold font-prompt text-slate-900 dark:text-white">
+                สมุดเก็บคะแนนถูกปิดการเข้าชมชั่วคราว
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                ครูผู้สอนได้ปิดการแสดงผลสมุดคะแนนสำหรับนักเรียนในขณะนี้
+              </p>
+            </div>
+          )
         )}
       </main>
 
@@ -1269,6 +1408,27 @@ export default function App() {
             setActiveGradingModalAsg({ assignment: asg, submission: sub });
           }}
           onBatchSaveGrades={handleBatchSaveGrades}
+          onOpenSplitThisWorksheet={(asg) =>
+            setSplitModalState({
+              isOpen: true,
+              baseGrade: extractBaseGrade(asg.gradeLevel) || 'ม.6',
+              focusAssignmentId: asg.id,
+            })
+          }
+        />
+      )}
+
+      {splitModalState.isOpen && (
+        <SplitWorksheetsModal
+          isOpen={splitModalState.isOpen}
+          initialBaseGrade={splitModalState.baseGrade}
+          focusAssignmentId={splitModalState.focusAssignmentId}
+          assignments={assignments}
+          submissions={submissions}
+          studentsRoster={studentsRoster}
+          gradeLevelsList={gradeLevelsList}
+          onClose={() => setSplitModalState({ isOpen: false })}
+          onExecuteMigration={handleExecuteSplitMigration}
         />
       )}
 
