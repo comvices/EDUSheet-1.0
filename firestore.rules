@@ -16,65 +16,111 @@ service cloud.firestore {
       return request.resource.data;
     }
 
-    function existing() {
-      return resource.data;
-    }
-
     function isValidString(val, minLen, maxLen) {
       return val is string && val.size() >= minLen && val.size() <= maxLen;
     }
 
+    function isSafeHttpUrl(val) {
+      return val is string && val.size() >= 8 && val.size() <= 2000 && val.matches('^https?://.*');
+    }
+
     // Payload validation helpers
-    function isValidAssignment(data) {
+    function isValidAssignment(docId, data) {
       return data.keys().hasAll(['id', 'title', 'subject', 'gradeLevel', 'totalPoints', 'dueDate']) &&
+        data.id == docId &&
         isValidString(data.id, 1, 128) &&
         isValidString(data.title, 1, 300) &&
         isValidString(data.subject, 1, 100) &&
         isValidString(data.gradeLevel, 1, 50) &&
-        data.totalPoints is number && data.totalPoints >= 0 && data.totalPoints <= 1000;
+        data.totalPoints is number && data.totalPoints >= 0 && data.totalPoints <= 1000 &&
+        isValidString(data.dueDate, 1, 100) &&
+        (!('category' in data) || isValidString(data.category, 0, 100)) &&
+        (!('description' in data) || isValidString(data.description, 0, 2000)) &&
+        (!('instructions' in data) || isValidString(data.instructions, 0, 2000)) &&
+        (!('teacherName' in data) || isValidString(data.teacherName, 0, 200)) &&
+        (!('questions' in data) || (data.questions is list && data.questions.size() <= 100)) &&
+        (!('assignedStudentCodes' in data) || (data.assignedStudentCodes is list && data.assignedStudentCodes.size() <= 500));
     }
 
-    function isValidSubmission(data) {
+    function isValidSubmission(docId, data) {
       return data.keys().hasAll(['id', 'assignmentId', 'studentCode', 'status']) &&
+        data.id == docId &&
         isValidString(data.id, 1, 128) &&
         isValidString(data.assignmentId, 1, 128) &&
         isValidString(data.studentCode, 1, 64) &&
-        isValidString(data.status, 1, 50);
+        data.status in ['pending', 'submitted', 'needs_revision', 'graded'] &&
+        (!('studentId' in data) || isValidString(data.studentId, 0, 128)) &&
+        (!('studentName' in data) || isValidString(data.studentName, 0, 200)) &&
+        (!('gradeLevel' in data) || isValidString(data.gradeLevel, 0, 50)) &&
+        (!('score' in data) || (data.score is number && data.score >= 0 && data.score <= 1000)) &&
+        (!('maxScore' in data) || (data.maxScore is number && data.maxScore >= 0 && data.maxScore <= 1000)) &&
+        (!('teacherComment' in data) || isValidString(data.teacherComment, 0, 3000));
     }
 
-    function isValidStudent(data) {
+    function isValidStudent(docId, data) {
       return data.keys().hasAll(['id', 'code', 'name', 'password', 'gradeLevel']) &&
+        data.id == docId &&
         isValidString(data.id, 1, 128) &&
         isValidString(data.code, 1, 64) &&
         isValidString(data.name, 1, 200) &&
         isValidString(data.password, 1, 128) &&
-        isValidString(data.gradeLevel, 1, 50);
+        isValidString(data.gradeLevel, 1, 50) &&
+        (!('avatar' in data) || isValidString(data.avatar, 0, 1000));
     }
 
-    function isValidTeacher(data) {
+    function isValidTeacher(docId, data) {
       return data.keys().hasAll(['id', 'code', 'name', 'password', 'subject']) &&
+        data.id == docId &&
         isValidString(data.id, 1, 128) &&
         isValidString(data.code, 1, 64) &&
         isValidString(data.name, 1, 200) &&
-        isValidString(data.password, 1, 128);
+        isValidString(data.password, 1, 128) &&
+        isValidString(data.subject, 0, 100) &&
+        (!('avatar' in data) || isValidString(data.avatar, 0, 1000));
     }
 
-    function isValidResource(data) {
+    function isSafeImageSrc(val) {
+      return val is string && val.size() <= 350000 && (
+        val == '' ||
+        isSafeHttpUrl(val) ||
+        val.matches('^data:image/(jpeg|jpg|png|webp|gif);base64,[A-Za-z0-9+/=]+$')
+      );
+    }
+
+    function isValidSetting(docId, data) {
+      return (!('id' in data) || (isValidString(data.id, 1, 128) && data.id == docId)) &&
+        (!('gradeLevels' in data) || (data.gradeLevels is list && data.gradeLevels.size() <= 200)) &&
+        (!('subjects' in data) || (data.subjects is list && data.subjects.size() <= 100)) &&
+        (!('periodConfigs' in data) || (data.periodConfigs is list && data.periodConfigs.size() <= 20)) &&
+        (!('studentGradebookEnabled' in data) || data.studentGradebookEnabled is bool) &&
+        (!('gradebookDisabledRooms' in data) || (data.gradebookDisabledRooms is list && data.gradebookDisabledRooms.size() <= 200)) &&
+        (!('schoolCoverUrl' in data) || isSafeImageSrc(data.schoolCoverUrl)) &&
+        (!('schoolName' in data) || isValidString(data.schoolName, 0, 150)) &&
+        (!('schoolSubtitle' in data) || isValidString(data.schoolSubtitle, 0, 250));
+    }
+
+    function isValidResource(docId, data) {
       return data.keys().hasAll(['id', 'title', 'subject', 'gradeLevel', 'type', 'url']) &&
+        data.id == docId &&
         isValidString(data.id, 1, 128) &&
         isValidString(data.title, 1, 300) &&
         isValidString(data.subject, 1, 100) &&
         isValidString(data.gradeLevel, 1, 100) &&
-        (data.type == 'video' || data.type == 'document' || data.type == 'slide' || data.type == 'link') &&
-        isValidString(data.url, 1, 2000);
+        data.type in ['video', 'document', 'slide', 'link'] &&
+        isSafeHttpUrl(data.url) &&
+        (!('description' in data) || isValidString(data.description, 0, 2000)) &&
+        (!('teacherName' in data) || isValidString(data.teacherName, 0, 200)) &&
+        (!('fileSize' in data) || isValidString(data.fileSize, 0, 64)) &&
+        (!('thumbnailUrl' in data) || isSafeImageSrc(data.thumbnailUrl));
     }
 
     function isValidDayOfWeek(day) {
-      return day == 'monday' || day == 'tuesday' || day == 'wednesday' || day == 'thursday' || day == 'friday';
+      return day in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
     }
 
-    function isValidTeachingSchedule(data) {
+    function isValidTeachingSchedule(docId, data) {
       return data.keys().hasAll(['id', 'teacherId', 'teacherCode', 'teacherName', 'dayOfWeek', 'period', 'startTime', 'endTime', 'subject', 'gradeLevel']) &&
+        data.id == docId &&
         isValidString(data.id, 1, 128) &&
         isValidString(data.teacherId, 1, 128) &&
         isValidString(data.teacherCode, 1, 64) &&
@@ -85,11 +131,14 @@ service cloud.firestore {
         isValidString(data.startTime, 1, 20) &&
         isValidString(data.endTime, 1, 20) &&
         isValidString(data.subject, 1, 100) &&
-        isValidString(data.gradeLevel, 1, 50);
+        isValidString(data.gradeLevel, 1, 50) &&
+        (!('classroom' in data) || isValidString(data.classroom, 0, 100)) &&
+        (!('note' in data) || isValidString(data.note, 0, 500));
     }
 
-    function isValidAttendanceSession(data) {
+    function isValidAttendanceSession(docId, data) {
       return data.keys().hasAll(['id', 'date', 'dayOfWeek', 'period', 'subject', 'gradeLevel', 'teacherId', 'teacherCode', 'teacherName', 'records', 'updatedAt']) &&
+        data.id == docId &&
         isValidString(data.id, 1, 128) &&
         isValidString(data.date, 8, 20) &&
         isValidDayOfWeek(data.dayOfWeek) &&
@@ -100,67 +149,70 @@ service cloud.firestore {
         isValidString(data.teacherId, 1, 128) &&
         isValidString(data.teacherCode, 1, 64) &&
         isValidString(data.teacherName, 1, 200) &&
-        data.records is list &&
-        isValidString(data.updatedAt, 1, 100);
+        data.records is list && data.records.size() <= 200 &&
+        isValidString(data.updatedAt, 1, 100) &&
+        (!('topicTaught' in data) || isValidString(data.topicTaught, 0, 500));
     }
 
-    // Test connection doc used at startup
+    // Test connection doc used at startup (read-only)
     match /test/{testId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if false;
     }
 
     // Assignments collection
     match /assignments/{assignmentId} {
       allow read: if true;
-      allow create, update: if isValidId(assignmentId) && isValidAssignment(incoming());
+      allow create, update: if isValidId(assignmentId) && isValidAssignment(assignmentId, incoming());
       allow delete: if isValidId(assignmentId);
     }
 
     // Submissions collection
     match /submissions/{submissionId} {
       allow read: if true;
-      allow create, update: if isValidId(submissionId) && isValidSubmission(incoming());
+      allow create, update: if isValidId(submissionId) && isValidSubmission(submissionId, incoming());
       allow delete: if isValidId(submissionId);
     }
 
     // Students collection
     match /students/{studentId} {
       allow read: if true;
-      allow create, update: if isValidId(studentId) && isValidStudent(incoming());
+      allow create, update: if isValidId(studentId) && isValidStudent(studentId, incoming());
       allow delete: if isValidId(studentId);
     }
 
     // Teachers collection
     match /teachers/{teacherId} {
       allow read: if true;
-      allow create, update: if isValidId(teacherId) && isValidTeacher(incoming());
+      allow create, update: if isValidId(teacherId) && isValidTeacher(teacherId, incoming());
       allow delete: if isValidId(teacherId);
     }
 
     // Settings collection
     match /settings/{settingId} {
       allow read: if true;
-      allow write: if isValidId(settingId);
+      allow create, update: if isValidId(settingId) && isValidSetting(settingId, incoming());
+      allow delete: if false;
     }
 
     // Resources collection (Learning media library)
     match /resources/{resourceId} {
       allow read: if true;
-      allow create, update: if isValidId(resourceId) && isValidResource(incoming());
+      allow create, update: if isValidId(resourceId) && isValidResource(resourceId, incoming());
       allow delete: if isValidId(resourceId);
     }
 
     // Teaching schedules collection
     match /teachingSchedules/{scheduleId} {
       allow read: if true;
-      allow create, update: if isValidId(scheduleId) && isValidTeachingSchedule(incoming());
+      allow create, update: if isValidId(scheduleId) && isValidTeachingSchedule(scheduleId, incoming());
       allow delete: if isValidId(scheduleId);
     }
 
     // Classroom attendance sessions collection
     match /attendanceSessions/{sessionId} {
       allow read: if true;
-      allow create, update: if isValidId(sessionId) && isValidAttendanceSession(incoming());
+      allow create, update: if isValidId(sessionId) && isValidAttendanceSession(sessionId, incoming());
       allow delete: if isValidId(sessionId);
     }
   }

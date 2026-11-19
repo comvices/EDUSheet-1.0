@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Sparkles, HelpCircle, Lightbulb, Send } from 'lucide-react';
 import { Assignment } from '../types';
+import { getAuthHeaders } from '../utils/security';
 
 interface AIHintModalProps {
   assignment: Assignment;
@@ -26,7 +27,7 @@ export const AIHintModal: React.FC<AIHintModalProps> = ({
     try {
       const res = await fetch('/api/ai/hint', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           assignmentTitle: assignment.title,
           questionText: selectedQuestionText,

@@ -1,15 +1,155 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, ThinkingLevel, Type } from '@google/genai';
 import dotenv from 'dotenv';
 import path from 'path';
+import crypto from 'crypto';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
-app.use(express.json({ limit: '10mb' }));
+app.disable('x-powered-by');
+app.use(express.json({ limit: '5mb' }));
+
+// Security Headers Middleware (safe for AI Studio iframe preview)
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
+  res.setHeader('X-XSS-Protection', '0');
+  next();
+});
+
+// Ephemeral CSPRNG fallback guarantees per-instance unpredictability if SESSION_SECRET is unset
+const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+
+interface SessionTokenPayload {
+  role: 'teacher' | 'student';
+  userId: string;
+  code: string;
+  exp: number;
+}
+
+function signSessionToken(payload: SessionTokenPayload): string {
+  const encoded = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+  const sig = crypto.createHmac('sha256', SESSION_SECRET).update(encoded).digest('base64url');
+  return `${encoded}.${sig}`;
+}
+
+function verifySessionToken(token: string): SessionTokenPayload | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 2) return null;
+    const [encoded, sig] = parts;
+    const expectedSig = crypto.createHmac('sha256', SESSION_SECRET).update(encoded).digest('base64url');
+    const sigBuf = Buffer.from(sig, 'utf8');
+    const expBuf = Buffer.from(expectedSig, 'utf8');
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+      return null;
+    }
+    const decoded = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as SessionTokenPayload;
+    if (!decoded || typeof decoded.exp !== 'number' || Date.now() > decoded.exp) {
+      return null;
+    }
+    if (decoded.role !== 'teacher' && decoded.role !== 'student') {
+      return null;
+    }
+    return decoded;
+  } catch {
+    return null;
+  }
+}
+
+// Sliding-Window In-Memory Rate Limiter
+function createRateLimiter(options: { windowMs: number; maxRequests: number; message: string }) {
+  const buckets = new Map<string, number[]>();
+
+  return (req: Request, res: Response, next: NextFunction) => {
+    const ip =
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      req.socket.remoteAddress ||
+      'unknown';
+    const now = Date.now();
+    const cutoff = now - options.windowMs;
+    const timestamps = (buckets.get(ip) || []).filter((t) => t > cutoff);
+
+    if (timestamps.length >= options.maxRequests) {
+      return res.status(429).json({
+        error: 'มีการเรียกใช้งานถี่เกินกำหนด',
+        message: options.message,
+      });
+    }
+
+    timestamps.push(now);
+    buckets.set(ip, timestamps);
+
+    // Opportunistic cleanup to keep memory bounded
+    if (buckets.size > 1000) {
+      for (const [k, v] of buckets.entries()) {
+        if (v.every((t) => t <= cutoff)) buckets.delete(k);
+      }
+    }
+
+    next();
+  };
+}
+
+const authSessionLimiter = createRateLimiter({
+  windowMs: 5 * 60 * 1000,
+  maxRequests: 30,
+  message: 'มีการเข้าสู่ระบบหรือขอสิทธิ์บ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่',
+});
+
+const aiApiLimiter = createRateLimiter({
+  windowMs: 5 * 60 * 1000,
+  maxRequests: 45,
+  message: 'เรียกใช้งานระบบ AI ถี่เกินกำหนดชั่วคราว กรุณารอสักครู่แล้วลองใหม่อีกครั้ง',
+});
+
+function requireApiSession(allowedRoles: Array<'teacher' | 'student'>) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+    const session = token ? verifySessionToken(token) : null;
+
+    if (!session) {
+      return res.status(401).json({
+        error: 'ไม่ได้รับอนุญาต',
+        message: 'เซสชันหมดอายุหรือยังไม่ได้เข้าสู่ระบบ กรุณาเข้าสู่ระบบใหม่อีกครั้ง',
+      });
+    }
+
+    if (!allowedRoles.includes(session.role)) {
+      return res.status(403).json({
+        error: 'ไม่มีสิทธิ์เข้าถึง',
+        message: 'เฉพาะครูผู้สอนเท่านั้นที่สามารถใช้งานฟีเจอร์นี้ได้',
+      });
+    }
+
+    (req as any).apiSession = session;
+    next();
+  };
+}
+
+// Issue HMAC-signed session token after client login
+app.post('/api/auth/session', authSessionLimiter, (req, res) => {
+  const { role, userId, code } = req.body || {};
+  if ((role !== 'teacher' && role !== 'student') || typeof userId !== 'string' || !userId.trim()) {
+    return res.status(400).json({ error: 'ข้อมูลเซสชันไม่ถูกต้อง' });
+  }
+
+  const token = signSessionToken({
+    role,
+    userId: userId.slice(0, 128),
+    code: typeof code === 'string' ? code.slice(0, 64) : '',
+    exp: Date.now() + 12 * 60 * 60 * 1000, // 12 hours
+  });
+
+  return res.json({ success: true, token });
+});
 
 // Shared Gemini client factory
 function getAiClient(): GoogleGenAI {
@@ -329,7 +469,7 @@ function finalizeGradedResult(
 }
 
 // API Route: AI Auto-Grading & Draft Feedback for Single Submission
-app.post('/api/ai/grade', async (req, res) => {
+app.post('/api/ai/grade', aiApiLimiter, requireApiSession(['teacher']), async (req, res) => {
   try {
     const {
       assignmentTitle,
@@ -342,12 +482,12 @@ app.post('/api/ai/grade', async (req, res) => {
       maxPoints,
     } = req.body;
 
-    if (!assignmentTitle || !Array.isArray(questions) || questions.length === 0) {
-      return res.status(400).json({ error: 'ข้อมูลใบงานหรือรายการคำถามไม่ครบถ้วน' });
+    if (!assignmentTitle || !Array.isArray(questions) || questions.length === 0 || questions.length > 50) {
+      return res.status(400).json({ error: 'ข้อมูลใบงานหรือรายการคำถามไม่ครบถ้วนหรือเกินขีดจำกัด (สูงสุด 50 ข้อ)' });
     }
 
     const ai = getAiClient();
-    const typedQuestions = questions as GradingQuestionInput[];
+    const typedQuestions = (questions as GradingQuestionInput[]).slice(0, 50);
     const { preparedItems, attachedFiles } = prepareSubmissionItems(
       typedQuestions,
       answers,
@@ -440,7 +580,7 @@ ${JSON.stringify(compactPayload)}`;
 });
 
 // API Route: Single-Call Multi-Student Batch AI Auto-Grading
-app.post('/api/ai/grade-batch', async (req, res) => {
+app.post('/api/ai/grade-batch', aiApiLimiter, requireApiSession(['teacher']), async (req, res) => {
   try {
     const {
       assignmentTitle,
@@ -456,6 +596,7 @@ app.post('/api/ai/grade-batch', async (req, res) => {
       !assignmentTitle ||
       !Array.isArray(questions) ||
       questions.length === 0 ||
+      questions.length > 50 ||
       !Array.isArray(submissions) ||
       submissions.length === 0
     ) {
@@ -463,7 +604,7 @@ app.post('/api/ai/grade-batch', async (req, res) => {
     }
 
     const ai = getAiClient();
-    const typedQuestions = questions as GradingQuestionInput[];
+    const typedQuestions = (questions as GradingQuestionInput[]).slice(0, 50);
     const typedSubmissions = (submissions as BatchSubmissionInput[]).slice(0, 15);
 
     const preparedSubmissions = typedSubmissions.map((sub) => {
@@ -599,14 +740,19 @@ ${JSON.stringify(studentAnswersBatch)}
 });
 
 // API Route: AI Worksheet Generator for Teachers
-app.post('/api/ai/generate-worksheet', async (req, res) => {
+app.post('/api/ai/generate-worksheet', aiApiLimiter, requireApiSession(['teacher']), async (req, res) => {
   try {
     const { subject, gradeLevel, topic, numberOfQuestions = 4 } = req.body;
+    const cleanTopic = String(topic || '').trim().slice(0, 200);
+    if (!cleanTopic) {
+      return res.status(400).json({ error: 'กรุณาระบุหัวข้อเรื่องสำหรับสร้างใบงาน' });
+    }
+    const safeQuestionCount = Math.max(1, Math.min(20, Number(numberOfQuestions) || 4));
     const ai = getAiClient();
 
     const prompt = `คุณคือครูผู้เชี่ยวชาญด้านการออกแบบใบงานการเรียนการสอน (Worksheet Designer)
-กรุณาสร้างใบงานออนไลน์วิชา "${subject}" ระดับชั้น "${gradeLevel}" ในหัวข้อเรื่อง "${topic}"
-จำนวนข้อสอบ/โจทย์: ${numberOfQuestions} ข้อ
+กรุณาสร้างใบงานออนไลน์วิชา "${String(subject || 'ทั่วไป').slice(0, 100)}" ระดับชั้น "${String(gradeLevel || 'ทั่วไป').slice(0, 50)}" ในหัวข้อเรื่อง "${cleanTopic}"
+จำนวนข้อสอบ/โจทย์: ${safeQuestionCount} ข้อ
 
 กรุณาส่งผลลัพธ์เป็น JSON Object ตาม schema โดยระบุเฉลยคำตอบ (answerKey) ที่ชัดเจนสำหรับใช้ตรวจงานด้วย`;
 
@@ -657,15 +803,23 @@ app.post('/api/ai/generate-worksheet', async (req, res) => {
 });
 
 // API Route: AI Student Hint / Learning Assistant
-app.post('/api/ai/hint', async (req, res) => {
+app.post('/api/ai/hint', aiApiLimiter, requireApiSession(['teacher', 'student']), async (req, res) => {
   try {
     const { assignmentTitle, questionText, studentQuery } = req.body;
+    const safeTitle = String(assignmentTitle || '').slice(0, 200);
+    const safeQuestion = String(questionText || '').slice(0, 1000);
+    const safeQuery = String(studentQuery || 'ขอคำใบ้หรืออธิบายหลักการทำข้อนี้หน่อยครับ').slice(0, 500);
+
+    if (!safeQuestion.trim()) {
+      return res.status(400).json({ error: 'กรุณาระบุโจทย์ที่ต้องการขอคำใบ้' });
+    }
+
     const ai = getAiClient();
 
     const prompt = `คุณคือติวเตอร์ AI ใจดีและใจเย็น (AI Learning Coach)
-นักเรียนกำลังทำใบงานเรื่อง: "${assignmentTitle}"
-โจทย์ข้อที่ถาม: "${questionText}"
-คำถามหรือความสงสัยของนักเรียน: "${studentQuery || 'ขอคำใบ้หรืออธิบายหลักการทำข้อนี้หน่อยครับ'}"
+นักเรียนกำลังทำใบงานเรื่อง: "${safeTitle}"
+โจทย์ข้อที่ถาม: "${safeQuestion}"
+คำถามหรือความสงสัยของนักเรียน: "${safeQuery}"
 
 ข้อห้ามสำคัญ: ห้ามบอกคำตอบสุดท้ายโดยตรง แต่ให้คำแนะนำ ขั้นตอนความคิด หรือหลักการสำคัญที่จะช่วยให้นักเรียนสามารถคิดคำตอบได้ด้วยตัวเอง
 ความยาวไม่เกิน 3-4 ประโยค ใช้ภาษาไทยที่เป็นกันเอง สุภาพ ให้กำลังใจ`;
@@ -678,9 +832,10 @@ app.post('/api/ai/hint', async (req, res) => {
     return res.json({ success: true, hint: response.text });
   } catch (err: any) {
     console.error('AI Hint error:', err);
-    return res.status(500).json({
+    const formatted = formatGeminiErrorMessage(err);
+    return res.status(formatted.statusCode).json({
       error: 'ไม่สามารถขอคำใบ้ได้ในขณะนี้',
-      message: err?.message || String(err),
+      message: formatted.userMessage,
     });
   }
 });

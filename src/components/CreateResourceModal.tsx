@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   Save,
@@ -9,9 +9,63 @@ import {
   BookOpen,
   GraduationCap,
   Sparkles,
+  Image as ImageIcon,
+  Upload,
+  Trash2,
 } from 'lucide-react';
 import { LearningResource, ResourceType } from '../types';
 import { SaveConfirmModal } from './SaveConfirmModal';
+import { isSafeHttpUrl, isSafeImageSrc, sanitizeImageSrc } from '../utils/security';
+
+async function compressPreviewImage(file: File): Promise<string> {
+  if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') {
+    throw new Error('รองรับเฉพาะไฟล์รูปภาพ JPG, PNG, WebP หรือ GIF เท่านั้น');
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    throw new Error('ไฟล์รูปภาพมีขนาดใหญ่เกิน 10 MB กรุณาเลือกไฟล์ที่เล็กลง');
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error('ไม่สามารถอ่านไฟล์รูปภาพนี้ได้'));
+      el.src = objectUrl;
+    });
+
+    const MAX_W = 960;
+    const MAX_H = 540;
+    let width = img.naturalWidth || MAX_W;
+    let height = img.naturalHeight || MAX_H;
+
+    const ratio = Math.min(MAX_W / width, MAX_H / height, 1);
+    width = Math.max(1, Math.round(width * ratio));
+    height = Math.max(1, Math.round(height * ratio));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('เบราว์เซอร์ไม่รองรับการประมวลผลรูปภาพ');
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(img, 0, 0, width, height);
+
+    const qualities = [0.82, 0.7, 0.56, 0.42];
+    for (const q of qualities) {
+      const dataUrl = canvas.toDataURL('image/jpeg', q);
+      if (dataUrl.length <= 320000) {
+        return dataUrl;
+      }
+    }
+
+    throw new Error('รูปภาพยังมีขนาดใหญ่เกินไปหลังย่อขนาด กรุณาเลือกรูปอื่น');
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
 
 interface CreateResourceModalProps {
   editingResource?: LearningResource | null;
@@ -40,9 +94,13 @@ export const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
   );
   const [type, setType] = useState<ResourceType>('video');
   const [url, setUrl] = useState('');
+  const [thumbnailUrl, setThumbnailUrl] = useState('');
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
+  const [previewLoadError, setPreviewLoadError] = useState(false);
   const [fileSize, setFileSize] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pendingResource, setPendingResource] = useState<LearningResource | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (editingResource) {
@@ -52,14 +110,43 @@ export const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
       setGradeLevel(editingResource.gradeLevel);
       setType(editingResource.type);
       setUrl(editingResource.url);
+      setThumbnailUrl(editingResource.thumbnailUrl || '');
       setFileSize(editingResource.fileSize || '');
     } else {
       setTitle('');
       setDescription('');
       setUrl('');
+      setThumbnailUrl('');
       setFileSize('');
     }
+    setPreviewLoadError(false);
+    setErrors({});
   }, [editingResource]);
+
+  const handleImageFileSelect = async (file: File | undefined | null) => {
+    if (!file) return;
+    setIsProcessingImage(true);
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.thumbnailUrl;
+      return next;
+    });
+    try {
+      const compressed = await compressPreviewImage(file);
+      setThumbnailUrl(compressed);
+      setPreviewLoadError(false);
+    } catch (err: any) {
+      setErrors((prev) => ({
+        ...prev,
+        thumbnailUrl: err?.message || 'ไม่สามารถแนบรูปภาพตัวอย่างได้',
+      }));
+    } finally {
+      setIsProcessingImage(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,6 +157,12 @@ export const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
     }
     if (!url.trim()) {
       newErrors.url = 'กรุณาระบุลิงก์หรือ URL ของสื่อ';
+    } else if (!isSafeHttpUrl(url)) {
+      newErrors.url = 'URL ต้องขึ้นต้นด้วย https:// หรือ http:// เท่านั้นเพื่อความปลอดภัย';
+    }
+    if (thumbnailUrl.trim() && !isSafeImageSrc(thumbnailUrl)) {
+      newErrors.thumbnailUrl =
+        'รูปภาพตัวอย่างต้องเป็นลิงก์ https://, http:// หรือไฟล์รูป JPG/PNG/WebP/GIF ที่อัปโหลดเท่านั้น';
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -77,6 +170,7 @@ export const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
       return;
     }
 
+    const cleanThumbnail = sanitizeImageSrc(thumbnailUrl);
     const savedRes: LearningResource = {
       id: editingResource ? editingResource.id : `res_${Date.now()}`,
       title: title.trim(),
@@ -88,6 +182,7 @@ export const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
       createdDate: editingResource ? editingResource.createdDate : new Date().toISOString(),
       teacherName: editingResource ? editingResource.teacherName : currentTeacherName,
       ...(fileSize.trim() ? { fileSize: fileSize.trim() } : {}),
+      ...(cleanThumbnail ? { thumbnailUrl: cleanThumbnail } : {}),
     };
 
     setPendingResource(savedRes);
@@ -132,11 +227,11 @@ export const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
                 onClick={() => setType('video')}
                 className={`p-3 rounded-2xl border flex flex-col items-center gap-2 transition-all cursor-pointer ${
                   type === 'video'
-                    ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-500 text-rose-700 dark:text-rose-300 font-bold ring-2 ring-rose-500/20'
+                    ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 text-indigo-700 dark:text-indigo-300 font-bold ring-2 ring-indigo-500/20'
                     : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
                 }`}
               >
-                <Video className="w-5 h-5 text-rose-500" />
+                <Video className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                 <span className="text-xs">🎥 วิดีโอสอน</span>
               </button>
 
@@ -145,11 +240,11 @@ export const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
                 onClick={() => setType('document')}
                 className={`p-3 rounded-2xl border flex flex-col items-center gap-2 transition-all cursor-pointer ${
                   type === 'document'
-                    ? 'bg-sky-50 dark:bg-sky-950/40 border-sky-500 text-sky-700 dark:text-sky-300 font-bold ring-2 ring-sky-500/20'
+                    ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 text-indigo-700 dark:text-indigo-300 font-bold ring-2 ring-indigo-500/20'
                     : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
                 }`}
               >
-                <FileText className="w-5 h-5 text-sky-500" />
+                <FileText className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                 <span className="text-xs">📄 เอกสาร PDF</span>
               </button>
 
@@ -158,11 +253,11 @@ export const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
                 onClick={() => setType('slide')}
                 className={`p-3 rounded-2xl border flex flex-col items-center gap-2 transition-all cursor-pointer ${
                   type === 'slide'
-                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-700 dark:text-emerald-300 font-bold ring-2 ring-emerald-500/20'
+                    ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 text-indigo-700 dark:text-indigo-300 font-bold ring-2 ring-indigo-500/20'
                     : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
                 }`}
               >
-                <Presentation className="w-5 h-5 text-emerald-500" />
+                <Presentation className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                 <span className="text-xs">📊 สไลด์นำเสนอ</span>
               </button>
 
@@ -171,11 +266,11 @@ export const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
                 onClick={() => setType('link')}
                 className={`p-3 rounded-2xl border flex flex-col items-center gap-2 transition-all cursor-pointer ${
                   type === 'link'
-                    ? 'bg-purple-50 dark:bg-purple-950/40 border-purple-500 text-purple-700 dark:text-purple-300 font-bold ring-2 ring-purple-500/20'
+                    ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 text-indigo-700 dark:text-indigo-300 font-bold ring-2 ring-indigo-500/20'
                     : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
                 }`}
               >
-                <LinkIcon className="w-5 h-5 text-purple-500" />
+                <LinkIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                 <span className="text-xs">🔗 ลิงก์ภายนอก</span>
               </button>
             </div>
@@ -288,6 +383,103 @@ export const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
             />
           </div>
 
+          {/* Preview Image Attachment */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 font-prompt flex items-center gap-1.5">
+                <ImageIcon className="w-3.5 h-3.5 text-indigo-500" />
+                <span>5. รูปภาพตัวอย่างสื่อ (แนบหรือไม่ก็ได้)</span>
+              </label>
+              {thumbnailUrl && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setThumbnailUrl('');
+                    setPreviewLoadError(false);
+                  }}
+                  className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  <span>ลบรูปตัวอย่าง</span>
+                </button>
+              )}
+            </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              onChange={(e) => handleImageFileSelect(e.target.files?.[0])}
+              className="hidden"
+            />
+
+            {sanitizeImageSrc(thumbnailUrl) && !previewLoadError ? (
+              <div className="relative aspect-video w-full max-h-52 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 group">
+                <img
+                  src={sanitizeImageSrc(thumbnailUrl) || ''}
+                  alt="ตัวอย่างรูปภาพสื่อ"
+                  onError={() => setPreviewLoadError(true)}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-3.5 py-2 bg-white text-slate-900 rounded-xl text-xs font-bold shadow-md hover:bg-indigo-50 inline-flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Upload className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>เปลี่ยนรูปภาพ</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isProcessingImage}
+                className="w-full py-5 px-4 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500 bg-slate-50/70 dark:bg-slate-800/40 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20 transition-all flex flex-col items-center justify-center gap-1.5 text-center cursor-pointer disabled:opacity-60"
+              >
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                  <Upload className="w-5 h-5" />
+                </div>
+                <span className="text-xs font-bold font-prompt text-slate-700 dark:text-slate-200">
+                  {isProcessingImage ? 'กำลังปรับขนาดรูปภาพ...' : 'คลิกเพื่ออัปโหลดรูปภาพตัวอย่างจากเครื่อง'}
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  รองรับ JPG, PNG, WebP, GIF (ระบบย่อขนาดให้อัตโนมัติเพื่อให้โหลดเร็ว)
+                </span>
+              </button>
+            )}
+
+            {/* External Image URL option */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <input
+                type="url"
+                value={thumbnailUrl.startsWith('data:image/') ? '' : thumbnailUrl}
+                onChange={(e) => {
+                  setThumbnailUrl(e.target.value);
+                  setPreviewLoadError(false);
+                }}
+                placeholder="หรือวางลิงก์รูปภาพตัวอย่าง (https://...)"
+                className="flex-1 px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500 font-mono"
+              />
+              {thumbnailUrl.startsWith('data:image/') && (
+                <span className="px-2.5 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[11px] font-semibold shrink-0">
+                  แนบไฟล์รูปจากเครื่องแล้ว
+                </span>
+              )}
+            </div>
+
+            {previewLoadError && thumbnailUrl.trim() && (
+              <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                ไม่สามารถโหลดภาพตัวอย่างจากลิงก์นี้ได้ กรุณาตรวจสอบ URL หรืออัปโหลดรูปจากเครื่องแทน
+              </p>
+            )}
+            {errors.thumbnailUrl && (
+              <p className="text-[11px] text-rose-500">{errors.thumbnailUrl}</p>
+            )}
+          </div>
+
           {/* Submit Button */}
           <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-2.5">
             <button
@@ -318,6 +510,7 @@ export const CreateResourceModal: React.FC<CreateResourceModalProps> = ({
                 { label: 'ชื่อสื่อ', value: pendingResource.title },
                 { label: 'ประเภท', value: pendingResource.type },
                 { label: 'รายวิชา / ชั้น', value: `${pendingResource.subject} (${pendingResource.gradeLevel})` },
+                { label: 'รูปภาพตัวอย่าง', value: pendingResource.thumbnailUrl ? 'แนบแล้ว' : 'ไม่มี (ใช้ค่าเริ่มต้น)' },
               ]
             : []
         }

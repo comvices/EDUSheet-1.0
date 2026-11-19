@@ -15,6 +15,8 @@ import {
   Sparkles,
   Save,
   GraduationCap,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { StudentProfile } from '../types';
@@ -62,6 +64,7 @@ export const ManageStudentsModal: React.FC<ManageStudentsModalProps> = ({
 
   // Edit Mode State
   const [editingStudent, setEditingStudent] = useState<StudentProfile | null>(null);
+  const [showStudentPasswords, setShowStudentPasswords] = useState<Record<string, boolean>>({});
 
   // Excel Upload & Preview State
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -450,7 +453,26 @@ export const ManageStudentsModal: React.FC<ManageStudentsModalProps> = ({
                             </td>
                             <td className="p-3 font-semibold">ชั้น {std.gradeLevel}</td>
                             <td className="p-3 font-mono text-slate-600 dark:text-slate-400">
-                              {std.password}
+                              <div className="inline-flex items-center gap-1.5">
+                                <span>{showStudentPasswords[std.id] ? std.password : '••••••••'}</span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setShowStudentPasswords((prev) => ({
+                                      ...prev,
+                                      [std.id]: !prev[std.id],
+                                    }))
+                                  }
+                                  className="p-0.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                                  title="แสดง/ซ่อนรหัสผ่าน"
+                                >
+                                  {showStudentPasswords[std.id] ? (
+                                    <EyeOff className="w-3.5 h-3.5" />
+                                  ) : (
+                                    <Eye className="w-3.5 h-3.5" />
+                                  )}
+                                </button>
+                              </div>
                             </td>
                             <td className="p-3 text-right">
                               <div className="flex items-center justify-end gap-1">

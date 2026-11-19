@@ -24,12 +24,66 @@ import {
   AlertTriangle,
   Eye,
   EyeOff,
+  Image as ImageIcon,
+  Save,
+  RotateCcw,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { StudentProfile, TeacherProfile, Assignment } from '../types';
 import { SaveConfirmModal, SaveConfirmDetail } from './SaveConfirmModal';
+import { isSafeImageSrc, sanitizeImageSrc } from '../utils/security';
+import defaultSchoolCover from '../assets/images/school_campus_cover_1795065722838.jpg';
 
-export type SettingsTab = 'grades' | 'subjects' | 'students' | 'teachers';
+export type SettingsTab = 'grades' | 'subjects' | 'students' | 'teachers' | 'school';
+
+async function compressSchoolCoverImage(file: File): Promise<string> {
+  if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') {
+    throw new Error('รองรับเฉพาะไฟล์รูปภาพ JPG, PNG, WebP หรือ GIF เท่านั้น');
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    throw new Error('ไฟล์รูปภาพมีขนาดใหญ่เกิน 10 MB กรุณาเลือกไฟล์ที่เล็กลง');
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error('ไม่สามารถอ่านไฟล์รูปภาพนี้ได้'));
+      el.src = objectUrl;
+    });
+
+    const MAX_W = 1280;
+    const MAX_H = 800;
+    let width = img.naturalWidth || MAX_W;
+    let height = img.naturalHeight || MAX_H;
+    const ratio = Math.min(MAX_W / width, MAX_H / height, 1);
+    width = Math.max(1, Math.round(width * ratio));
+    height = Math.max(1, Math.round(height * ratio));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('เบราว์เซอร์ไม่รองรับการประมวลผลรูปภาพ');
+
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(img, 0, 0, width, height);
+
+    const qualities = [0.84, 0.72, 0.58, 0.45];
+    for (const q of qualities) {
+      const dataUrl = canvas.toDataURL('image/jpeg', q);
+      if (dataUrl.length <= 320000) {
+        return dataUrl;
+      }
+    }
+
+    throw new Error('รูปภาพยังมีขนาดใหญ่เกินไปหลังย่อขนาด กรุณาเลือกรูปอื่น');
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
 
 interface SettingsModalProps {
   initialTab?: SettingsTab;
@@ -38,6 +92,14 @@ interface SettingsModalProps {
   students: StudentProfile[];
   teachers?: TeacherProfile[];
   assignments?: Assignment[];
+  schoolCoverUrl?: string;
+  schoolName?: string;
+  schoolSubtitle?: string;
+  onSaveSchoolBranding?: (branding: {
+    schoolCoverUrl: string;
+    schoolName: string;
+    schoolSubtitle: string;
+  }) => void;
   onClose: () => void;
   onAddGradeLevel: (grade: string) => void;
   onRemoveGradeLevel: (grade: string) => void;
@@ -61,6 +123,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   students,
   teachers = [],
   assignments = [],
+  schoolCoverUrl = '',
+  schoolName = '',
+  schoolSubtitle = '',
+  onSaveSchoolBranding,
   onClose,
   onAddGradeLevel,
   onRemoveGradeLevel,
@@ -109,15 +175,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   // Edit Student State
   const [editingStudent, setEditingStudent] = useState<StudentProfile | null>(null);
+  const [showStudentPasswords, setShowStudentPasswords] = useState<Record<string, boolean>>({});
 
   // --- Teacher Management State ---
   const [teacherSearchTerm, setTeacherSearchTerm] = useState('');
   const [manualTeacherCode, setManualTeacherCode] = useState('');
   const [manualTeacherName, setManualTeacherName] = useState('');
-  const [manualTeacherPassword, setManualTeacherPassword] = useState('admin123');
+  const [manualTeacherPassword, setManualTeacherPassword] = useState('');
   const [manualTeacherSubject, setManualTeacherSubject] = useState('');
   const [editingTeacher, setEditingTeacher] = useState<TeacherProfile | null>(null);
   const [showTeacherPasswords, setShowTeacherPasswords] = useState<Record<string, boolean>>({});
+
+  // --- School Cover & Branding State ---
+  const [coverUrlDraft, setCoverUrlDraft] = useState(schoolCoverUrl);
+  const [schoolNameDraft, setSchoolNameDraft] = useState(schoolName);
+  const [schoolSubtitleDraft, setSchoolSubtitleDraft] = useState(schoolSubtitle);
+  const [isProcessingCover, setIsProcessingCover] = useState(false);
+  const [coverDraftError, setCoverDraftError] = useState<string | null>(null);
+  const [coverPreviewBroken, setCoverPreviewBroken] = useState(false);
+  const schoolCoverFileRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    setCoverUrlDraft(schoolCoverUrl);
+    setSchoolNameDraft(schoolName);
+    setSchoolSubtitleDraft(schoolSubtitle);
+    setCoverPreviewBroken(false);
+    setCoverDraftError(null);
+  }, [schoolCoverUrl, schoolName, schoolSubtitle]);
 
   // In-App Confirmation Modal (Replaces window.confirm which is blocked in iframes)
   const [itemToDelete, setItemToDelete] = useState<{
@@ -228,6 +312,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleAddTeacherSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualTeacherCode.trim() || !manualTeacherName.trim()) return;
+    if (manualTeacherPassword.trim().length < 6) {
+      triggerLocalToast('กรุณากำหนดรหัสผ่านครูอย่างน้อย 6 ตัวอักษรเพื่อความปลอดภัย');
+      return;
+    }
 
     const duplicate = teachers.find(
       (t) => t.code.trim().toUpperCase() === manualTeacherCode.trim().toUpperCase()
@@ -241,7 +329,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       id: `tch_manual_${Date.now()}`,
       code: manualTeacherCode.trim(),
       name: manualTeacherName.trim(),
-      password: manualTeacherPassword.trim() || 'admin123',
+      password: manualTeacherPassword.trim(),
       subject: manualTeacherSubject.trim() || activeSubjects[0] || 'วิทยาศาสตร์',
       avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
     };
@@ -262,7 +350,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         }
         setManualTeacherCode('');
         setManualTeacherName('');
-        setManualTeacherPassword('admin123');
+        setManualTeacherPassword('');
         setManualTeacherSubject('');
       },
     });
@@ -598,6 +686,61 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     return assignments.filter((a) => a.subject === subject).length;
   };
 
+  const handleSchoolCoverFileSelect = async (file: File | undefined | null) => {
+    if (!file) return;
+    setIsProcessingCover(true);
+    setCoverDraftError(null);
+    try {
+      const compressed = await compressSchoolCoverImage(file);
+      setCoverUrlDraft(compressed);
+      setCoverPreviewBroken(false);
+    } catch (err: any) {
+      setCoverDraftError(err?.message || 'ไม่สามารถประมวลผลรูปภาพโรงเรียนได้');
+    } finally {
+      setIsProcessingCover(false);
+      if (schoolCoverFileRef.current) {
+        schoolCoverFileRef.current.value = '';
+      }
+    }
+  };
+
+  const handleSaveSchoolBrandingSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!onSaveSchoolBranding) return;
+    const trimmedUrl = coverUrlDraft.trim();
+    if (trimmedUrl && !isSafeImageSrc(trimmedUrl)) {
+      setCoverDraftError(
+        'ลิงก์รูปภาพต้องขึ้นต้นด้วย https://, http:// หรืออัปโหลดไฟล์ JPG/PNG/WebP/GIF เท่านั้น'
+      );
+      return;
+    }
+    const cleanCover = trimmedUrl ? sanitizeImageSrc(trimmedUrl) || '' : '';
+    const cleanName = schoolNameDraft.trim();
+    const cleanSub = schoolSubtitleDraft.trim();
+
+    setPendingSave({
+      title: 'ยืนยันการบันทึกหน้าปกโรงเรียน?',
+      description: 'รูปภาพหน้าปกและชื่อสถานศึกษาจะแสดงผลบนหน้าเข้าสู่ระบบทันที',
+      details: [
+        { label: 'ชื่อแสดงผล', value: cleanName || 'EduSheet TH (ค่าเริ่มต้น)' },
+        {
+          label: 'รูปภาพโรงเรียน',
+          value: cleanCover ? 'รูปภาพที่กำหนดเอง' : 'ใช้ภาพโรงเรียนเริ่มต้นของระบบ',
+        },
+      ],
+      confirmLabel: 'ยืนยันบันทึกหน้าปก',
+      variant: 'indigo',
+      onExecute: () => {
+        onSaveSchoolBranding({
+          schoolCoverUrl: cleanCover,
+          schoolName: cleanName,
+          schoolSubtitle: cleanSub,
+        });
+        triggerLocalToast('บันทึกรูปภาพหน้าปกโรงเรียนเรียบร้อยแล้ว');
+      },
+    });
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs overflow-y-auto">
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
@@ -698,15 +841,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             onClick={() => setActiveMainTab('teachers')}
             className={`flex-1 py-2.5 px-3 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
               activeMainTab === 'teachers'
-                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-sm border border-slate-200/80 dark:border-slate-700'
+                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/80 dark:border-slate-700'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/50'
             }`}
           >
-            <UserCheck className="w-4 h-4 text-sky-600" />
+            <UserCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
             <span className="font-prompt">4. ครูผู้สอน</span>
-            <span className="px-1.5 py-0.5 rounded-full bg-sky-100 dark:bg-sky-950 text-[10px] font-mono text-sky-700 dark:text-sky-300">
+            <span className="px-1.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-[10px] font-mono text-indigo-700 dark:text-indigo-300">
               {teachers.length}
             </span>
+          </button>
+
+          <button
+            onClick={() => setActiveMainTab('school')}
+            className={`flex-1 py-2.5 px-3 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              activeMainTab === 'school'
+                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/80 dark:border-slate-700'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/50'
+            }`}
+          >
+            <ImageIcon className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+            <span className="font-prompt">5. หน้าปกโรงเรียน</span>
           </button>
         </div>
 
@@ -1155,7 +1310,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 </td>
                                 <td className="p-3 font-semibold">ชั้น {std.gradeLevel}</td>
                                 <td className="p-3 font-mono text-slate-600 dark:text-slate-400">
-                                  {std.password}
+                                  <div className="inline-flex items-center gap-1.5">
+                                    <span>{showStudentPasswords[std.id] ? std.password : '••••••••'}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setShowStudentPasswords((prev) => ({
+                                          ...prev,
+                                          [std.id]: !prev[std.id],
+                                        }))
+                                      }
+                                      className="p-0.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                                      title="แสดง/ซ่อนรหัสผ่าน"
+                                    >
+                                      {showStudentPasswords[std.id] ? (
+                                        <EyeOff className="w-3.5 h-3.5" />
+                                      ) : (
+                                        <Eye className="w-3.5 h-3.5" />
+                                      )}
+                                    </button>
+                                  </div>
                                 </td>
                                 <td className="p-3 text-right">
                                   <div className="flex items-center justify-end gap-1">
@@ -1496,7 +1670,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         value={manualTeacherSubject}
                         onChange={(e) => setManualTeacherSubject(e.target.value)}
                         placeholder="เช่น วิทยาศาสตร์, คณิตศาสตร์"
-                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs focus:ring-2 focus:ring-sky-500 font-prompt"
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 font-prompt"
                       />
                     </div>
 
@@ -1505,12 +1679,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         รหัสผ่าน (Password) *
                       </label>
                       <input
-                        type="text"
+                        type="password"
                         required
+                        minLength={6}
                         value={manualTeacherPassword}
                         onChange={(e) => setManualTeacherPassword(e.target.value)}
-                        placeholder="รหัสผ่านเข้าใช้งาน"
-                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-mono focus:ring-2 focus:ring-sky-500"
+                        placeholder="กำหนดอย่างน้อย 6 ตัวอักษร"
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-mono focus:ring-2 focus:ring-indigo-500"
                       />
                     </div>
                   </div>
@@ -1518,8 +1693,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div className="flex justify-end pt-1">
                     <button
                       type="submit"
-                      disabled={!manualTeacherCode.trim() || !manualTeacherName.trim()}
-                      className="px-5 py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer disabled:opacity-50 shadow-xs flex items-center gap-1.5"
+                      disabled={!manualTeacherCode.trim() || !manualTeacherName.trim() || manualTeacherPassword.trim().length < 6}
+                      className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer disabled:opacity-50 shadow-xs flex items-center gap-1.5"
                     >
                       <UserPlus className="w-4 h-4" />
                       <span>+ ยืนยันเพิ่มครูผู้สอน</span>
@@ -1586,7 +1761,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         return (
                           <div
                             key={tch.id}
-                            className="p-3.5 bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-between gap-3 hover:border-sky-300 dark:hover:border-sky-700 transition-colors shadow-2xs"
+                            className="p-3.5 bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-between gap-3 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors shadow-2xs"
                           >
                             <div className="flex items-center gap-3 shrink min-w-0">
                               <img
@@ -1599,7 +1774,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                   {tch.name}
                                 </h5>
                                 <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 flex-wrap">
-                                  <span className="font-mono text-sky-600 dark:text-sky-400 font-semibold">
+                                  <span className="font-mono text-indigo-600 dark:text-indigo-400 font-semibold">
                                     {tch.code}
                                   </span>
                                   <span>·</span>
@@ -1620,7 +1795,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                         [tch.id]: !prev[tch.id],
                                       }))
                                     }
-                                    className="p-0.5 text-slate-400 hover:text-sky-600 transition-colors cursor-pointer"
+                                    className="p-0.5 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
                                     title="แสดง/ซ่อนรหัสผ่าน"
                                   >
                                     {isShowingPass ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
@@ -1660,6 +1835,162 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* ========================================================== */}
+          {/* TAB 5: รูปภาพโรงเรียนหน้าปก & ข้อมูลสถานศึกษา */}
+          {/* ========================================================== */}
+          {activeMainTab === 'school' && (
+            <div className="space-y-6 animate-in fade-in duration-150">
+              <div className="p-4 bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/60 rounded-2xl flex items-start gap-3">
+                <div className="p-2 bg-indigo-600 text-white rounded-xl shrink-0 mt-0.5">
+                  <ImageIcon className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold font-prompt text-slate-900 dark:text-white">
+                    ตั้งค่ารูปภาพโรงเรียนหน้าปก (หน้าเข้าสู่ระบบ)
+                  </h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+                    สามารถอัปโหลดภาพอาคารเรียน บรรยากาศโรงเรียน หรือใส่ชื่อโรงเรียนของคุณเพื่อแสดงบนหน้า Login สำหรับนักเรียนและครูทุกคน
+                  </p>
+                </div>
+              </div>
+
+              {/* Live Preview Box */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold font-prompt text-slate-700 dark:text-slate-300">
+                    ตัวอย่างหน้าปกเข้าสู่ระบบ
+                  </span>
+                  {coverUrlDraft && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCoverUrlDraft('');
+                        setCoverPreviewBroken(false);
+                        setCoverDraftError(null);
+                      }}
+                      className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span>ใช้ภาพโรงเรียนเริ่มต้นของระบบ</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="relative aspect-video max-h-60 w-full rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-900">
+                  {!coverPreviewBroken ? (
+                    <img
+                      src={sanitizeImageSrc(coverUrlDraft) || defaultSchoolCover}
+                      alt={schoolNameDraft.trim() || 'ภาพหน้าปกโรงเรียน'}
+                      referrerPolicy="no-referrer"
+                      onError={() => setCoverPreviewBroken(true)}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 flex items-center justify-center">
+                      <GraduationCap className="w-16 h-16 text-indigo-400/30" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent" />
+                  <div className="absolute bottom-4 left-5 right-5 text-white space-y-1">
+                    <div className="text-lg font-bold font-prompt leading-tight">
+                      {schoolNameDraft.trim() || 'EduSheet TH'}
+                    </div>
+                    <p className="text-xs text-slate-200/95 line-clamp-2">
+                      {schoolSubtitleDraft.trim() ||
+                        'ระบบใบงานออนไลน์ สมุดเก็บคะแนน และคลังสื่อการเรียนรู้ประจำสถานศึกษา'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <form onSubmit={handleSaveSchoolBrandingSubmit} className="space-y-4">
+                <input
+                  ref={schoolCoverFileRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  onChange={(e) => handleSchoolCoverFileSelect(e.target.files?.[0])}
+                  className="hidden"
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+                  <button
+                    type="button"
+                    onClick={() => schoolCoverFileRef.current?.click()}
+                    disabled={isProcessingCover}
+                    className="py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                  >
+                    <Upload className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <span>
+                      {isProcessingCover ? 'กำลังปรับขนาดรูปภาพ...' : 'อัปโหลดรูปภาพโรงเรียนจากเครื่อง'}
+                    </span>
+                  </button>
+
+                  <input
+                    type="url"
+                    value={coverUrlDraft.startsWith('data:image/') ? '' : coverUrlDraft}
+                    onChange={(e) => {
+                      setCoverUrlDraft(e.target.value);
+                      setCoverPreviewBroken(false);
+                      setCoverDraftError(null);
+                    }}
+                    placeholder="หรือวางลิงก์รูปภาพ (https://...)"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                {coverUrlDraft.startsWith('data:image/') && (
+                  <p className="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold">
+                    อัปโหลดรูปภาพจากเครื่องและปรับขนาดให้โหลดเร็วเรียบร้อยแล้ว
+                  </p>
+                )}
+
+                {coverDraftError && (
+                  <p className="text-[11px] text-rose-500 font-medium">{coverDraftError}</p>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 font-prompt mb-1.5">
+                      ชื่อโรงเรียน / ชื่อหน้าปก
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={150}
+                      value={schoolNameDraft}
+                      onChange={(e) => setSchoolNameDraft(e.target.value)}
+                      placeholder="เช่น โรงเรียน... (เว้นว่างใช้ EduSheet TH)"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 font-prompt mb-1.5">
+                      คำบรรยายใต้ชื่อโรงเรียน
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={250}
+                      value={schoolSubtitleDraft}
+                      onChange={(e) => setSchoolSubtitleDraft(e.target.value)}
+                      placeholder="เช่น ระบบใบงานออนไลน์และคลังสื่อการเรียนรู้"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="submit"
+                    className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition-colors flex items-center gap-2 cursor-pointer"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>บันทึกหน้าปกโรงเรียน</span>
+                  </button>
+                </div>
+              </form>
             </div>
           )}
         </div>

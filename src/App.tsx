@@ -34,6 +34,7 @@ import {
   saveSettingsToFirestore,
   savePeriodConfigsToFirestore,
   saveGradebookVisibilityToFirestore,
+  saveSchoolBrandingToFirestore,
   subscribeResources,
   saveResourceToFirestore,
   deleteResourceFromFirestore,
@@ -76,7 +77,9 @@ import {
   GradeSplitMigrationPlan,
   extractBaseGrade,
 } from './components/SplitWorksheetsModal';
-import { CheckCircle2, KeyRound, LogOut, AlertTriangle, FolderGit2 } from 'lucide-react';
+import { CheckCircle2, KeyRound, AlertTriangle, FolderGit2, ShieldAlert } from 'lucide-react';
+import { LogoutIcon } from './components/LogoutIcon';
+import { setApiSessionToken, clearApiSessionToken } from './utils/security';
 
 const DEFAULT_GUEST_STUDENT: StudentProfile = {
   id: 'guest_student',
@@ -121,6 +124,7 @@ export default function App() {
   const [currentStudentUser, setCurrentStudentUser] = useState<StudentProfile>(DEFAULT_GUEST_STUDENT);
   const [currentTeacherUser, setCurrentTeacherUser] = useState<TeacherProfile>(DEFAULT_ADMIN_TEACHER);
   const [role, setRole] = useState<UserRole>('student');
+  const [showDefaultAdminWarning, setShowDefaultAdminWarning] = useState<boolean>(false);
 
   // Tab State
   const [activeTab, setActiveTab] = useState<string>('home');
@@ -138,6 +142,9 @@ export default function App() {
   );
   const [studentGradebookEnabled, setStudentGradebookEnabled] = useState<boolean>(true);
   const [gradebookDisabledRooms, setGradebookDisabledRooms] = useState<string[]>([]);
+  const [schoolCoverUrl, setSchoolCoverUrl] = useState<string>('');
+  const [schoolName, setSchoolName] = useState<string>('');
+  const [schoolSubtitle, setSchoolSubtitle] = useState<string>('');
   const [resources, setResources] = useState<LearningResource[]>([]);
   const [teachingSchedules, setTeachingSchedules] = useState<TeachingSchedule[]>([]);
   const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>([]);
@@ -197,6 +204,15 @@ export default function App() {
       }
       if (Array.isArray(remoteSettings.gradebookDisabledRooms)) {
         setGradebookDisabledRooms(remoteSettings.gradebookDisabledRooms);
+      }
+      if (typeof remoteSettings.schoolCoverUrl === 'string') {
+        setSchoolCoverUrl(remoteSettings.schoolCoverUrl);
+      }
+      if (typeof remoteSettings.schoolName === 'string') {
+        setSchoolName(remoteSettings.schoolName);
+      }
+      if (typeof remoteSettings.schoolSubtitle === 'string') {
+        setSchoolSubtitle(remoteSettings.schoolSubtitle);
       }
     });
 
@@ -290,22 +306,47 @@ export default function App() {
   };
 
   // Login Success Handler
-  const handleLoginSuccess = (user: StudentProfile | TeacherProfile, loginRole: UserRole) => {
+  const handleLoginSuccess = async (
+    user: StudentProfile | TeacherProfile,
+    loginRole: UserRole,
+    meta?: { isDefaultAdminFallback?: boolean }
+  ) => {
     if (loginRole === 'student') {
       const student = user as StudentProfile;
-      setCurrentStudentUser(student);
+      setCurrentStudentUser({ ...student, password: '' });
       setRole('student');
       setSelectedGradeInView(student.gradeLevel);
+      setShowDefaultAdminWarning(false);
       showToast(`ยินดีต้อนรับ ด.ญ./ด.ช. ${student.name} (รหัส ${student.code}) เข้าสู่ระบบ 👋`);
     } else {
       const teacher = user as TeacherProfile;
-      setCurrentTeacherUser(teacher);
+      setCurrentTeacherUser({ ...teacher, password: '' });
       setRole('teacher');
+      setShowDefaultAdminWarning(Boolean(meta?.isDefaultAdminFallback));
       showToast(`ยินดีต้อนรับ ${teacher.name} เข้าสู่ระบบครูผู้สอน 📚`);
     }
 
     setIsLoggedIn(true);
     setIsLoginModalOpen(false);
+
+    // Request short-lived HMAC signed Bearer token for /api/ai/* protection
+    try {
+      const res = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: loginRole,
+          userId: user.id,
+          code: user.code,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data?.token) {
+        setApiSessionToken(data.token);
+      }
+    } catch (err) {
+      console.warn('Could not obtain signed API session token:', err);
+    }
   };
 
   // Logout Handler - opens confirm dialog first
@@ -314,6 +355,8 @@ export default function App() {
   };
 
   const handleConfirmLogOut = () => {
+    clearApiSessionToken();
+    setShowDefaultAdminWarning(false);
     setIsLogoutConfirmOpen(false);
     setIsLoggedIn(false);
     setIsLoginModalOpen(true);
@@ -787,6 +830,18 @@ export default function App() {
     showToast(`อัปเดตข้อมูลครูผู้สอน "${updatedTch.name}" เรียบร้อยแล้ว`);
   };
 
+  const handleSaveSchoolBranding = (branding: {
+    schoolCoverUrl: string;
+    schoolName: string;
+    schoolSubtitle: string;
+  }) => {
+    setSchoolCoverUrl(branding.schoolCoverUrl);
+    setSchoolName(branding.schoolName);
+    setSchoolSubtitle(branding.schoolSubtitle);
+    saveSchoolBrandingToFirestore(branding);
+    showToast('บันทึกรูปภาพโรงเรียนหน้าปกเรียบร้อยแล้ว');
+  };
+
   const handleDeleteTeacher = (teacherId: string) => {
     const target = teachersRoster.find((t) => t.id === teacherId);
     setTeachersRoster((prev) => prev.filter((t) => t.id !== teacherId));
@@ -1031,10 +1086,6 @@ export default function App() {
         setRole={setRole}
         unreadNotifCount={visibleNotifications.filter((n) => !n.isRead).length}
         onOpenNotifs={() => setIsNotifDrawerOpen(true)}
-        onOpenCreateWorksheet={() => {
-          setEditingAssignment(null);
-          setIsCreateWorksheetOpen(true);
-        }}
         onOpenManageCategories={() => handleOpenSettings('grades')}
         onOpenManageStudents={() => handleOpenSettings('students')}
         onOpenSettings={handleOpenSettings}
@@ -1100,6 +1151,41 @@ export default function App() {
                 onOpenManageCategories={() => handleOpenSettings('grades')}
                 onOpenSettings={handleOpenSettings}
               />
+            )}
+
+            {/* Security Warning Banner when using default fallback Admin credentials */}
+            {role === 'teacher' && showDefaultAdminWarning && (
+              <div className="mb-5 p-4 bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0">
+                    <ShieldAlert className="w-5 h-5" />
+                  </div>
+                  <div className="text-xs">
+                    <p className="font-bold text-amber-950 dark:text-amber-100">
+                      คำแนะนำความปลอดภัย: คุณกำลังเข้าใช้งานด้วยบัญชีผู้ดูแลระบบเริ่มต้น
+                    </p>
+                    <p className="text-amber-800 dark:text-amber-300 mt-0.5">
+                      แนะนำให้เพิ่มบัญชีครูรหัส <span className="font-mono font-bold">ADMIN</span> พร้อมตั้งรหัสผ่านใหม่ที่ปลอดภัยในเมนูตั้งค่า เพื่อปิดการใช้รหัสผ่านเริ่มต้น
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenSettings('teachers')}
+                    className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer transition-colors"
+                  >
+                    ตั้งค่ารหัส Admin ใหม่
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowDefaultAdminWarning(false)}
+                    className="px-3 py-2 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 rounded-xl text-xs font-semibold cursor-pointer"
+                  >
+                    ปิดแจ้งเตือน
+                  </button>
+                </div>
+              </div>
             )}
 
             {/* Actionable Prompt when ม.6 Worksheets need splitting by student room */}
@@ -1353,8 +1439,8 @@ export default function App() {
       {isLogoutConfirmOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto shadow-xs">
-              <LogOut className="w-6 h-6" />
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-rose-500 to-pink-500 text-white flex items-center justify-center mx-auto shadow-lg shadow-rose-500/25 ring-4 ring-rose-50 dark:ring-rose-950/50">
+              <LogoutIcon className="w-7 h-7" />
             </div>
 
             <div>
@@ -1377,9 +1463,9 @@ export default function App() {
               <button
                 type="button"
                 onClick={handleConfirmLogOut}
-                className="flex-1 py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                className="group flex-1 py-2.5 px-4 bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white rounded-xl text-xs font-bold shadow-md shadow-rose-500/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
               >
-                <LogOut className="w-3.5 h-3.5" />
+                <LogoutIcon className="w-4 h-4" />
                 <span>ออกจากระบบ</span>
               </button>
             </div>
@@ -1394,6 +1480,9 @@ export default function App() {
           isDismissable={isLoggedIn}
           studentsList={studentsRoster}
           teachersList={teachersRoster}
+          schoolCoverUrl={schoolCoverUrl}
+          schoolName={schoolName}
+          schoolSubtitle={schoolSubtitle}
         />
       )}
 
@@ -1507,6 +1596,10 @@ export default function App() {
           students={studentsRoster}
           teachers={teachersRoster}
           assignments={assignments}
+          schoolCoverUrl={schoolCoverUrl}
+          schoolName={schoolName}
+          schoolSubtitle={schoolSubtitle}
+          onSaveSchoolBranding={handleSaveSchoolBranding}
           onClose={() => setIsSettingsModalOpen(false)}
           onAddGradeLevel={handleAddGradeLevel}
           onRemoveGradeLevel={handleRemoveGradeLevel}
@@ -1591,11 +1684,20 @@ export default function App() {
 
       {/* Clean Footer with fully functional interactive links */}
       <footer className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-6 text-xs text-slate-500 dark:text-slate-400 mt-auto pb-20 md:pb-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-800 dark:text-slate-200 font-prompt">EduSheet TH</span>
-            <span aria-hidden="true">·</span>
-            <span>ระบบเก็บใบงานและตรวจการบ้านออนไลน์</span>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row items-center gap-1.5 sm:gap-2.5 text-center sm:text-left">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-slate-800 dark:text-slate-200 font-prompt">EduSheet TH</span>
+              <span aria-hidden="true">·</span>
+              <span>ระบบเก็บใบงานและตรวจการบ้านออนไลน์</span>
+            </div>
+            <span className="hidden sm:inline text-slate-300 dark:text-slate-700" aria-hidden="true">|</span>
+            <span className="text-[11px] text-slate-600 dark:text-slate-300">
+              ผู้พัฒนาระบบ:{' '}
+              <span className="font-semibold text-indigo-600 dark:text-indigo-400 font-prompt">
+                นายปราชญ์ชยาวิช ศรีก่อเกื้อ
+              </span>
+            </span>
           </div>
           <div className="flex items-center gap-4 text-[11px] flex-wrap justify-center">
             <button

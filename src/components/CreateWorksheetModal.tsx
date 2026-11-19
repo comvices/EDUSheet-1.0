@@ -3,6 +3,7 @@ import { X, Sparkles, Plus, Trash2, Save, FilePlus, Edit3, Users, EyeOff, Eye, S
 import { Assignment, Question, CategoryType, StudentProfile } from '../types';
 import { CATEGORY_LIST } from '../data/mockData';
 import { SaveConfirmModal } from './SaveConfirmModal';
+import { getAuthHeaders } from '../utils/security';
 
 interface CreateWorksheetModalProps {
   onClose: () => void;
@@ -143,7 +144,7 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
     try {
       const res = await fetch('/api/ai/generate-worksheet', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           subject,
           gradeLevel,

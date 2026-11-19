@@ -100,6 +100,7 @@ export interface LearningResource {
   createdDate: string;
   teacherName: string;
   fileSize?: string;
+  thumbnailUrl?: string;
 }
 
 export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday';

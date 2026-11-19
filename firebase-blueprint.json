@@ -174,6 +174,44 @@
       },
       "required": ["id", "code", "name", "password", "gradeLevel"]
     },
+    "teacher": {
+      "title": "Teacher",
+      "description": "Teacher user record",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique teacher identifier",
+          "maxLength": 128
+        },
+        "code": {
+          "type": "string",
+          "description": "Teacher ID code used for login",
+          "maxLength": 64
+        },
+        "name": {
+          "type": "string",
+          "description": "Teacher full name",
+          "maxLength": 200
+        },
+        "password": {
+          "type": "string",
+          "description": "Teacher login password",
+          "maxLength": 128
+        },
+        "subject": {
+          "type": "string",
+          "description": "Primary teaching subject",
+          "maxLength": 100
+        },
+        "avatar": {
+          "type": "string",
+          "description": "Avatar image URL",
+          "maxLength": 1000
+        }
+      },
+      "required": ["id", "code", "name", "password", "subject"]
+    },
     "categorySetting": {
       "title": "CategorySetting",
       "description": "Custom grade levels and subjects settings",
@@ -203,6 +241,21 @@
         "gradebookDisabledRooms": {
           "type": "array",
           "description": "List of specific classroom names where student gradebook access is disabled"
+        },
+        "schoolCoverUrl": {
+          "type": "string",
+          "description": "Optional school cover image URL or compressed raster image data URL displayed on the login page",
+          "maxLength": 350000
+        },
+        "schoolName": {
+          "type": "string",
+          "description": "Optional school name displayed on the login cover",
+          "maxLength": 150
+        },
+        "schoolSubtitle": {
+          "type": "string",
+          "description": "Optional school tagline or subtitle displayed on the login cover",
+          "maxLength": 250
         }
       },
       "required": ["id"]
@@ -257,6 +310,16 @@
           "type": "string",
           "description": "Teacher who published the resource",
           "maxLength": 200
+        },
+        "fileSize": {
+          "type": "string",
+          "description": "Optional file size display label",
+          "maxLength": 64
+        },
+        "thumbnailUrl": {
+          "type": "string",
+          "description": "Optional preview image URL or compressed raster image data URL",
+          "maxLength": 350000
         }
       },
       "required": ["id", "title", "subject", "gradeLevel", "type", "url"]
@@ -438,6 +501,12 @@
         "$ref": "#/entities/student"
       },
       "description": "Student roster and login credentials"
+    },
+    "/teachers/{teacherId}": {
+      "schema": {
+        "$ref": "#/entities/teacher"
+      },
+      "description": "Teacher roster and login credentials"
     },
     "/settings/{settingId}": {
       "schema": {

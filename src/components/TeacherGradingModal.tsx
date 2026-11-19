@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Assignment, Submission } from '../types';
 import { SaveConfirmModal } from './SaveConfirmModal';
+import { getAuthHeaders } from '../utils/security';
 
 interface ItemFeedbackResult {
   questionIndex: number;
@@ -81,7 +82,7 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
     try {
       const res = await fetch('/api/ai/grade', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           assignmentTitle: assignment.title,
           subject: assignment.subject,

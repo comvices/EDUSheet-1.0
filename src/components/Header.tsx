@@ -4,8 +4,6 @@ import {
   Bell,
   UserCheck,
   GraduationCap,
-  Plus,
-  LogOut,
   KeyRound,
   Settings,
   Users,
@@ -24,6 +22,7 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 import { UserRole, StudentProfile, TeacherProfile } from '../types';
+import { LogoutIcon } from './LogoutIcon';
 
 interface HeaderProps {
   activeTab: string;
@@ -32,7 +31,6 @@ interface HeaderProps {
   setRole: (role: UserRole) => void;
   unreadNotifCount: number;
   onOpenNotifs: () => void;
-  onOpenCreateWorksheet: () => void;
   onOpenManageCategories?: () => void;
   onOpenManageStudents?: () => void;
   onOpenSettings?: (tab?: 'grades' | 'subjects' | 'students' | 'teachers') => void;
@@ -51,7 +49,6 @@ export const Header: React.FC<HeaderProps> = ({
   setRole,
   unreadNotifCount,
   onOpenNotifs,
-  onOpenCreateWorksheet,
   onOpenManageCategories,
   onOpenManageStudents,
   onOpenSettings,
@@ -162,16 +159,6 @@ export const Header: React.FC<HeaderProps> = ({
                 วิชาเรียน
               </button>
               <button
-                onClick={() => handleTabClick('statuses')}
-                className={`px-2.5 py-2 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                  activeTab === 'statuses'
-                    ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold'
-                    : 'hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
-                }`}
-              >
-                สถานะการส่งงาน
-              </button>
-              <button
                 onClick={() => handleTabClick('resources')}
                 className={`px-2.5 py-2 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
                   activeTab === 'resources'
@@ -179,18 +166,18 @@ export const Header: React.FC<HeaderProps> = ({
                     : 'hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
-                <FolderOpen className="w-4 h-4 text-rose-500" />
+                <FolderOpen className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
                 <span>คลังสื่อเรียนรู้</span>
               </button>
               <button
                 onClick={() => handleTabClick('attendance')}
                 className={`px-2.5 py-2 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
                   activeTab === 'attendance'
-                    ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-semibold'
+                    ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold'
                     : 'hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
-                <ClipboardCheck className="w-4 h-4 text-emerald-500" />
+                <ClipboardCheck className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
                 <span>เช็คชื่อเรียน</span>
               </button>
               {showGradebookTab && (
@@ -268,7 +255,7 @@ export const Header: React.FC<HeaderProps> = ({
                           }}
                           className="w-full px-3.5 py-2 text-left text-xs font-medium hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 flex items-center gap-2.5 cursor-pointer"
                         >
-                          <BookOpen className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                          <BookOpen className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                           <div>
                             <span className="block font-semibold">2. จัดการรายวิชา</span>
                             <span className="block text-[10px] text-slate-400">เพิ่ม/ลบ รายวิชาเรียน</span>
@@ -280,9 +267,9 @@ export const Header: React.FC<HeaderProps> = ({
                             if (onOpenSettings) onOpenSettings('students');
                             else if (onOpenManageStudents) onOpenManageStudents();
                           }}
-                          className="w-full px-3.5 py-2 text-left text-xs font-medium hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-slate-700 dark:text-slate-200 flex items-center gap-2.5 cursor-pointer border-t border-slate-100 dark:border-slate-800"
+                          className="w-full px-3.5 py-2 text-left text-xs font-medium hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 flex items-center gap-2.5 cursor-pointer border-t border-slate-100 dark:border-slate-800"
                         >
-                          <Users className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                          <Users className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                           <div>
                             <span className="block font-semibold">3. จัดการนักเรียน</span>
                             <span className="block text-[10px] text-slate-400">นำเข้า Excel / รหัสผ่าน</span>
@@ -293,9 +280,9 @@ export const Header: React.FC<HeaderProps> = ({
                             setSettingsDropdownOpen(false);
                             if (onOpenSettings) onOpenSettings('teachers');
                           }}
-                          className="w-full px-3.5 py-2 text-left text-xs font-medium hover:bg-sky-50 dark:hover:bg-sky-950/40 text-slate-700 dark:text-slate-200 flex items-center gap-2.5 cursor-pointer border-t border-slate-100 dark:border-slate-800"
+                          className="w-full px-3.5 py-2 text-left text-xs font-medium hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-200 flex items-center gap-2.5 cursor-pointer border-t border-slate-100 dark:border-slate-800"
                         >
-                          <UserCheck className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                          <UserCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                           <div>
                             <span className="block font-semibold">4. จัดการครูผู้สอน</span>
                             <span className="block text-[10px] text-slate-400">เพิ่ม / ลบ / แก้ไขครู</span>
@@ -304,14 +291,6 @@ export const Header: React.FC<HeaderProps> = ({
                       </div>
                     )}
                   </div>
-
-                  <button
-                    onClick={onOpenCreateWorksheet}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>สร้างใบงานใหม่</span>
-                  </button>
                 </div>
               )}
 
@@ -375,10 +354,11 @@ export const Header: React.FC<HeaderProps> = ({
 
                   <button
                     onClick={onLogOut}
-                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors ml-0.5 cursor-pointer"
+                    className="group inline-flex items-center justify-center w-8 h-8 rounded-xl bg-rose-50/80 dark:bg-rose-950/40 border border-rose-200/70 dark:border-rose-900/60 text-rose-500 dark:text-rose-400 hover:text-white hover:bg-gradient-to-tr hover:from-rose-500 hover:to-pink-600 hover:border-transparent hover:shadow-md hover:shadow-rose-500/25 active:scale-95 transition-all duration-200 ml-1 cursor-pointer"
                     title="ออกจากระบบ / สลับบัญชี"
+                    aria-label="ออกจากระบบ / สลับบัญชี"
                   >
-                    <LogOut className="w-4 h-4" />
+                    <LogoutIcon className="w-4 h-4" />
                   </button>
                 </div>
               ) : (
@@ -440,10 +420,10 @@ export const Header: React.FC<HeaderProps> = ({
                     setMobileMenuOpen(false);
                     onLogOut();
                   }}
-                  className="px-3 py-1.5 text-xs text-rose-600 bg-rose-50 dark:bg-rose-950/40 rounded-xl font-semibold flex items-center gap-1 cursor-pointer"
+                  className="group px-3 py-1.5 text-xs text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 hover:bg-gradient-to-r hover:from-rose-500 hover:to-pink-600 hover:text-white border border-rose-200/80 dark:border-rose-800/60 hover:border-transparent rounded-xl font-semibold flex items-center gap-1.5 shadow-2xs transition-all duration-200 active:scale-95 cursor-pointer"
                 >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span>ออก</span>
+                  <LogoutIcon className="w-3.5 h-3.5" />
+                  <span>ออกจากระบบ</span>
                 </button>
               </div>
             ) : (
@@ -495,31 +475,19 @@ export const Header: React.FC<HeaderProps> = ({
                       : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
                   }`}
                 >
-                  <BookOpen className="w-4 h-4 text-violet-600" />
+                  <BookOpen className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                   <span>วิชาเรียน</span>
-                </button>
-
-                <button
-                  onClick={() => handleTabClick('statuses')}
-                  className={`py-2 px-3 rounded-xl text-xs font-semibold flex items-center gap-2 border transition-colors cursor-pointer ${
-                    activeTab === 'statuses'
-                      ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-bold'
-                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
-                  }`}
-                >
-                  <Clock className="w-4 h-4 text-amber-600" />
-                  <span>สถานะการส่ง</span>
                 </button>
 
                 <button
                   onClick={() => handleTabClick('resources')}
                   className={`py-2 px-3 rounded-xl text-xs font-semibold flex items-center gap-2 border transition-colors cursor-pointer ${
                     activeTab === 'resources'
-                      ? 'bg-rose-50 dark:bg-rose-950/60 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 font-bold'
+                      ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-bold'
                       : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
                   }`}
                 >
-                  <FolderOpen className="w-4 h-4 text-rose-600" />
+                  <FolderOpen className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                   <span>คลังสื่อเรียนรู้</span>
                 </button>
 
@@ -527,25 +495,25 @@ export const Header: React.FC<HeaderProps> = ({
                   onClick={() => handleTabClick('attendance')}
                   className={`py-2 px-3 rounded-xl text-xs font-semibold flex items-center gap-2 border transition-colors cursor-pointer ${
                     activeTab === 'attendance'
-                      ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold'
+                      ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-bold'
                       : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
                   }`}
                 >
-                  <ClipboardCheck className="w-4 h-4 text-emerald-600" />
+                  <ClipboardCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                   <span>เช็คชื่อเรียน</span>
                 </button>
 
                 {showGradebookTab && (
                   <button
                     onClick={() => handleTabClick('gradebook')}
-                    className={`col-span-2 py-2 px-3 rounded-xl text-xs font-semibold flex items-center gap-2 border transition-colors cursor-pointer ${
+                    className={`py-2 px-3 rounded-xl text-xs font-semibold flex items-center gap-2 border transition-colors cursor-pointer ${
                       activeTab === 'gradebook'
                         ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-bold'
                         : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
                     }`}
                   >
                     <FileSpreadsheet className="w-4 h-4 text-indigo-600" />
-                    <span>สมุดเก็บคะแนนรายห้อง</span>
+                    <span>สมุดคะแนน</span>
                   </button>
                 )}
               </div>
@@ -558,17 +526,6 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
                 <span className="text-[11px] font-semibold text-slate-400 block px-1">เมนูสำหรับครูผู้สอน:</span>
                 <div className="space-y-2">
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      onOpenCreateWorksheet();
-                    }}
-                    className="w-full p-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs cursor-pointer"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>+ สร้างใบงานใหม่</span>
-                  </button>
-
                   {/* Unified Settings Section in Mobile Drawer */}
                   <div className="bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl p-2.5 space-y-2">
                     <div className="flex items-center justify-between px-1">
@@ -609,9 +566,9 @@ export const Header: React.FC<HeaderProps> = ({
                           if (onOpenSettings) onOpenSettings('subjects');
                           else if (onOpenManageCategories) onOpenManageCategories();
                         }}
-                        className="p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-center hover:bg-violet-50 dark:hover:bg-violet-950 transition-colors cursor-pointer"
+                        className="p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-center hover:bg-indigo-50 dark:hover:bg-indigo-950 transition-colors cursor-pointer"
                       >
-                        <BookOpen className="w-4 h-4 text-violet-600 mx-auto mb-1" />
+                        <BookOpen className="w-4 h-4 text-indigo-600 dark:text-indigo-400 mx-auto mb-1" />
                         <span className="text-[10px] font-bold block text-slate-700 dark:text-slate-300">
                           รายวิชา
                         </span>
@@ -623,9 +580,9 @@ export const Header: React.FC<HeaderProps> = ({
                           if (onOpenSettings) onOpenSettings('students');
                           else if (onOpenManageStudents) onOpenManageStudents();
                         }}
-                        className="p-2 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 rounded-xl text-center hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-colors cursor-pointer"
+                        className="p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-center hover:bg-indigo-50 dark:hover:bg-indigo-950 transition-colors cursor-pointer"
                       >
-                        <Users className="w-4 h-4 text-emerald-600 mx-auto mb-1" />
+                        <Users className="w-4 h-4 text-indigo-600 dark:text-indigo-400 mx-auto mb-1" />
                         <span className="text-[10px] font-bold block text-slate-700 dark:text-slate-300">
                           นักเรียน
                         </span>
@@ -636,9 +593,9 @@ export const Header: React.FC<HeaderProps> = ({
                           setMobileMenuOpen(false);
                           if (onOpenSettings) onOpenSettings('teachers');
                         }}
-                        className="p-2 bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-800 rounded-xl text-center hover:bg-sky-50 dark:hover:bg-sky-950 transition-colors cursor-pointer"
+                        className="p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-center hover:bg-indigo-50 dark:hover:bg-indigo-950 transition-colors cursor-pointer"
                       >
-                        <UserCheck className="w-4 h-4 text-sky-600 mx-auto mb-1" />
+                        <UserCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400 mx-auto mb-1" />
                         <span className="text-[10px] font-bold block text-slate-700 dark:text-slate-300">
                           ครูผู้สอน
                         </span>
@@ -696,11 +653,11 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={() => handleTabClick('attendance')}
           className={`flex flex-col items-center py-1 px-2 rounded-xl transition-all cursor-pointer ${
             activeTab === 'attendance'
-              ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+              ? 'text-indigo-600 dark:text-indigo-400 font-bold'
               : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
-          <ClipboardCheck className="w-5 h-5 text-emerald-500" />
+          <ClipboardCheck className="w-5 h-5" />
           <span className="text-[10px] mt-0.5">เช็คชื่อ</span>
         </button>
 
@@ -724,7 +681,7 @@ export const Header: React.FC<HeaderProps> = ({
               : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
-          <FolderOpen className="w-5 h-5 text-rose-500" />
+          <FolderOpen className="w-5 h-5" />
           <span className="text-[10px] mt-0.5">คลังสื่อ</span>
         </button>
 

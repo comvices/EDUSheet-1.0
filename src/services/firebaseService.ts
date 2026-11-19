@@ -134,6 +134,9 @@ export function subscribeSettings(
     periodConfigs?: PeriodConfig[];
     studentGradebookEnabled?: boolean;
     gradebookDisabledRooms?: string[];
+    schoolCoverUrl?: string;
+    schoolName?: string;
+    schoolSubtitle?: string;
   }) => void
 ) {
   try {
@@ -152,6 +155,9 @@ export function subscribeSettings(
             gradebookDisabledRooms: Array.isArray(data.gradebookDisabledRooms)
               ? data.gradebookDisabledRooms
               : [],
+            schoolCoverUrl: typeof data.schoolCoverUrl === 'string' ? data.schoolCoverUrl : '',
+            schoolName: typeof data.schoolName === 'string' ? data.schoolName : '',
+            schoolSubtitle: typeof data.schoolSubtitle === 'string' ? data.schoolSubtitle : '',
           });
         } else {
           onData({
@@ -159,6 +165,9 @@ export function subscribeSettings(
             subjects: [],
             studentGradebookEnabled: true,
             gradebookDisabledRooms: [],
+            schoolCoverUrl: '',
+            schoolName: '',
+            schoolSubtitle: '',
           });
         }
       },
@@ -392,6 +401,28 @@ export async function saveGradebookVisibilityToFirestore(
         id: MAIN_SETTINGS_DOC,
         studentGradebookEnabled,
         gradebookDisabledRooms,
+      }),
+      { merge: true }
+    );
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function saveSchoolBrandingToFirestore(branding: {
+  schoolCoverUrl: string;
+  schoolName: string;
+  schoolSubtitle: string;
+}): Promise<void> {
+  const path = `${SETTINGS_COLLECTION}/${MAIN_SETTINGS_DOC}`;
+  try {
+    await setDoc(
+      doc(db, SETTINGS_COLLECTION, MAIN_SETTINGS_DOC),
+      sanitizeForFirestore({
+        id: MAIN_SETTINGS_DOC,
+        schoolCoverUrl: branding.schoolCoverUrl,
+        schoolName: branding.schoolName,
+        schoolSubtitle: branding.schoolSubtitle,
       }),
       { merge: true }
     );

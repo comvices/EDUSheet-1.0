@@ -23,6 +23,7 @@ import {
 import * as XLSX from 'xlsx';
 import { Assignment, Submission, StudentProfile } from '../types';
 import { SaveConfirmModal } from './SaveConfirmModal';
+import { getAuthHeaders } from '../utils/security';
 
 export interface BatchGradeSaveItem {
   submissionId: string;
@@ -227,7 +228,7 @@ export const SubmissionRosterModal: React.FC<SubmissionRosterModalProps> = ({
         const chunk = targetSubmissions.slice(i, i + CHUNK_SIZE);
         const res = await fetch('/api/ai/grade-batch', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(),
           body: JSON.stringify({
             assignmentTitle: assignment.title,
             subject: assignment.subject,
