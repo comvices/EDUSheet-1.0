@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Sparkles, Plus, Trash2, Save, FilePlus, Edit3, Users, EyeOff, Eye, Search } from 'lucide-react';
+import { X, Sparkles, Plus, Trash2, Save, FilePlus, Edit3, Users, EyeOff, Eye, Search, Upload, Image as ImageIcon } from 'lucide-react';
 import { Assignment, Question, CategoryType, StudentProfile } from '../types';
 import { CATEGORY_LIST } from '../data/mockData';
 import { SaveConfirmModal } from './SaveConfirmModal';
@@ -135,6 +135,52 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
     setQuestions((prev) =>
       prev.map((q) => (q.id === id ? { ...q, [field]: value } : q))
     );
+  };
+
+  async function compressClassroomCover(file: File): Promise<string> {
+    if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') {
+      throw new Error('รองรับเฉพาะไฟล์รูปภาพ JPG, PNG, WebP หรือ GIF เท่านั้น');
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      throw new Error('ไฟล์รูปภาพมีขนาดใหญ่เกิน 10 MB');
+    }
+    const objectUrl = URL.createObjectURL(file);
+    try {
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const el = new Image();
+        el.onload = () => resolve(el);
+        el.onerror = () => reject(new Error('ไม่สามารถอ่านไฟล์รูปภาพนี้ได้'));
+        el.src = objectUrl;
+      });
+      const MAX_W = 1120;
+      const MAX_H = 630;
+      let w = img.width;
+      let h = img.height;
+      if (w > MAX_W || h > MAX_H) {
+        const ratio = Math.min(MAX_W / w, MAX_H / h);
+        w = Math.round(w * ratio);
+        h = Math.round(h * ratio);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Canvas context error');
+      ctx.drawImage(img, 0, 0, w, h);
+      return canvas.toDataURL('image/jpeg', 0.82);
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  }
+
+  const handleQuestionImageUpload = async (qId: string, file: File | undefined) => {
+    if (!file) return;
+    try {
+      const compressed = await compressClassroomCover(file);
+      handleQuestionChange(qId, 'imageUrl', compressed);
+    } catch (err: any) {
+      alert(err?.message || 'ไม่สามารถอัปโหลดรูปภาพได้');
+    }
   };
 
   const handleGenerateAiWorksheet = async () => {
@@ -703,6 +749,44 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
                       onChange={(e) => handleQuestionChange(q.id, 'answerKey', e.target.value)}
                       className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] text-slate-600 dark:text-slate-300 italic"
                     />
+
+                    {/* Question Image Attachment */}
+                    <div className="space-y-1.5 pt-1">
+                      {q.imageUrl ? (
+                        <div className="flex items-center gap-3 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl">
+                          <img
+                            src={q.imageUrl}
+                            alt="Question attachment preview"
+                            className="w-16 h-12 object-cover rounded-lg border border-slate-200 dark:border-slate-800"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="flex-1 min-w-0 text-xs">
+                            <p className="font-semibold text-slate-800 dark:text-slate-200 truncate">แนบรูปภาพโจทย์แล้ว</p>
+                            <button
+                              type="button"
+                              onClick={() => handleQuestionChange(q.id, 'imageUrl', '')}
+                              className="text-[11px] text-rose-500 hover:underline cursor-pointer font-medium"
+                            >
+                              ลบรูปภาพนี้ออก
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-indigo-400 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer transition-colors shadow-2xs">
+                            <Upload className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                            <span>แนบรูปภาพประกอบข้อนี้</span>
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png,image/webp,image/gif"
+                              className="hidden"
+                              onChange={(e) => handleQuestionImageUpload(q.id, e.target.files?.[0])}
+                            />
+                          </label>
+                          <span className="text-[10px] text-slate-400">รองรับ JPG, PNG, WebP (สูงสุด 10MB)</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

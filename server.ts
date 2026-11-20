@@ -188,6 +188,7 @@ interface BatchSubmissionInput {
   studentName?: string;
   studentCode?: string;
   answers?: Record<string, string>;
+  answerImages?: Record<string, string>;
   files?: Array<{ name: string; size?: string }>;
 }
 
@@ -219,6 +220,7 @@ interface PreparedGradingItem {
   answerKey: string;
   maxScore: number;
   studentAnswer: string;
+  answerImageDataUrl?: string;
   isUnanswered: boolean;
   deterministicMatch: boolean | null;
 }
@@ -264,7 +266,7 @@ function formatGeminiErrorMessage(err: any): { statusCode: number; userMessage: 
 
 async function callGeminiJsonWithFallback(params: {
   ai: GoogleGenAI;
-  prompt: string;
+  prompt: string | Array<Record<string, any>>;
   systemInstruction: string;
   responseSchema: Record<string, any>;
 }): Promise<any> {
@@ -281,7 +283,7 @@ async function callGeminiJsonWithFallback(params: {
     try {
       const response = await ai.models.generateContent({
         model: candidate.model,
-        contents: prompt,
+        contents: typeof prompt === 'string' ? prompt : [{ role: 'user', parts: prompt }],
         config: {
           systemInstruction,
           thinkingConfig: { thinkingLevel: candidate.thinkingLevel },
@@ -313,28 +315,45 @@ async function callGeminiJsonWithFallback(params: {
   throw lastError;
 }
 
+function parseImageDataUrl(dataUrl: unknown): { mimeType: string; data: string } | null {
+  if (typeof dataUrl !== 'string') return null;
+  const match = dataUrl.match(/^data:(image\/(?:jpeg|jpg|png|webp|gif));base64,([A-Za-z0-9+/=]+)$/);
+  if (!match) return null;
+  return {
+    mimeType: match[1] === 'image/jpg' ? 'image/jpeg' : match[1],
+    data: match[2],
+  };
+}
+
 function prepareSubmissionItems(
   typedQuestions: GradingQuestionInput[],
   answers?: Record<string, string>,
-  files?: Array<{ name: string; size?: string }>
+  files?: Array<{ name: string; size?: string }>,
+  answerImages?: Record<string, string>
 ): { preparedItems: PreparedGradingItem[]; attachedFiles: Array<{ name: string; size?: string }> } {
   const answerMap: Record<string, string> =
     answers && typeof answers === 'object' ? answers : {};
+  const imageMap: Record<string, string> =
+    answerImages && typeof answerImages === 'object' ? answerImages : {};
   const attachedFiles: Array<{ name: string; size?: string }> = Array.isArray(files)
     ? files
     : [];
 
   const preparedItems: PreparedGradingItem[] = typedQuestions.map((q, idx) => {
     const rawAnswer = (answerMap[q.id] ?? '').toString().trim();
+    const rawImage = typeof imageMap[q.id] === 'string' ? imageMap[q.id].trim() : '';
+    const hasQuestionImage = rawImage.length > 0;
     const qMax = Number(q.maxPoints) || 0;
     const key = (q.answerKey ?? '').toString().trim();
 
     const hasFilesForUpload = q.type === 'file_upload' && attachedFiles.length > 0;
     const isUnanswered =
-      q.type === 'file_upload' ? !rawAnswer && !hasFilesForUpload : rawAnswer.length === 0;
+      q.type === 'file_upload'
+        ? !rawAnswer && !hasFilesForUpload && !hasQuestionImage
+        : rawAnswer.length === 0 && !hasQuestionImage;
 
     let deterministicMatch: boolean | null = null;
-    if (!isUnanswered && key.length > 0) {
+    if (!isUnanswered && !hasQuestionImage && key.length > 0) {
       if (q.type === 'multiple_choice') {
         deterministicMatch = normalizeAnswerText(rawAnswer) === normalizeAnswerText(key);
       } else if (
@@ -345,6 +364,18 @@ function prepareSubmissionItems(
       }
     }
 
+    const formattedAnswer = isUnanswered
+      ? '[ไม่ได้ตอบ]'
+      : [
+          rawAnswer,
+          hasQuestionImage ? '[นักเรียนแนบรูปภาพคำตอบในข้อนี้]' : '',
+          !rawAnswer && !hasQuestionImage && hasFilesForUpload
+            ? `(แนบไฟล์: ${attachedFiles.map((f) => f.name).join(', ')})`
+            : '',
+        ]
+          .filter(Boolean)
+          .join(' ');
+
     return {
       questionIndex: idx,
       id: q.id,
@@ -354,9 +385,8 @@ function prepareSubmissionItems(
       answerKey:
         key || '(ครูไม่ได้ระบุเฉลยไว้ — ให้ประเมินตามความถูกต้องทางวิชาการอย่างยุติธรรม)',
       maxScore: qMax,
-      studentAnswer: isUnanswered
-        ? '[ไม่ได้ตอบ]'
-        : rawAnswer || `(แนบไฟล์: ${attachedFiles.map((f) => f.name).join(', ')})`,
+      studentAnswer: formattedAnswer,
+      answerImageDataUrl: hasQuestionImage ? rawImage : undefined,
       isUnanswered,
       deterministicMatch,
     };
@@ -478,6 +508,7 @@ app.post('/api/ai/grade', aiApiLimiter, requireApiSession(['teacher']), async (r
       instructions,
       questions,
       answers,
+      answerImages,
       files,
       maxPoints,
     } = req.body;
@@ -491,7 +522,8 @@ app.post('/api/ai/grade', aiApiLimiter, requireApiSession(['teacher']), async (r
     const { preparedItems, attachedFiles } = prepareSubmissionItems(
       typedQuestions,
       answers,
-      files
+      files,
+      answerImages
     );
 
     const itemsForAi = preparedItems.filter(
@@ -512,21 +544,30 @@ app.post('/api/ai/grade', aiApiLimiter, requireApiSession(['teacher']), async (r
       const systemInstruction = `คุณคือผู้เชี่ยวชาญการตรวจใบงานไทย ตรวจอย่างรวดเร็ว เที่ยงตรง และกระชับ
 กฎการให้คะแนนแต่ละข้อ:
 1. fill_blank: เทียบความหมาย/คำศัพท์/ตัวเลขกับเฉลย ถูกครบได้เต็ม maxScore ถูกบางส่วนได้ตามสัดส่วน ผิดได้ 0
-2. text (อัตนัย/วิธีทำ): ให้คะแนนตามประเด็นสำคัญจากเฉลยและหลักวิชา "${subject || 'ทั่วไป'}" ชั้น "${gradeLevel || 'มัธยมศึกษา'}" (เต็ม maxScore, บางส่วน .5, คัดลอกโจทย์หรือตอบไม่ตรงประเด็นได้ 0)
-3. file_upload: ประเมินจากคำอธิบายและแนะนำให้ครูตรวจสอบไฟล์แนบเพิ่มเติม
+2. text (อัตนัย/วิธีทำ): ให้คะแนนตามประเด็นสำคัญจากเฉลยและหลักวิชา "${subject || 'ทั่วไป'}" ชั้น "${gradeLevel || 'มัธยมศึกษา'}" (เต็ม maxScore, บางส่วน .5, คัดลอกโจทย์หรือตอบไม่ตรงประเด็นได้ 0) หากนักเรียนแนบภาพคำตอบมาด้วย ให้อ่านข้อความ/วิธีทำจากภาพประกอบการให้คะแนน
+3. file_upload: ประเมินจากคำอธิบายและภาพคำตอบที่แนบ (ถ้ามี) พร้อมแนะนำให้ครูตรวจสอบเพิ่มเติม
 4. comment ต่อข้อ: สั้น กระชับ ชัดเจน 1-2 ประโยคภาษาไทย
 5. overallFeedback: สรุปภาพรวม 1-2 ประโยคภาษาไทย`;
 
-      const prompt = `ใบงาน: "${assignmentTitle}" | วิชา: "${subject || '-'}" | ชั้น: "${gradeLevel || '-'}"
+      const promptText = `ใบงาน: "${assignmentTitle}" | วิชา: "${subject || '-'}" | ชั้น: "${gradeLevel || '-'}"
 คำชี้แจง: "${instructions || '-'}"
 ไฟล์แนบ: ${attachedFiles.length > 0 ? attachedFiles.map((f) => f.name).join(', ') : 'ไม่มี'}
 
 รายการข้อที่ต้องประเมิน (${compactPayload.length} ข้อ):
 ${JSON.stringify(compactPayload)}`;
 
+      const promptParts: Array<Record<string, any>> = [{ text: promptText }];
+      for (const it of itemsForAi) {
+        const parsedImg = parseImageDataUrl(it.answerImageDataUrl);
+        if (parsedImg) {
+          promptParts.push({ text: `ภาพคำตอบของนักเรียนสำหรับ questionIndex=${it.questionIndex} (ข้อที่ ${it.questionIndex + 1}):` });
+          promptParts.push({ inlineData: parsedImg });
+        }
+      }
+
       aiParsed = await callGeminiJsonWithFallback({
         ai,
-        prompt,
+        prompt: promptParts.length > 1 ? promptParts : promptText,
         systemInstruction,
         responseSchema: {
           type: Type.OBJECT,
@@ -611,7 +652,8 @@ app.post('/api/ai/grade-batch', aiApiLimiter, requireApiSession(['teacher']), as
       const { preparedItems, attachedFiles } = prepareSubmissionItems(
         typedQuestions,
         sub.answers,
-        sub.files
+        sub.files,
+        sub.answerImages
       );
       const itemsForAi = preparedItems.filter(
         (item) => !item.isUnanswered && item.deterministicMatch === null

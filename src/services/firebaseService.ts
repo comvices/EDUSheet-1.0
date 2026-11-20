@@ -17,6 +17,7 @@ import {
   TeachingSchedule,
   AttendanceSession,
   PeriodConfig,
+  SubjectClassroom,
 } from '../types';
 
 const ASSIGNMENTS_COLLECTION = 'assignments';
@@ -28,6 +29,7 @@ const MAIN_SETTINGS_DOC = 'main_config';
 const RESOURCES_COLLECTION = 'resources';
 const TEACHING_SCHEDULES_COLLECTION = 'teachingSchedules';
 const ATTENDANCE_SESSIONS_COLLECTION = 'attendanceSessions';
+const SUBJECT_CLASSROOMS_COLLECTION = 'subjectClassrooms';
 
 // 1. Subscribe to Assignments in Real-Time
 export function subscribeAssignments(onData: (assignments: Assignment[]) => void) {
@@ -440,6 +442,7 @@ export async function clearDatabase(): Promise<void> {
     RESOURCES_COLLECTION,
     TEACHING_SCHEDULES_COLLECTION,
     ATTENDANCE_SESSIONS_COLLECTION,
+    SUBJECT_CLASSROOMS_COLLECTION,
     SETTINGS_COLLECTION,
   ];
 
@@ -470,6 +473,7 @@ export async function resetDataKeepUsers(): Promise<void> {
       RESOURCES_COLLECTION,
       TEACHING_SCHEDULES_COLLECTION,
       ATTENDANCE_SESSIONS_COLLECTION,
+      SUBJECT_CLASSROOMS_COLLECTION,
     ];
     for (const colName of collectionsToDelete) {
       const colRef = collection(db, colName);
@@ -640,6 +644,68 @@ export async function deleteAttendanceSessionFromFirestore(sessionId: string): P
   const path = `${ATTENDANCE_SESSIONS_COLLECTION}/${sessionId}`;
   try {
     await deleteDoc(doc(db, ATTENDANCE_SESSIONS_COLLECTION, sessionId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+// Subscribe to Subject Classrooms in Real-Time
+export function subscribeSubjectClassrooms(onData: (classrooms: SubjectClassroom[]) => void) {
+  try {
+    const colRef = collection(db, SUBJECT_CLASSROOMS_COLLECTION);
+    return onSnapshot(
+      colRef,
+      (snapshot) => {
+        const list: SubjectClassroom[] = [];
+        snapshot.forEach((docSnap) => {
+          list.push(docSnap.data() as SubjectClassroom);
+        });
+        list.sort((a, b) => new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime());
+        onData(list);
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, SUBJECT_CLASSROOMS_COLLECTION);
+      }
+    );
+  } catch (err) {
+    console.error('Error subscribing to subject classrooms:', err);
+    return () => {};
+  }
+}
+
+export async function saveSubjectClassroomToFirestore(classroom: SubjectClassroom): Promise<void> {
+  const path = `${SUBJECT_CLASSROOMS_COLLECTION}/${classroom.id}`;
+  try {
+    await setDoc(doc(db, SUBJECT_CLASSROOMS_COLLECTION, classroom.id), sanitizeForFirestore(classroom));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function saveMultipleSubjectClassroomsToFirestore(
+  classroomsList: SubjectClassroom[]
+): Promise<void> {
+  if (classroomsList.length === 0) return;
+  try {
+    const CHUNK_SIZE = 400;
+    for (let i = 0; i < classroomsList.length; i += CHUNK_SIZE) {
+      const batch = writeBatch(db);
+      const chunk = classroomsList.slice(i, i + CHUNK_SIZE);
+      chunk.forEach((cls) => {
+        const ref = doc(db, SUBJECT_CLASSROOMS_COLLECTION, cls.id);
+        batch.set(ref, sanitizeForFirestore(cls));
+      });
+      await batch.commit();
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `${SUBJECT_CLASSROOMS_COLLECTION}/batch`);
+  }
+}
+
+export async function deleteSubjectClassroomFromFirestore(classroomId: string): Promise<void> {
+  const path = `${SUBJECT_CLASSROOMS_COLLECTION}/${classroomId}`;
+  try {
+    await deleteDoc(doc(db, SUBJECT_CLASSROOMS_COLLECTION, classroomId));
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
   }

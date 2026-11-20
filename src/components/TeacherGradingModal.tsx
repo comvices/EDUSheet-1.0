@@ -13,6 +13,8 @@ import {
   HelpCircle,
   Loader2,
   Paperclip,
+  Image as ImageIcon,
+  ZoomIn,
 } from 'lucide-react';
 import { Assignment, Submission } from '../types';
 import { SaveConfirmModal } from './SaveConfirmModal';
@@ -64,6 +66,7 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiFeedbackResult, setAiFeedbackResult] = useState<AiFeedbackResult | null>(null);
   const [usedAiGrading, setUsedAiGrading] = useState<boolean>(Boolean(submission?.aiGraded));
+  const [previewImage, setPreviewImage] = useState<{ url: string; label: string } | null>(null);
   const [pendingGradeAction, setPendingGradeAction] = useState<{
     status: 'graded' | 'needs_revision';
     clampedScore: number;
@@ -90,6 +93,7 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
           instructions: assignment.instructions,
           questions: assignment.questions,
           answers: submission.answers || {},
+          answerImages: submission.answerImages || {},
           files: submission.files || [],
           maxPoints: assignment.totalPoints,
         }),
@@ -376,7 +380,11 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
             </h3>
 
             {assignment.questions.map((q, idx) => {
-              const studentAnswer = submission?.answers?.[q.id] || '(ยังไม่ได้ระบุคำตอบ)';
+              const rawTextAnswer = (submission?.answers?.[q.id] || '').trim();
+              const studentImage = submission?.answerImages?.[q.id];
+              const studentAnswer =
+                rawTextAnswer ||
+                (studentImage ? '(ดูคำตอบจากรูปภาพที่นักเรียนแนบด้านล่าง)' : '(ยังไม่ได้ระบุคำตอบ)');
               const itemEval = aiFeedbackResult?.itemFeedback?.find(
                 (it) => it.questionIndex === idx || it.questionId === q.id
               );
@@ -387,6 +395,15 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
                   key={q.id}
                   className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-xl space-y-2.5 text-xs"
                 >
+                  {q.imageUrl && (
+                    <div className="mb-2">
+                      <img
+                        src={q.imageUrl}
+                        alt={`ภาพประกอบข้อที่ ${idx + 1}`}
+                        className="max-h-52 rounded-xl border border-slate-200 dark:border-slate-700 object-contain bg-slate-900/5 mx-auto shadow-2xs"
+                      />
+                    </div>
+                  )}
                   <div className="flex flex-wrap items-center justify-between gap-2 font-semibold text-slate-900 dark:text-white">
                     <span className="text-sm">
                       ข้อ {idx + 1}. {q.text}
@@ -407,11 +424,53 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
                   </div>
 
                   {/* Student Answer */}
-                  <div className="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-sm sm:text-[15px]">
-                    <span className="font-semibold text-indigo-600 dark:text-indigo-400 block mb-1.5 text-xs">
-                      คำตอบของนักเรียน:
-                    </span>
-                    <p className="whitespace-pre-wrap leading-relaxed font-sans">{studentAnswer}</p>
+                  <div className="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-sm sm:text-[15px] space-y-3">
+                    <div>
+                      <span className="font-semibold text-indigo-600 dark:text-indigo-400 block mb-1.5 text-xs">
+                        คำตอบของนักเรียน:
+                      </span>
+                      <p className="whitespace-pre-wrap leading-relaxed font-sans">{studentAnswer}</p>
+                    </div>
+
+                    {studentImage && (
+                      <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800">
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                            <ImageIcon className="w-3.5 h-3.5" />
+                            <span>ภาพคำตอบที่นักเรียนแนบมา (ข้อที่ {idx + 1})</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPreviewImage({
+                                url: studentImage,
+                                label: `ภาพคำตอบของ ${submission?.studentName || 'นักเรียน'} - ข้อที่ ${idx + 1}`,
+                              })
+                            }
+                            className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-md transition-colors cursor-pointer"
+                          >
+                            <ZoomIn className="w-3 h-3" />
+                            <span>คลิกขยายดูภาพใหญ่</span>
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewImage({
+                              url: studentImage,
+                              label: `ภาพคำตอบของ ${submission?.studentName || 'นักเรียน'} - ข้อที่ ${idx + 1}`,
+                            })
+                          }
+                          className="block w-full bg-slate-50 dark:bg-slate-950/60 p-2 rounded-xl border border-slate-200 dark:border-slate-700 cursor-zoom-in hover:border-indigo-400 transition-colors"
+                        >
+                          <img
+                            src={studentImage}
+                            alt={`ภาพคำตอบของนักเรียนข้อที่ ${idx + 1}`}
+                            className="max-h-64 mx-auto rounded-lg object-contain"
+                          />
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Answer Key / Rubric */}
@@ -572,6 +631,36 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
         }}
         onCancel={() => setPendingGradeAction(null)}
       />
+
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-xs"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div
+            className="relative max-w-4xl w-full bg-white dark:bg-slate-900 rounded-2xl p-3 shadow-2xl border border-slate-200 dark:border-slate-700"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-2 pb-2 mb-2 border-b border-slate-200 dark:border-slate-800">
+              <span className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                {previewImage.label}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPreviewImage(null)}
+                className="p-1.5 text-slate-500 hover:text-slate-800 dark:hover:text-white rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <img
+              src={previewImage.url}
+              alt={previewImage.label}
+              className="max-h-[78vh] w-full object-contain rounded-xl bg-slate-50 dark:bg-slate-950"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

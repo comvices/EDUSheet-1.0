@@ -11,9 +11,12 @@ import {
   TeachingSchedule,
   AttendanceSession,
   PeriodConfig,
+  SubjectClassroom,
 } from './types';
 import {
   DEFAULT_PERIOD_CONFIGS,
+  INITIAL_ASSIGNMENTS,
+  INITIAL_SUBMISSIONS,
 } from './data/mockData';
 import {
   subscribeAssignments,
@@ -44,6 +47,10 @@ import {
   subscribeAttendanceSessions,
   saveAttendanceSessionToFirestore,
   deleteAttendanceSessionFromFirestore,
+  subscribeSubjectClassrooms,
+  saveSubjectClassroomToFirestore,
+  saveMultipleSubjectClassroomsToFirestore,
+  deleteSubjectClassroomFromFirestore,
   clearDatabase,
   resetDataKeepUsers,
 } from './services/firebaseService';
@@ -69,6 +76,7 @@ import { StatusView } from './components/StatusView';
 import { SubmissionRosterModal } from './components/SubmissionRosterModal';
 import { ResourcesView } from './components/ResourcesView';
 import { CreateResourceModal } from './components/CreateResourceModal';
+import { CreateClassroomModal } from './components/CreateClassroomModal';
 import { AttendanceView } from './components/AttendanceView';
 import { GradebookView } from './components/GradebookView';
 import {
@@ -128,6 +136,7 @@ export default function App() {
 
   // Tab State
   const [activeTab, setActiveTab] = useState<string>('home');
+  const [isStudentInsideClassroom, setIsStudentInsideClassroom] = useState<boolean>(false);
 
   // Core Data State (loaded exclusively from Firestore)
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -146,6 +155,7 @@ export default function App() {
   const [schoolName, setSchoolName] = useState<string>('');
   const [schoolSubtitle, setSchoolSubtitle] = useState<string>('');
   const [resources, setResources] = useState<LearningResource[]>([]);
+  const [subjectClassrooms, setSubjectClassrooms] = useState<SubjectClassroom[]>([]);
   const [teachingSchedules, setTeachingSchedules] = useState<TeachingSchedule[]>([]);
   const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>([]);
 
@@ -228,6 +238,10 @@ export default function App() {
       setAttendanceSessions(remoteSessions || []);
     });
 
+    const unsubSubjectClassrooms = subscribeSubjectClassrooms((remoteClassrooms) => {
+      setSubjectClassrooms(remoteClassrooms || []);
+    });
+
     return () => {
       unsubAssignments();
       unsubSubmissions();
@@ -237,6 +251,7 @@ export default function App() {
       unsubResources();
       unsubSchedules();
       unsubAttendance();
+      unsubSubjectClassrooms();
     };
   }, []);
 
@@ -270,6 +285,8 @@ export default function App() {
   const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
   const [isCreateResourceOpen, setIsCreateResourceOpen] = useState(false);
   const [editingResource, setEditingResource] = useState<LearningResource | null>(null);
+  const [isCreateClassroomOpen, setIsCreateClassroomOpen] = useState(false);
+  const [editingClassroom, setEditingClassroom] = useState<SubjectClassroom | null>(null);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab>('grades');
   const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
@@ -328,6 +345,9 @@ export default function App() {
 
     setIsLoggedIn(true);
     setIsLoginModalOpen(false);
+    setActiveTab('home');
+    setIsStudentInsideClassroom(false);
+    setSelectedSubjectInView('ทั้งหมด');
 
     // Request short-lived HMAC signed Bearer token for /api/ai/* protection
     try {
@@ -367,7 +387,8 @@ export default function App() {
   const handleSubmitWorksheet = (
     assignmentId: string,
     answers: Record<string, string>,
-    files?: any[]
+    files?: any[],
+    answerImages?: Record<string, string>
   ) => {
     const matchedAsg = assignments.find((a) => a.id === assignmentId);
     if (!matchedAsg) return;
@@ -385,6 +406,7 @@ export default function App() {
       gradeLevel: currentStudentUser.gradeLevel,
       submissionDate: new Date().toISOString(),
       answers,
+      answerImages: answerImages || {},
       files,
       status: 'submitted',
       maxScore: matchedAsg.totalPoints,
@@ -672,6 +694,37 @@ export default function App() {
     showToast(`ลบสื่อการเรียนรู้ "${target?.title || ''}" เรียบร้อยแล้ว 🗑️`);
   };
 
+  // Subject Classrooms Handlers
+  const handleSaveSubjectClassroom = (cls: SubjectClassroom) => {
+    const exists = subjectClassrooms.some((c) => c.id === cls.id);
+    if (exists) {
+      setSubjectClassrooms((prev) => prev.map((c) => (c.id === cls.id ? cls : c)));
+      showToast(`อัปเดตห้องเรียน "${cls.courseCode} ${cls.title}" เรียบร้อยแล้ว 🏫`);
+    } else {
+      setSubjectClassrooms((prev) => [cls, ...prev]);
+      showToast(`สร้างห้องเรียนรายวิชา "${cls.courseCode} ${cls.title}" เรียบร้อยแล้ว ✨`);
+    }
+    saveSubjectClassroomToFirestore(cls);
+  };
+
+  const handleDeleteSubjectClassroom = (classroomId: string) => {
+    const target = subjectClassrooms.find((c) => c.id === classroomId);
+    setSubjectClassrooms((prev) => prev.filter((c) => c.id !== classroomId));
+    deleteSubjectClassroomFromFirestore(classroomId);
+    showToast(`ลบห้องเรียน "${target ? `${target.courseCode} ${target.title}` : ''}" เรียบร้อยแล้ว 🗑️`);
+  };
+
+  const handleSaveBatchSubjectClassrooms = async (classroomsList: SubjectClassroom[]) => {
+    if (classroomsList.length === 0) return;
+    setSubjectClassrooms((prev) => {
+      const existingIds = new Set(prev.map((c) => c.id));
+      const newItems = classroomsList.filter((c) => !existingIds.has(c.id));
+      return [...newItems, ...prev];
+    });
+    await saveMultipleSubjectClassroomsToFirestore(classroomsList);
+    showToast(`บันทึกห้องเรียนรายวิชาทั้งหมด ${classroomsList.length} วิชาลงระบบเรียบร้อยแล้ว! 🏫`);
+  };
+
   // Teaching Schedule & Attendance Handlers
   const handleSaveSchedule = (schedule: TeachingSchedule) => {
     const exists = teachingSchedules.some((s) => s.id === schedule.id);
@@ -882,6 +935,7 @@ export default function App() {
     setStudentsRoster([]);
     setTeachersRoster([]);
     setResources([]);
+    setSubjectClassrooms([]);
     setTeachingSchedules([]);
     setAttendanceSessions([]);
     setGradeLevelsList(['ทั้งหมด']);
@@ -903,6 +957,7 @@ export default function App() {
     setAssignments([]);
     setSubmissions([]);
     setResources([]);
+    setSubjectClassrooms([]);
     setTeachingSchedules([]);
     setAttendanceSessions([]);
     setNotifications([]);
@@ -917,6 +972,16 @@ export default function App() {
       localStorage.removeItem('edusheet_period_configs');
     } catch (e) {}
     showToast('ล้างข้อมูลใบงาน สื่อ และตั้งค่าระบบเรียบร้อยแล้ว (เก็บข้อมูลผู้ใช้งานไว้) 🧹');
+  };
+
+  const handleRestoreAllWorksheets = async () => {
+    setAssignments(INITIAL_ASSIGNMENTS);
+    setSubmissions(INITIAL_SUBMISSIONS);
+    for (const asg of INITIAL_ASSIGNMENTS) {
+      await saveAssignmentToFirestore(asg);
+    }
+    await saveMultipleSubmissionsToFirestore(INITIAL_SUBMISSIONS);
+    showToast('กู้คืนใบงานและข้อมูลทั้งหมดของโรงเรียนเรียบร้อยแล้ว! 📦✨');
   };
 
   // Notifications read handler
@@ -978,6 +1043,158 @@ export default function App() {
       (n) => !n.assignmentId || allowedIds.has(n.assignmentId)
     );
   }, [notifications, role, isLoggedIn, visibleAssignments]);
+
+  // Helper: check if a student grade/room matches a target gradeLevel string
+  const studentMatchesGradeTarget = React.useCallback((studentGrade: string | undefined, targetGrade: string | undefined) => {
+    if (!studentGrade) return false;
+    if (!targetGrade || targetGrade === 'ทั้งหมด') return true;
+    if (studentGrade === targetGrade) return true;
+    const baseStudent = studentGrade.includes('/') ? studentGrade.split('/')[0] : studentGrade;
+    const normalizedTarget = targetGrade.replace(/\s*\(ทุกห้อง\)$/, '').trim();
+    if (normalizedTarget === baseStudent) return true;
+    if (!targetGrade.includes('/') && targetGrade === baseStudent) return true;
+    return false;
+  }, []);
+
+  // Strict Teaching Schedule Isolation for students (only schedules for their room/grade)
+  const visibleTeachingSchedules = React.useMemo(() => {
+    if (role === 'teacher') return teachingSchedules;
+    if (!isLoggedIn) return [];
+    const stdGrade = currentStudentUser?.gradeLevel;
+    if (!stdGrade) return [];
+    return teachingSchedules.filter((sch) => studentMatchesGradeTarget(stdGrade, sch.gradeLevel));
+  }, [teachingSchedules, role, isLoggedIn, currentStudentUser?.gradeLevel, studentMatchesGradeTarget]);
+
+  // Subjects that the currently logged-in student ACTUALLY studies
+  // Derived strictly from: visible assignments, matching timetable schedules, matching attendance sessions,
+  // room-matched published classrooms, and room-matched learning resources.
+  const studentEnrolledSubjects = React.useMemo(() => {
+    const enrolled = new Set<string>();
+    if (role !== 'student' || !isLoggedIn) return enrolled;
+
+    const stdGrade = currentStudentUser?.gradeLevel;
+    const stdCode = currentStudentUser?.code;
+    if (!stdGrade) return enrolled;
+
+    const visibleAsgIds = new Set(visibleAssignments.map((a) => a.id));
+
+    visibleAssignments.forEach((a) => {
+      if (a.subject?.trim()) enrolled.add(a.subject.trim());
+    });
+
+    visibleTeachingSchedules.forEach((sch) => {
+      if (sch.subject?.trim()) enrolled.add(sch.subject.trim());
+    });
+
+    attendanceSessions.forEach((ses) => {
+      const matchGrade = ses.gradeLevel !== 'ทั้งหมด' && studentMatchesGradeTarget(stdGrade, ses.gradeLevel);
+      const matchRecord = Boolean(stdCode && ses.records?.some((r) => r.studentCode === stdCode));
+      if ((matchGrade || matchRecord) && ses.subject?.trim()) {
+        enrolled.add(ses.subject.trim());
+      }
+    });
+
+    resources.forEach((res) => {
+      if (res.gradeLevel && res.gradeLevel !== 'ทั้งหมด' && studentMatchesGradeTarget(stdGrade, res.gradeLevel)) {
+        if (res.subject?.trim()) enrolled.add(res.subject.trim());
+      }
+    });
+
+    subjectClassrooms.forEach((cls) => {
+      if (cls.isPublished === false || !cls.subject?.trim()) return;
+      if (cls.gradeLevel && cls.gradeLevel !== 'ทั้งหมด') {
+        if (studentMatchesGradeTarget(stdGrade, cls.gradeLevel)) {
+          enrolled.add(cls.subject.trim());
+        }
+        return;
+      }
+      // If saved classroom targets 'ทั้งหมด', include only if it links at least one visible assignment/resource
+      // or was explicitly customized (not an empty auto starter placeholder)
+      const linkedAsgIds = (cls.units || []).flatMap((u) => u.linkedAssignmentIds || []);
+      if (linkedAsgIds.length > 0) {
+        if (linkedAsgIds.some((id) => visibleAsgIds.has(id))) {
+          enrolled.add(cls.subject.trim());
+        }
+        return;
+      }
+      const isEmptyAutoPlaceholder =
+        cls.units?.length === 1 &&
+        (cls.units[0].id.startsWith('unit_auto_starter_') || cls.units[0].id.startsWith('unit_w22103_')) &&
+        !cls.units[0].mediaUrl &&
+        (cls.units[0].linkedResourceIds?.length || 0) === 0;
+      if (!isEmptyAutoPlaceholder) {
+        enrolled.add(cls.subject.trim());
+      }
+    });
+
+    return enrolled;
+  }, [
+    role,
+    isLoggedIn,
+    currentStudentUser?.gradeLevel,
+    currentStudentUser?.code,
+    visibleAssignments,
+    visibleTeachingSchedules,
+    attendanceSessions,
+    resources,
+    subjectClassrooms,
+    studentMatchesGradeTarget,
+  ]);
+
+  // Strict Subject List Isolation: students ONLY see subjects they actually study
+  const visibleSubjectsList = React.useMemo(() => {
+    if (role === 'teacher') return subjectsList;
+    if (!isLoggedIn) return ['ทั้งหมด'];
+    const ordered = subjectsList.filter((s) => s !== 'ทั้งหมด' && studentEnrolledSubjects.has(s));
+    const extras = Array.from(studentEnrolledSubjects).filter(
+      (s) => s !== 'ทั้งหมด' && !subjectsList.includes(s)
+    );
+    return ['ทั้งหมด', ...ordered, ...extras];
+  }, [role, isLoggedIn, subjectsList, studentEnrolledSubjects]);
+
+  // Reset selected subject filter or removed student tabs if student switches accounts
+  React.useEffect(() => {
+    if (role === 'student') {
+      if (selectedSubjectInView !== 'ทั้งหมด' && !visibleSubjectsList.includes(selectedSubjectInView)) {
+        setSelectedSubjectInView('ทั้งหมด');
+      }
+      if (activeTab === 'grades' || activeTab === 'subjects') {
+        setActiveTab('home');
+      }
+    }
+    if (activeTab !== 'home') {
+      setIsStudentInsideClassroom(false);
+    }
+  }, [role, activeTab, selectedSubjectInView, visibleSubjectsList]);
+
+  // Strict Resource Isolation for students: matching room/grade AND enrolled subject
+  const visibleResources = React.useMemo(() => {
+    if (role === 'teacher') return resources;
+    if (!isLoggedIn) return [];
+    const stdGrade = currentStudentUser?.gradeLevel;
+    if (!stdGrade) return [];
+    return resources.filter((res) => {
+      if (!studentMatchesGradeTarget(stdGrade, res.gradeLevel)) return false;
+      if (res.gradeLevel === 'ทั้งหมด' && studentEnrolledSubjects.size > 0) {
+        return studentEnrolledSubjects.has(res.subject);
+      }
+      return true;
+    });
+  }, [resources, role, isLoggedIn, currentStudentUser?.gradeLevel, studentMatchesGradeTarget, studentEnrolledSubjects]);
+
+  // Strict Subject Classrooms Isolation for students
+  const visibleSubjectClassrooms = React.useMemo(() => {
+    if (role === 'teacher') return subjectClassrooms;
+    if (!isLoggedIn) return [];
+    const stdGrade = currentStudentUser?.gradeLevel;
+    if (!stdGrade) return [];
+    return subjectClassrooms.filter(
+      (cls) =>
+        cls.isPublished !== false &&
+        studentMatchesGradeTarget(stdGrade, cls.gradeLevel) &&
+        studentEnrolledSubjects.has(cls.subject)
+    );
+  }, [subjectClassrooms, role, isLoggedIn, currentStudentUser?.gradeLevel, studentMatchesGradeTarget, studentEnrolledSubjects]);
 
   // Filtered assignments logic for Home View
   const filteredHomeAssignments = visibleAssignments
@@ -1104,186 +1321,200 @@ export default function App() {
         {/* Tab 1: Home Dashboard */}
         {activeTab === 'home' && (
           <div>
-            <BannerHero
-              role={role}
-              student={currentStudentUser}
-              teacher={currentTeacherUser}
-              totalCount={totalCount}
-              pendingCount={pendingCount}
-              submittedCount={submittedCount}
-              dueSoonCount={dueSoonCount}
-              searchTerm={filters.search}
-              setSearchTerm={(term) => setFilters((prev) => ({ ...prev, search: term }))}
-              onQuickFilterDueSoon={() => {
-                if (role === 'student') {
-                  setSelectedStatusInView('pending');
-                  setActiveTab('statuses');
-                } else {
-                  setFilters((prev) => ({ ...prev, dateSort: 'due_soon', status: 'pending' }));
-                }
-              }}
-              onOpenCreateWorksheet={() => {
-                setEditingAssignment(null);
-                setIsCreateWorksheetOpen(true);
-              }}
-            />
-
-            {/* Filter Bar (Teacher Only — Students already receive teacher-configured class worksheets) */}
-            {role === 'teacher' && (
-              <FilterBar
-                filters={filters}
-                setFilters={setFilters}
-                onResetFilters={() =>
-                  setFilters({
-                    search: '',
-                    subject: 'ทั้งหมด',
-                    gradeLevel: 'ทั้งหมด',
-                    status: 'all',
-                    category: 'ทั้งหมด',
-                    dateSort: 'due_soon',
-                  })
-                }
-                resultCount={filteredHomeAssignments.length}
-                gradeLevels={gradeLevelsList}
-                subjects={subjectsList}
+            {!(role === 'student' && isStudentInsideClassroom) && (
+              <BannerHero
                 role={role}
-                studentGradeLevel={currentStudentUser.gradeLevel}
-                onOpenManageCategories={() => handleOpenSettings('grades')}
-                onOpenSettings={handleOpenSettings}
+                student={currentStudentUser}
+                teacher={currentTeacherUser}
+                totalCount={totalCount}
+                pendingCount={pendingCount}
+                submittedCount={submittedCount}
+                dueSoonCount={dueSoonCount}
+                searchTerm={filters.search}
+                setSearchTerm={(term) => setFilters((prev) => ({ ...prev, search: term }))}
+                onQuickFilterDueSoon={() => {
+                  if (role === 'student') {
+                    setSelectedStatusInView('pending');
+                    setActiveTab('statuses');
+                  } else {
+                    setFilters((prev) => ({ ...prev, dateSort: 'due_soon', status: 'pending' }));
+                  }
+                }}
+                onOpenCreateWorksheet={() => {
+                  setEditingAssignment(null);
+                  setIsCreateWorksheetOpen(true);
+                }}
               />
             )}
 
-            {/* Security Warning Banner when using default fallback Admin credentials */}
-            {role === 'teacher' && showDefaultAdminWarning && (
-              <div className="mb-5 p-4 bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0">
-                    <ShieldAlert className="w-5 h-5" />
-                  </div>
-                  <div className="text-xs">
-                    <p className="font-bold text-amber-950 dark:text-amber-100">
-                      คำแนะนำความปลอดภัย: คุณกำลังเข้าใช้งานด้วยบัญชีผู้ดูแลระบบเริ่มต้น
-                    </p>
-                    <p className="text-amber-800 dark:text-amber-300 mt-0.5">
-                      แนะนำให้เพิ่มบัญชีครูรหัส <span className="font-mono font-bold">ADMIN</span> พร้อมตั้งรหัสผ่านใหม่ที่ปลอดภัยในเมนูตั้งค่า เพื่อปิดการใช้รหัสผ่านเริ่มต้น
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => handleOpenSettings('teachers')}
-                    className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer transition-colors"
-                  >
-                    ตั้งค่ารหัส Admin ใหม่
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowDefaultAdminWarning(false)}
-                    className="px-3 py-2 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 rounded-xl text-xs font-semibold cursor-pointer"
-                  >
-                    ปิดแจ้งเตือน
-                  </button>
-                </div>
-              </div>
-            )}
+            {role === 'student' ? (
+              <SubjectView
+                assignments={visibleAssignments}
+                submissions={visibleSubmissions}
+                classrooms={visibleSubjectClassrooms}
+                resources={visibleResources}
+                students={studentsRoster.filter((s) =>
+                  studentMatchesGradeTarget(currentStudentUser.gradeLevel, s.gradeLevel)
+                )}
+                role={role}
+                currentStudentCode={currentStudentUser.code}
+                studentGradeLevel={currentStudentUser.gradeLevel}
+                selectedSubject={selectedSubjectInView}
+                setSelectedSubject={setSelectedSubjectInView}
+                onOpenSubmitModal={(a) => setActiveSubmitModalAsg(a)}
+                onOpenGradingModal={(a, s) => setActiveGradingModalAsg({ assignment: a, submission: s })}
+                onOpenHintModal={(a) => setActiveHintModalAsg({ assignment: a })}
+                onOpenRosterModal={(a) => setActiveRosterModalAsg(a)}
+                subjects={visibleSubjectsList}
+                teachingSchedules={visibleTeachingSchedules}
+                teachersRoster={teachersRoster}
+                currentTeacherName={currentTeacherUser.name}
+                onActiveClassroomChange={setIsStudentInsideClassroom}
+                onRestoreWorksheets={handleRestoreAllWorksheets}
+              />
+            ) : (
+              <>
+                {/* Filter Bar (Teacher Only) */}
+                <FilterBar
+                  filters={filters}
+                  setFilters={setFilters}
+                  onResetFilters={() =>
+                    setFilters({
+                      search: '',
+                      subject: 'ทั้งหมด',
+                      gradeLevel: 'ทั้งหมด',
+                      status: 'all',
+                      category: 'ทั้งหมด',
+                      dateSort: 'due_soon',
+                    })
+                  }
+                  resultCount={filteredHomeAssignments.length}
+                  gradeLevels={gradeLevelsList}
+                  subjects={subjectsList}
+                  role={role}
+                  studentGradeLevel={currentStudentUser.gradeLevel}
+                  onOpenManageCategories={() => handleOpenSettings('grades')}
+                  onOpenSettings={handleOpenSettings}
+                />
 
-            {/* Actionable Prompt when ม.6 Worksheets need splitting by student room */}
-            {role === 'teacher' && m6MigrationPlan && m6MigrationPlan.items.length > 0 && (
-              <div className="mb-5 p-4 bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
-                    <FolderGit2 className="w-5 h-5" />
+                {/* Security Warning Banner when using default fallback Admin credentials */}
+                {showDefaultAdminWarning && (
+                  <div className="mb-5 p-4 bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0">
+                        <ShieldAlert className="w-5 h-5" />
+                      </div>
+                      <div className="text-xs">
+                        <p className="font-bold text-amber-950 dark:text-amber-100">
+                          คำแนะนำความปลอดภัย: คุณกำลังเข้าใช้งานด้วยบัญชีผู้ดูแลระบบเริ่มต้น
+                        </p>
+                        <p className="text-amber-800 dark:text-amber-300 mt-0.5">
+                          แนะนำให้เพิ่มบัญชีครูรหัส <span className="font-mono font-bold">ADMIN</span> พร้อมตั้งรหัสผ่านใหม่ที่ปลอดภัยในเมนูตั้งค่า เพื่อปิดการใช้รหัสผ่านเริ่มต้น
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenSettings('teachers')}
+                        className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer transition-colors"
+                      >
+                        ตั้งค่ารหัส Admin ใหม่
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowDefaultAdminWarning(false)}
+                        className="px-3 py-2 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 rounded-xl text-xs font-semibold cursor-pointer"
+                      >
+                        ปิดแจ้งเตือน
+                      </button>
+                    </div>
                   </div>
-                  <div className="text-xs">
-                    <p className="font-bold text-indigo-950 dark:text-indigo-100">
-                      พบใบงานระดับชั้น ม.6 จำนวน {m6MigrationPlan.items.length} เรื่อง ที่ยังไม่ได้แยกตามห้องของนักเรียน
-                    </p>
-                    <p className="text-indigo-700 dark:text-indigo-300 mt-0.5">
-                      สามารถโยกไปเก็บเป็นใบงานแยกตามห้อง ({m6MigrationPlan.availableTargetRooms.join(', ')}) พร้อมย้ายรายการส่งงานของนักเรียนให้ตรงห้องอัตโนมัติ
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSplitModalState({ isOpen: true, baseGrade: 'ม.6' })}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold whitespace-nowrap shrink-0 cursor-pointer transition-colors"
-                >
-                  โยกใบงาน ม.6 แยกตามห้อง
-                </button>
-              </div>
-            )}
+                )}
 
-            {/* Assignments Grid */}
-            <div className="mb-10">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold font-prompt text-slate-900 dark:text-white">
-                  รายการใบงาน ({filteredHomeAssignments.length} รายการ)
-                </h2>
-              </div>
-
-              {filteredHomeAssignments.length === 0 ? (
-                <div className="text-center py-16 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-400 text-sm space-y-2">
-                  <p>
-                    {role === 'student'
-                      ? 'ยังไม่มีใบงานที่ครูผู้สอนมอบหมายสำหรับห้องเรียนของคุณในขณะนี้'
-                      : 'ไม่พบใบงานที่ตรงกับเงื่อนไขการค้นหาของคุณ'}
-                  </p>
-                  {role === 'student' && (
-                    <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
-                      🔒 (แสดงเฉพาะใบงานสำหรับนักเรียนระดับชั้น {currentStudentUser.gradeLevel})
-                    </p>
-                  )}
-                  {role === 'teacher' && (
+                {/* Actionable Prompt when ม.6 Worksheets need splitting by student room */}
+                {m6MigrationPlan && m6MigrationPlan.items.length > 0 && (
+                  <div className="mb-5 p-4 bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
+                        <FolderGit2 className="w-5 h-5" />
+                      </div>
+                      <div className="text-xs">
+                        <p className="font-bold text-indigo-950 dark:text-indigo-100">
+                          พบใบงานระดับชั้น ม.6 จำนวน {m6MigrationPlan.items.length} เรื่อง ที่ยังไม่ได้แยกตามห้องของนักเรียน
+                        </p>
+                        <p className="text-indigo-700 dark:text-indigo-300 mt-0.5">
+                          สามารถโยกไปเก็บเป็นใบงานแยกตามห้อง ({m6MigrationPlan.availableTargetRooms.join(', ')}) พร้อมย้ายรายการส่งงานของนักเรียนให้ตรงห้องอัตโนมัติ
+                        </p>
+                      </div>
+                    </div>
                     <button
-                      onClick={() =>
-                        setFilters({
-                          search: '',
-                          subject: 'ทั้งหมด',
-                          gradeLevel: 'ทั้งหมด',
-                          status: 'all',
-                          category: 'ทั้งหมด',
-                          dateSort: 'due_soon',
-                        })
-                      }
-                      className="text-xs text-indigo-600 dark:text-indigo-400 underline font-semibold cursor-pointer"
+                      type="button"
+                      onClick={() => setSplitModalState({ isOpen: true, baseGrade: 'ม.6' })}
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold whitespace-nowrap shrink-0 cursor-pointer transition-colors"
                     >
-                      ล้างคำค้นหาและตัวกรองทั้งหมด
+                      โยกใบงาน ม.6 แยกตามห้อง
                     </button>
+                  </div>
+                )}
+
+                {/* Assignments Grid */}
+                <div className="mb-10">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-bold font-prompt text-slate-900 dark:text-white">
+                      รายการใบงาน ({filteredHomeAssignments.length} รายการ)
+                    </h2>
+                  </div>
+
+                  {filteredHomeAssignments.length === 0 ? (
+                    <div className="text-center py-16 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-400 text-sm space-y-2">
+                      <p>ไม่พบใบงานที่ตรงกับเงื่อนไขการค้นหาของคุณ</p>
+                      <button
+                        onClick={() =>
+                          setFilters({
+                            search: '',
+                            subject: 'ทั้งหมด',
+                            gradeLevel: 'ทั้งหมด',
+                            status: 'all',
+                            category: 'ทั้งหมด',
+                            dateSort: 'due_soon',
+                          })
+                        }
+                        className="text-xs text-indigo-600 dark:text-indigo-400 underline font-semibold cursor-pointer"
+                      >
+                        ล้างคำค้นหาและตัวกรองทั้งหมด
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {filteredHomeAssignments.map((asg) => {
+                        const sub = submissions.find((s) => s.assignmentId === asg.id);
+                        const subCount = submissions.filter((s) => s.assignmentId === asg.id).length;
+
+                        return (
+                          <AssignmentCard
+                            key={asg.id}
+                            assignment={asg}
+                            submission={sub}
+                            submissionCount={subCount}
+                            role={role}
+                            onOpenSubmitModal={(a) => setActiveSubmitModalAsg(a)}
+                            onOpenGradingModal={(a, s) => setActiveGradingModalAsg({ assignment: a, submission: s })}
+                            onOpenHintModal={(a) => setActiveHintModalAsg({ assignment: a })}
+                            onOpenRosterModal={(a) => setActiveRosterModalAsg(a)}
+                            onDeleteAssignment={handleDeleteAssignment}
+                            onEditAssignment={(a) => {
+                              setEditingAssignment(a);
+                              setIsCreateWorksheetOpen(true);
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredHomeAssignments.map((asg) => {
-                    const sub = submissions.find(
-                      (s) =>
-                        s.assignmentId === asg.id &&
-                        (role === 'teacher' || s.studentCode === currentStudentUser.code || s.studentId === currentStudentUser.id)
-                    );
-                    const subCount = submissions.filter((s) => s.assignmentId === asg.id).length;
-
-                    return (
-                      <AssignmentCard
-                        key={asg.id}
-                        assignment={asg}
-                        submission={sub}
-                        submissionCount={subCount}
-                        role={role}
-                        onOpenSubmitModal={(a) => setActiveSubmitModalAsg(a)}
-                        onOpenGradingModal={(a, s) => setActiveGradingModalAsg({ assignment: a, submission: s })}
-                        onOpenHintModal={(a) => setActiveHintModalAsg({ assignment: a })}
-                        onOpenRosterModal={(a) => setActiveRosterModalAsg(a)}
-                        onDeleteAssignment={handleDeleteAssignment}
-                        onEditAssignment={(a) => {
-                          setEditingAssignment(a);
-                          setIsCreateWorksheetOpen(true);
-                        }}
-                      />
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+              </>
+            )}
           </div>
         )}
 
@@ -1322,7 +1553,18 @@ export default function App() {
           <SubjectView
             assignments={visibleAssignments}
             submissions={visibleSubmissions}
+            classrooms={visibleSubjectClassrooms}
+            resources={visibleResources}
+            students={
+              role === 'student'
+                ? studentsRoster.filter((s) =>
+                    studentMatchesGradeTarget(currentStudentUser.gradeLevel, s.gradeLevel)
+                  )
+                : studentsRoster
+            }
             role={role}
+            currentStudentCode={currentStudentUser.code}
+            studentGradeLevel={currentStudentUser.gradeLevel}
             selectedSubject={selectedSubjectInView}
             setSelectedSubject={setSelectedSubjectInView}
             onOpenSubmitModal={(a) => setActiveSubmitModalAsg(a)}
@@ -1334,8 +1576,22 @@ export default function App() {
               setEditingAssignment(a);
               setIsCreateWorksheetOpen(true);
             }}
-            subjects={subjectsList}
+            subjects={visibleSubjectsList}
+            teachingSchedules={visibleTeachingSchedules}
+            teachersRoster={teachersRoster}
+            currentTeacherName={currentTeacherUser.name}
             onOpenSettings={handleOpenSettings}
+            onOpenCreateClassroom={() => {
+              setEditingClassroom(null);
+              setIsCreateClassroomOpen(true);
+            }}
+            onEditClassroom={(cls) => {
+              setEditingClassroom(cls);
+              setIsCreateClassroomOpen(true);
+            }}
+            onDeleteClassroom={handleDeleteSubjectClassroom}
+            onSaveClassroom={handleSaveSubjectClassroom}
+            onSaveBatchClassrooms={handleSaveBatchSubjectClassrooms}
           />
         )}
 
@@ -1362,10 +1618,10 @@ export default function App() {
         {/* Tab 5: Dedicated Learning Resources Hub */}
         {activeTab === 'resources' && (
           <ResourcesView
-            resources={resources}
+            resources={visibleResources}
             role={role}
             studentGradeLevel={currentStudentUser.gradeLevel}
-            subjectsList={subjectsList}
+            subjectsList={visibleSubjectsList}
             gradeLevelsList={gradeLevelsList}
             onOpenCreateResource={() => {
               setEditingResource(null);
@@ -1387,9 +1643,9 @@ export default function App() {
             currentTeacher={currentTeacherUser}
             studentsRoster={studentsRoster}
             teachersRoster={teachersRoster}
-            subjectsList={subjectsList}
+            subjectsList={visibleSubjectsList}
             gradeLevelsList={gradeLevelsList}
-            schedules={teachingSchedules}
+            schedules={visibleTeachingSchedules}
             attendanceSessions={attendanceSessions}
             periodConfigs={periodConfigs}
             onSavePeriodConfigs={handleSavePeriodConfigs}
@@ -1411,7 +1667,7 @@ export default function App() {
               assignments={visibleAssignments}
               submissions={visibleSubmissions}
               gradeLevelsList={gradeLevelsList}
-              subjectsList={subjectsList}
+              subjectsList={visibleSubjectsList}
               studentGradebookEnabled={studentGradebookEnabled}
               gradebookDisabledRooms={gradebookDisabledRooms}
               onUpdateGradebookVisibility={handleSaveGradebookVisibility}
@@ -1585,6 +1841,22 @@ export default function App() {
           gradeLevelsList={gradeLevelsList}
           subjectsList={subjectsList}
           currentTeacherName={currentTeacherUser.name}
+        />
+      )}
+
+      {isCreateClassroomOpen && (
+        <CreateClassroomModal
+          editingClassroom={editingClassroom}
+          subjectsList={subjectsList}
+          gradeLevelsList={gradeLevelsList}
+          assignments={assignments}
+          resources={resources}
+          currentTeacherName={currentTeacherUser.name}
+          onClose={() => {
+            setIsCreateClassroomOpen(false);
+            setEditingClassroom(null);
+          }}
+          onSaveClassroom={handleSaveSubjectClassroom}
         />
       )}
 

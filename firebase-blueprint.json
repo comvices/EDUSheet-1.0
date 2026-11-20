@@ -110,6 +110,10 @@
           "type": "object",
           "description": "Map of question ID to student answer"
         },
+        "answerImages": {
+          "type": "object",
+          "description": "Map of question ID to compressed student answer image URL or data URL"
+        },
         "status": {
           "type": "string",
           "description": "Status of submission",
@@ -481,6 +485,77 @@
         }
       },
       "required": ["id", "date", "dayOfWeek", "period", "subject", "gradeLevel", "teacherId", "teacherCode", "teacherName", "records", "updatedAt"]
+    },
+    "subjectClassroom": {
+      "title": "SubjectClassroom",
+      "description": "Online course classroom for a subject with structured learning units, media, and linked assignments",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique classroom ID",
+          "maxLength": 128
+        },
+        "courseCode": {
+          "type": "string",
+          "description": "Official subject/course code e.g. ว22103",
+          "maxLength": 40
+        },
+        "title": {
+          "type": "string",
+          "description": "Classroom display title",
+          "maxLength": 300
+        },
+        "subject": {
+          "type": "string",
+          "description": "Subject category",
+          "maxLength": 100
+        },
+        "gradeLevel": {
+          "type": "string",
+          "description": "Target grade level or room",
+          "maxLength": 100
+        },
+        "description": {
+          "type": "string",
+          "description": "Course syllabus description",
+          "maxLength": 3000
+        },
+        "objectives": {
+          "type": "string",
+          "description": "Course learning objectives",
+          "maxLength": 3000
+        },
+        "teacherName": {
+          "type": "string",
+          "description": "Lead instructor name",
+          "maxLength": 200
+        },
+        "coverUrl": {
+          "type": "string",
+          "description": "Optional classroom cover image URL or compressed raster image",
+          "maxLength": 350000
+        },
+        "units": {
+          "type": "array",
+          "description": "Structured course learning units"
+        },
+        "isPublished": {
+          "type": "boolean",
+          "description": "Whether students can access this classroom"
+        },
+        "createdDate": {
+          "type": "string",
+          "description": "Creation timestamp",
+          "maxLength": 100
+        },
+        "updatedDate": {
+          "type": "string",
+          "description": "Last updated timestamp",
+          "maxLength": 100
+        }
+      },
+      "required": ["id", "courseCode", "title", "subject", "gradeLevel", "teacherName", "units", "createdDate"]
     }
   },
   "firestore": {
@@ -531,6 +606,12 @@
         "$ref": "#/entities/attendanceSession"
       },
       "description": "Daily classroom attendance check-in records linked to teaching schedules"
+    },
+    "/subjectClassrooms/{classroomId}": {
+      "schema": {
+        "$ref": "#/entities/subjectClassroom"
+      },
+      "description": "Subject course classrooms with learning units, media, and linked assignments"
     }
   }
 }

@@ -154,6 +154,24 @@ service cloud.firestore {
         (!('topicTaught' in data) || isValidString(data.topicTaught, 0, 500));
     }
 
+    function isValidSubjectClassroom(docId, data) {
+      return data.keys().hasAll(['id', 'courseCode', 'title', 'subject', 'gradeLevel', 'teacherName', 'units', 'createdDate']) &&
+        data.id == docId &&
+        isValidString(data.id, 1, 128) &&
+        isValidString(data.courseCode, 1, 40) &&
+        isValidString(data.title, 1, 300) &&
+        isValidString(data.subject, 1, 100) &&
+        isValidString(data.gradeLevel, 1, 100) &&
+        isValidString(data.teacherName, 1, 200) &&
+        data.units is list && data.units.size() <= 50 &&
+        isValidString(data.createdDate, 1, 100) &&
+        (!('description' in data) || isValidString(data.description, 0, 3000)) &&
+        (!('objectives' in data) || isValidString(data.objectives, 0, 3000)) &&
+        (!('coverUrl' in data) || isSafeImageSrc(data.coverUrl)) &&
+        (!('isPublished' in data) || data.isPublished is bool) &&
+        (!('updatedDate' in data) || isValidString(data.updatedDate, 0, 100));
+    }
+
     // Test connection doc used at startup (read-only)
     match /test/{testId} {
       allow read: if true;
@@ -214,6 +232,13 @@ service cloud.firestore {
       allow read: if true;
       allow create, update: if isValidId(sessionId) && isValidAttendanceSession(sessionId, incoming());
       allow delete: if isValidId(sessionId);
+    }
+
+    // Subject classrooms / course modules collection
+    match /subjectClassrooms/{classroomId} {
+      allow read: if true;
+      allow create, update: if isValidId(classroomId) && isValidSubjectClassroom(classroomId, incoming());
+      allow delete: if isValidId(classroomId);
     }
   }
 }

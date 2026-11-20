@@ -241,6 +241,7 @@ export const SubmissionRosterModal: React.FC<SubmissionRosterModalProps> = ({
               studentName: s.studentName,
               studentCode: s.studentCode,
               answers: s.answers || {},
+              answerImages: s.answerImages || {},
               files: s.files || [],
             })),
           }),

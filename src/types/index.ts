@@ -8,6 +8,7 @@ export interface Question {
   maxPoints: number;
   answerKey?: string;
   hint?: string;
+  imageUrl?: string;
 }
 
 export type CategoryType = 'แบบฝึกหัด' | 'ใบงานเติมคำ' | 'ข้อสอบ/แบบทดสอบ' | 'รายงาน/เรียงความ';
@@ -47,6 +48,7 @@ export interface Submission {
   gradeLevel: string;
   submissionDate: string;
   answers: Record<string, string>; // questionId -> answer text or selected option
+  answerImages?: Record<string, string>; // questionId -> compressed image data URL or URL
   files?: SubmissionFile[];
   status: SubmissionStatus;
   score?: number;
@@ -101,6 +103,34 @@ export interface LearningResource {
   teacherName: string;
   fileSize?: string;
   thumbnailUrl?: string;
+}
+
+export interface CourseUnitItem {
+  id: string;
+  title: string;
+  description?: string;
+  order: number;
+  mediaTitle?: string;
+  mediaUrl?: string;
+  mediaType?: ResourceType;
+  linkedAssignmentIds?: string[];
+  linkedResourceIds?: string[];
+}
+
+export interface SubjectClassroom {
+  id: string;
+  courseCode: string;
+  title: string;
+  subject: string;
+  gradeLevel: string;
+  description: string;
+  objectives?: string;
+  teacherName: string;
+  coverUrl?: string;
+  units: CourseUnitItem[];
+  isPublished?: boolean;
+  createdDate: string;
+  updatedDate?: string;
 }
 
 export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday';
