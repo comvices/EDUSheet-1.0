@@ -484,11 +484,11 @@ export const SplitWorksheetsModal: React.FC<SplitWorksheetsModalProps> = ({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900">
+        <div className="px-6 py-4 border-b border-slate-200 dark:border-emerald-950/60 flex items-center justify-between bg-slate-50/90 dark:bg-[#0d1613]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-700 to-teal-700 text-white flex items-center justify-center shrink-0">
               <FolderGit2 className="w-5 h-5" />
             </div>
             <div>
@@ -528,8 +528,8 @@ export const SplitWorksheetsModal: React.FC<SplitWorksheetsModalProps> = ({
                       onClick={() => setSelectedBaseGrade(grade)}
                       className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors cursor-pointer ${
                         isActive
-                          ? 'bg-indigo-600 text-white border-indigo-600'
-                          : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                          ? 'bg-emerald-700 text-white border-emerald-700'
+                          : 'bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-emerald-950/60 hover:bg-slate-100 dark:hover:bg-slate-700'
                       }`}
                     >
                       ระดับชั้น {grade}
@@ -541,13 +541,13 @@ export const SplitWorksheetsModal: React.FC<SplitWorksheetsModalProps> = ({
           )}
 
           {/* Discovered Target Rooms for Selected Grade */}
-          <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 space-y-2">
+          <div className="bg-slate-50 dark:bg-[#0d1613]/70 border border-slate-200 dark:border-emerald-950/60 rounded-2xl p-4 space-y-2">
             <div className="flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200">
               <span className="flex items-center gap-1.5">
-                <Users className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                <Users className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
                 <span>ห้องเรียนระดับชั้น {selectedBaseGrade} ที่กำหนดไว้:</span>
               </span>
-              <span className="font-mono text-indigo-600 dark:text-indigo-400 tabular-nums">
+              <span className="font-mono text-emerald-700 dark:text-emerald-400 tabular-nums">
                 {plan.availableTargetRooms.length} ห้อง
               </span>
             </div>
@@ -564,7 +564,7 @@ export const SplitWorksheetsModal: React.FC<SplitWorksheetsModalProps> = ({
                 {plan.availableTargetRooms.map((room) => (
                   <div
                     key={room}
-                    className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs flex items-center gap-2 tabular-nums"
+                    className="px-3 py-1.5 bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-xl text-xs flex items-center gap-2 tabular-nums"
                   >
                     <span className="font-bold text-slate-800 dark:text-slate-100">{room}</span>
                     <span className="text-slate-500 dark:text-slate-400">
@@ -592,7 +592,7 @@ export const SplitWorksheetsModal: React.FC<SplitWorksheetsModalProps> = ({
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200">
                   <span className="flex items-center gap-1.5">
-                    <Layers className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <Layers className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
                     <span>รายการใบงานที่จะโยก/แยกตามห้อง ({plan.items.length} เรื่อง):</span>
                   </span>
                   <span className="text-slate-500 dark:text-slate-400 font-normal tabular-nums">
@@ -604,30 +604,30 @@ export const SplitWorksheetsModal: React.FC<SplitWorksheetsModalProps> = ({
                   {plan.items.map((item) => (
                     <div
                       key={item.sourceAssignment.id}
-                      className="p-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2"
+                      className="p-3.5 bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-xl space-y-2"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white">
-                            <FileText className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                            <FileText className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" />
                             <span className="truncate">{item.sourceAssignment.title}</span>
                           </div>
                           <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                             วิชา {item.sourceAssignment.subject} · เดิมอยู่ใน: <strong>{item.sourceAssignment.gradeLevel}</strong>
                           </p>
                         </div>
-                        <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 shrink-0 tabular-nums">
+                        <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 shrink-0 tabular-nums">
                           ย้ายส่งงาน {item.movedSubmissionsCount} คน
                         </span>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-100 dark:border-slate-800 text-[11px]">
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-100 dark:border-emerald-950/50 text-[11px]">
                         <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         <span className="text-slate-500 dark:text-slate-400">แยกเก็บลง:</span>
                         {item.targetRooms.map((tr) => (
                           <span
                             key={tr.room}
-                            className="px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-semibold tabular-nums"
+                            className="px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-semibold tabular-nums"
                           >
                             {tr.room} ({tr.submissionCount} ส่งงาน)
                           </span>
@@ -642,11 +642,11 @@ export const SplitWorksheetsModal: React.FC<SplitWorksheetsModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex items-center justify-end gap-2.5">
+        <div className="px-6 py-4 border-t border-slate-200 dark:border-emerald-950/60 bg-slate-50/90 dark:bg-[#0d1613] flex items-center justify-end gap-2.5">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold cursor-pointer"
+            className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-emerald-950/60 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold cursor-pointer"
           >
             ปิด
           </button>
@@ -654,7 +654,7 @@ export const SplitWorksheetsModal: React.FC<SplitWorksheetsModalProps> = ({
             <button
               type="button"
               onClick={() => setIsConfirmOpen(true)}
-              className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer"
+              className="px-5 py-2 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer"
             >
               <FolderGit2 className="w-4 h-4" />
               <span>
@@ -677,7 +677,7 @@ export const SplitWorksheetsModal: React.FC<SplitWorksheetsModalProps> = ({
           { label: 'รายการส่งงานที่จะจัดเข้าห้อง', value: `${plan.upsertSubmissions.length} รายการ` },
         ]}
         confirmLabel="ยืนยันโยกใบงาน"
-        variant="indigo"
+        variant="emerald"
         onConfirm={async () => {
           setIsConfirmOpen(false);
           await onExecuteMigration(plan);

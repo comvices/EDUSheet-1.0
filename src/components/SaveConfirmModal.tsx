@@ -46,16 +46,12 @@ export const SaveConfirmModal: React.FC<SaveConfirmModalProps> = ({
   const iconBoxClasses =
     variant === 'amber'
       ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400'
-      : variant === 'indigo'
-      ? 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400'
-      : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400';
+      : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400';
 
   const confirmBtnClasses =
     variant === 'amber'
       ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-500/20'
-      : variant === 'indigo'
-      ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/20'
-      : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20';
+      : 'bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 shadow-emerald-900/20';
 
   return (
     <div
@@ -66,7 +62,7 @@ export const SaveConfirmModal: React.FC<SaveConfirmModalProps> = ({
         }
       }}
     >
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-md shadow-2xl p-5 sm:p-6 space-y-4 animate-in zoom-in-95 duration-200">
+      <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-2xl w-full max-w-md shadow-2xl p-5 sm:p-6 space-y-4 animate-in zoom-in-95 duration-200">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
             <div
@@ -95,7 +91,7 @@ export const SaveConfirmModal: React.FC<SaveConfirmModalProps> = ({
         </div>
 
         {details.length > 0 && (
-          <div className="bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 rounded-xl p-3.5 space-y-2 text-xs">
+          <div className="bg-slate-50 dark:bg-[#0d1613]/80 border border-slate-200 dark:border-emerald-950/60 rounded-xl p-3.5 space-y-2 text-xs">
             {details.map((item, idx) => (
               <div
                 key={`${item.label}_${idx}`}
@@ -123,7 +119,7 @@ export const SaveConfirmModal: React.FC<SaveConfirmModalProps> = ({
           <button
             type="button"
             onClick={onConfirm}
-            className={`flex-1 py-2.5 px-4 text-white rounded-xl text-xs font-bold shadow-md transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${confirmBtnClasses}`}
+            className={`flex-1 py-2.5 px-4 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${confirmBtnClasses}`}
           >
             <CheckCircle2 className="w-4 h-4" />
             <span>{confirmLabel}</span>

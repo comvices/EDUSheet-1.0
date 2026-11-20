@@ -352,11 +352,11 @@ export const CreateClassroomModal: React.FC<CreateClassroomModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in zoom-in-95 duration-200">
+      <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-emerald-950/60 bg-slate-50/90 dark:bg-[#0d1613]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-700 to-teal-700 text-white flex items-center justify-center shadow-md shadow-emerald-900/20">
               <BookOpen className="w-5 h-5" />
             </div>
             <div>
@@ -391,7 +391,7 @@ export const CreateClassroomModal: React.FC<CreateClassroomModalProps> = ({
                 <button
                   type="button"
                   onClick={handleApplyW22103Preset}
-                  className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-indigo-200 dark:border-indigo-800 bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+                  className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-emerald-200 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-colors inline-flex items-center gap-1.5 cursor-pointer"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>โหลดโครงสร้างตัวอย่าง ว22103 (4 หน่วย)</span>
@@ -401,7 +401,7 @@ export const CreateClassroomModal: React.FC<CreateClassroomModalProps> = ({
                   onClick={() => setIsPublished(!isPublished)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors inline-flex items-center gap-1.5 cursor-pointer ${
                     isPublished
-                      ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
                       : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
                   }`}
                 >
@@ -422,7 +422,7 @@ export const CreateClassroomModal: React.FC<CreateClassroomModalProps> = ({
                   value={courseCode}
                   onChange={(e) => setCourseCode(e.target.value)}
                   placeholder="เช่น ว22103, ค31101"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-semibold text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-emerald-950/60 rounded-xl text-xs font-mono font-semibold text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
                 />
                 {errors.courseCode && (
                   <p className="text-[11px] text-rose-500 mt-1">{errors.courseCode}</p>
@@ -439,7 +439,7 @@ export const CreateClassroomModal: React.FC<CreateClassroomModalProps> = ({
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="เช่น วิทยาการคำนวณ 2 (การออกแบบอัลกอริทึมและไพทอน)"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-emerald-950/60 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
                 />
                 {errors.title && <p className="text-[11px] text-rose-500 mt-1">{errors.title}</p>}
               </div>
@@ -454,7 +454,7 @@ export const CreateClassroomModal: React.FC<CreateClassroomModalProps> = ({
                   <select
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-emerald-950/60 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
                   >
                     {!selectableSubjects.includes(subject) && subject && (
                       <option value={subject}>{subject}</option>
@@ -471,7 +471,7 @@ export const CreateClassroomModal: React.FC<CreateClassroomModalProps> = ({
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
                     placeholder="ระบุชื่อรายวิชา เช่น วิทยาการคำนวณ"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-emerald-950/60 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
                   />
                 )}
                 {errors.subject && (
@@ -481,13 +481,13 @@ export const CreateClassroomModal: React.FC<CreateClassroomModalProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-                  <GraduationCap className="w-3.5 h-3.5 text-indigo-500" />
+                  <GraduationCap className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                   <span>ระดับชั้น / ห้องเรียนเป้าหมาย</span>
                 </label>
                 <select
                   value={gradeLevel}
                   onChange={(e) => setGradeLevel(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-emerald-950/60 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
                 >
                   <option value="ทั้งหมด">ทั้งหมด (ทุกระดับชั้น)</option>
                   {!selectableGrades.includes(gradeLevel) &&
@@ -513,7 +513,7 @@ export const CreateClassroomModal: React.FC<CreateClassroomModalProps> = ({
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="อธิบายขอบเขตเนื้อหา แนวทางการเรียน และการวัดผลประเมินผล..."
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500 resize-none"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-emerald-950/60 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600 resize-none"
                 />
               </div>
 
@@ -527,7 +527,7 @@ export const CreateClassroomModal: React.FC<CreateClassroomModalProps> = ({
                   value={objectives}
                   onChange={(e) => setObjectives(e.target.value)}
                   placeholder="เช่น 1. เข้าใจแนวคิดเชิงคำนวณ  2. ออกแบบอัลกอริทึมแก้ปัญหาได้..."
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500 resize-none"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-emerald-950/60 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600 resize-none"
                 />
               </div>
             </div>
@@ -536,7 +536,7 @@ export const CreateClassroomModal: React.FC<CreateClassroomModalProps> = ({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <ImageIcon className="w-3.5 h-3.5 text-indigo-500" />
+                  <ImageIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                   <span>รูปภาพหน้าปกห้องเรียน (แนบหรือไม่ก็ได้)</span>
                 </label>
                 {coverUrl && (
@@ -566,9 +566,9 @@ export const CreateClassroomModal: React.FC<CreateClassroomModalProps> = ({
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isProcessingCover}
-                  className="sm:col-span-5 py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                  className="sm:col-span-5 py-2.5 px-4 bg-slate-100 dark:bg-slate-800/80 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 border border-slate-200 dark:border-emerald-950/60 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2 cursor-pointer transition-colors"
                 >
-                  <Upload className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <Upload className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
                   <span>{isProcessingCover ? 'กำลังปรับขนาด...' : 'อัปโหลดรูปหน้าปก'}</span>
                 </button>
 
@@ -580,12 +580,12 @@ export const CreateClassroomModal: React.FC<CreateClassroomModalProps> = ({
                     setCoverPreviewError(false);
                   }}
                   placeholder="หรือวางลิงก์รูปภาพหน้าปก (https://...)"
-                  className="sm:col-span-7 px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                  className="sm:col-span-7 px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-emerald-950/60 rounded-xl text-xs font-mono text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
                 />
               </div>
 
               {sanitizeImageSrc(coverUrl) && !coverPreviewError && (
-                <div className="aspect-video max-h-40 w-full rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800">
+                <div className="aspect-video max-h-40 w-full rounded-2xl overflow-hidden border border-slate-200 dark:border-emerald-950/60 bg-slate-100 dark:bg-slate-800">
                   <img
                     src={sanitizeImageSrc(coverUrl) || ''}
                     alt="ตัวอย่างหน้าปกห้องเรียน"
@@ -599,11 +599,11 @@ export const CreateClassroomModal: React.FC<CreateClassroomModalProps> = ({
           </div>
 
           {/* Section 2: Learning Units Builder */}
-          <div className="pt-5 border-t border-slate-200 dark:border-slate-800 space-y-4">
+          <div className="pt-5 border-t border-slate-200 dark:border-emerald-950/60 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <h3 className="text-sm font-bold font-prompt text-slate-900 dark:text-white flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <Layers className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
                   <span>02. โครงสร้างหน่วยการเรียนรู้และเนื้อหา ({units.length} หน่วย)</span>
                 </h3>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400">
@@ -613,7 +613,7 @@ export const CreateClassroomModal: React.FC<CreateClassroomModalProps> = ({
               <button
                 type="button"
                 onClick={handleAddUnit}
-                className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold inline-flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer self-start sm:self-auto shrink-0"
+                className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold inline-flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer self-start sm:self-auto shrink-0"
               >
                 <Plus className="w-4 h-4" />
                 <span>เพิ่มหน่วยการเรียนรู้</span>
@@ -635,16 +635,16 @@ export const CreateClassroomModal: React.FC<CreateClassroomModalProps> = ({
                 return (
                   <div
                     key={unit.id}
-                    className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-800/30"
+                    className="border border-slate-200 dark:border-emerald-950/60 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-[#0d1613]/60"
                   >
                     {/* Unit Header Row */}
-                    <div className="px-4 py-3 bg-white dark:bg-slate-900/80 flex items-center justify-between gap-2">
+                    <div className="px-4 py-3 bg-white dark:bg-[#111c18]/90 flex items-center justify-between gap-2">
                       <button
                         type="button"
                         onClick={() => setExpandedUnitId(isExpanded ? null : unit.id)}
                         className="flex-1 text-left flex items-center gap-3 min-w-0 cursor-pointer"
                       >
-                        <span className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 font-mono text-xs font-bold flex items-center justify-center shrink-0">
+                        <span className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 font-mono text-xs font-bold flex items-center justify-center shrink-0">
                           {idx + 1}
                         </span>
                         <div className="min-w-0">
@@ -692,7 +692,7 @@ export const CreateClassroomModal: React.FC<CreateClassroomModalProps> = ({
 
                     {/* Unit Editor Body */}
                     {isExpanded && (
-                      <div className="p-4 border-t border-slate-200 dark:border-slate-800 space-y-4">
+                      <div className="p-4 border-t border-slate-200 dark:border-emerald-950/60 space-y-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div className="sm:col-span-2">
                             <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
@@ -703,7 +703,7 @@ export const CreateClassroomModal: React.FC<CreateClassroomModalProps> = ({
                               value={unit.title}
                               onChange={(e) => handleUpdateUnit(unit.id, { title: e.target.value })}
                               placeholder={`เช่น หน่วยที่ ${idx + 1}: แนวคิดเชิงคำนวณเบื้องต้น`}
-                              className="w-full px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                              className="w-full px-3.5 py-2 bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
                             />
                           </div>
 
@@ -718,15 +718,15 @@ export const CreateClassroomModal: React.FC<CreateClassroomModalProps> = ({
                                 handleUpdateUnit(unit.id, { description: e.target.value })
                               }
                               placeholder="สรุปหัวข้อที่เรียน คำแนะนำสำหรับนักเรียน หรือขั้นตอนการศึกษาบทเรียน..."
-                              className="w-full px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500 resize-none"
+                              className="w-full px-3.5 py-2 bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600 resize-none"
                             />
                           </div>
                         </div>
 
                         {/* Optional Inline Lesson Media Link */}
-                        <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2.5">
+                        <div className="p-3 bg-white dark:bg-[#111c18] rounded-xl border border-slate-200 dark:border-emerald-950/60 space-y-2.5">
                           <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                            <LinkIcon className="w-3.5 h-3.5 text-indigo-500" />
+                            <LinkIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                             <span>แนบลิงก์สื่อ / วิดีโอ / สไลด์ประจำบท (ถ้ามี)</span>
                           </span>
                           <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
@@ -767,9 +767,9 @@ export const CreateClassroomModal: React.FC<CreateClassroomModalProps> = ({
 
                         {/* Link Existing Assignments & Resources */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2">
+                          <div className="p-3 bg-white dark:bg-[#111c18] rounded-xl border border-slate-200 dark:border-emerald-950/60 space-y-2">
                             <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                              <FileText className="w-3.5 h-3.5 text-indigo-500" />
+                              <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                               <span>เชื่อมโยงใบงานในหน่วยนี้ ({linkedAsgCount})</span>
                             </span>
                             {sortedAssignments.length === 0 ? (
@@ -783,8 +783,8 @@ export const CreateClassroomModal: React.FC<CreateClassroomModalProps> = ({
                                       key={asg.id}
                                       className={`flex items-start gap-2 p-2 rounded-lg border text-[11px] cursor-pointer transition-colors ${
                                         checked
-                                          ? 'bg-indigo-50 dark:bg-indigo-950/50 border-indigo-300 dark:border-indigo-700 text-indigo-900 dark:text-indigo-200 font-semibold'
-                                          : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/70'
+                                          ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200 font-semibold'
+                                          : 'border-slate-200 dark:border-emerald-950/50 hover:bg-slate-50 dark:hover:bg-slate-800/70'
                                       }`}
                                     >
                                       <input
@@ -793,7 +793,7 @@ export const CreateClassroomModal: React.FC<CreateClassroomModalProps> = ({
                                         onChange={() =>
                                           handleToggleUnitLink(unit.id, 'linkedAssignmentIds', asg.id)
                                         }
-                                        className="mt-0.5 accent-indigo-600"
+                                        className="mt-0.5 accent-emerald-700"
                                       />
                                       <div className="min-w-0">
                                         <p className="truncate">{asg.title}</p>
@@ -808,9 +808,9 @@ export const CreateClassroomModal: React.FC<CreateClassroomModalProps> = ({
                             )}
                           </div>
 
-                          <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2">
+                          <div className="p-3 bg-white dark:bg-[#111c18] rounded-xl border border-slate-200 dark:border-emerald-950/60 space-y-2">
                             <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                              <FolderOpen className="w-3.5 h-3.5 text-indigo-500" />
+                              <FolderOpen className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                               <span>เชื่อมโยงสื่อจากคลังสื่อ ({linkedResCount})</span>
                             </span>
                             {sortedResources.length === 0 ? (
@@ -824,8 +824,8 @@ export const CreateClassroomModal: React.FC<CreateClassroomModalProps> = ({
                                       key={res.id}
                                       className={`flex items-start gap-2 p-2 rounded-lg border text-[11px] cursor-pointer transition-colors ${
                                         checked
-                                          ? 'bg-indigo-50 dark:bg-indigo-950/50 border-indigo-300 dark:border-indigo-700 text-indigo-900 dark:text-indigo-200 font-semibold'
-                                          : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/70'
+                                          ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200 font-semibold'
+                                          : 'border-slate-200 dark:border-emerald-950/50 hover:bg-slate-50 dark:hover:bg-slate-800/70'
                                       }`}
                                     >
                                       <input
@@ -834,7 +834,7 @@ export const CreateClassroomModal: React.FC<CreateClassroomModalProps> = ({
                                         onChange={() =>
                                           handleToggleUnitLink(unit.id, 'linkedResourceIds', res.id)
                                         }
-                                        className="mt-0.5 accent-indigo-600"
+                                        className="mt-0.5 accent-emerald-700"
                                       />
                                       <div className="min-w-0">
                                         <p className="truncate">{res.title}</p>
@@ -858,7 +858,7 @@ export const CreateClassroomModal: React.FC<CreateClassroomModalProps> = ({
           </div>
 
           {/* Footer Submit */}
-          <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-2.5">
+          <div className="pt-4 border-t border-slate-200 dark:border-emerald-950/60 flex justify-end gap-2.5">
             <button
               type="button"
               onClick={onClose}
@@ -868,7 +868,7 @@ export const CreateClassroomModal: React.FC<CreateClassroomModalProps> = ({
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md transition-colors inline-flex items-center gap-2 cursor-pointer"
+              className="px-6 py-2.5 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-900/15 transition-all inline-flex items-center gap-2 cursor-pointer"
             >
               <Save className="w-4 h-4" />
               <span>{editingClassroom ? 'บันทึกการแก้ไขห้องเรียน' : 'สร้างห้องเรียนรายวิชา'}</span>
@@ -900,7 +900,7 @@ export const CreateClassroomModal: React.FC<CreateClassroomModalProps> = ({
             : []
         }
         confirmLabel={editingClassroom ? 'ยืนยันบันทึกการแก้ไข' : 'ยืนยันสร้างห้องเรียน'}
-        variant="indigo"
+        variant="emerald"
         onConfirm={() => {
           if (!pendingClassroom) return;
           onSaveClassroom(pendingClassroom);

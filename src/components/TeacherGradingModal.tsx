@@ -210,11 +210,11 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900/80">
+        <div className="px-6 py-4 border-b border-slate-200 dark:border-emerald-950/60 flex items-center justify-between bg-slate-50/90 dark:bg-[#0d1613]">
           <div>
-            <div className="flex items-center gap-2 text-xs text-indigo-600 dark:text-indigo-400 font-medium mb-0.5">
+            <div className="flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-400 font-medium mb-0.5">
               <span>โหมดครูตรวจงาน</span>
               <span aria-hidden="true">·</span>
               <span>{assignment.gradeLevel}</span>
@@ -237,9 +237,9 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
         {/* Content */}
         <div className="p-6 overflow-y-auto space-y-6 flex-1 text-slate-800 dark:text-slate-200">
           {/* Student Info Card */}
-          <div className="flex items-center justify-between p-4 bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 rounded-xl">
+          <div className="flex items-center justify-between p-4 bg-emerald-50/60 dark:bg-emerald-950/35 border border-emerald-200/80 dark:border-emerald-900/50 rounded-xl">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm">
+              <div className="w-10 h-10 rounded-full bg-emerald-700 text-white flex items-center justify-center font-bold text-sm">
                 <User className="w-5 h-5" />
               </div>
               <div>
@@ -259,7 +259,7 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
                   ? new Date(submission.submissionDate).toLocaleString('th-TH')
                   : '-'}
               </p>
-              <p className="font-semibold text-indigo-600 dark:text-indigo-400">
+              <p className="font-semibold text-emerald-700 dark:text-emerald-400">
                 คะแนนเต็ม {assignment.totalPoints} คะแนน
               </p>
             </div>
@@ -269,7 +269,7 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
           {submission?.files && submission.files.length > 0 && (
             <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2">
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300">
-                <Paperclip className="w-3.5 h-3.5 text-indigo-500" />
+                <Paperclip className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
                 <span>ไฟล์แนบจากนักเรียน ({submission.files.length} ไฟล์):</span>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -279,7 +279,7 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
                     href={f.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[#111c18] border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-emerald-700 dark:text-emerald-400 hover:underline"
                   >
                     <span>{f.name}</span>
                     {f.size && <span className="text-[10px] text-slate-400">({f.size})</span>}
@@ -290,16 +290,16 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
           )}
 
           {/* AI Grading Trigger Banner */}
-          <div className="p-4 bg-gradient-to-r from-violet-600 to-indigo-600 rounded-xl text-white shadow-md flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="relative overflow-hidden p-4 bg-gradient-to-r from-[#0d261d] via-[#133b2e] to-teal-800 rounded-xl text-white shadow-md border border-emerald-400/20 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-white/20 rounded-xl backdrop-blur">
-                <Sparkles className="w-6 h-6 text-yellow-300" />
+              <div className="p-2.5 bg-white/15 rounded-xl backdrop-blur border border-white/15">
+                <Sparkles className="w-6 h-6 text-amber-300" />
               </div>
               <div>
                 <h4 className="text-sm font-bold font-prompt">
                   ระบบช่วยตรวจใบงานอัตโนมัติด้วย Gemini AI (ตรวจละเอียดรายข้อ)
                 </h4>
-                <p className="text-xs text-violet-100">
+                <p className="text-xs text-emerald-100/90">
                   ตรวจเทียบเฉลยทีละข้อ คำนวณคะแนนตามเกณฑ์จริง แจกแจงเหตุผลรายข้อ และสรุปคำแนะนำให้ครูตรวจสอบ
                 </p>
               </div>
@@ -309,7 +309,7 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
               type="button"
               onClick={handleRunAiGrading}
               disabled={isAiGrading || !submission}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-white text-indigo-700 hover:bg-indigo-50 text-xs font-bold rounded-lg shadow-sm transition-all shrink-0 cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-white text-emerald-800 hover:bg-emerald-50 text-xs font-bold rounded-lg shadow-sm transition-all shrink-0 cursor-pointer disabled:opacity-50"
             >
               {isAiGrading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               <span>{isAiGrading ? 'กำลังตรวจทีละข้อด้วย AI...' : '🤖 ให้ AI ช่วยตรวจใบงาน'}</span>
@@ -331,10 +331,10 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
 
           {/* AI Results Callout if available */}
           {aiFeedbackResult && (
-            <div className="p-4 bg-violet-50 dark:bg-violet-950/40 border border-violet-200 dark:border-violet-800 rounded-xl space-y-2.5 animate-in fade-in duration-200">
-              <div className="flex flex-wrap items-center justify-between gap-2 font-bold text-xs text-violet-900 dark:text-violet-200">
+            <div className="p-4 bg-emerald-50/80 dark:bg-emerald-950/35 border border-emerald-200 dark:border-emerald-800 rounded-xl space-y-2.5 animate-in fade-in duration-200">
+              <div className="flex flex-wrap items-center justify-between gap-2 font-bold text-xs text-emerald-950 dark:text-emerald-200">
                 <span className="flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                  <Sparkles className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
                   ผลการวิเคราะห์จาก Gemini AI (ตรวจเทียบเกณฑ์รายข้อ)
                 </span>
                 <div className="flex items-center gap-2">
@@ -343,7 +343,7 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
                       แนะนำ: ส่งกลับแก้ไข
                     </span>
                   )}
-                  <span className="font-mono text-indigo-700 dark:text-indigo-300 bg-white dark:bg-slate-900 px-2.5 py-0.5 rounded-lg border border-violet-200 dark:border-violet-800">
+                  <span className="font-mono text-emerald-800 dark:text-emerald-300 bg-white dark:bg-[#111c18] px-2.5 py-0.5 rounded-lg border border-emerald-200 dark:border-emerald-800">
                     คะแนนที่แนะนำ: {aiFeedbackResult.suggestedScore} / {assignment.totalPoints}
                   </span>
                 </div>
@@ -424,9 +424,9 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
                   </div>
 
                   {/* Student Answer */}
-                  <div className="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-sm sm:text-[15px] space-y-3">
+                  <div className="p-3.5 bg-white dark:bg-[#111c18] rounded-xl border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-sm sm:text-[15px] space-y-3">
                     <div>
-                      <span className="font-semibold text-indigo-600 dark:text-indigo-400 block mb-1.5 text-xs">
+                      <span className="font-semibold text-emerald-700 dark:text-emerald-400 block mb-1.5 text-xs">
                         คำตอบของนักเรียน:
                       </span>
                       <p className="whitespace-pre-wrap leading-relaxed font-sans">{studentAnswer}</p>
@@ -447,7 +447,7 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
                                 label: `ภาพคำตอบของ ${submission?.studentName || 'นักเรียน'} - ข้อที่ ${idx + 1}`,
                               })
                             }
-                            className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-md transition-colors cursor-pointer"
+                            className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 rounded-md transition-colors cursor-pointer"
                           >
                             <ZoomIn className="w-3 h-3" />
                             <span>คลิกขยายดูภาพใหญ่</span>
@@ -461,7 +461,7 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
                               label: `ภาพคำตอบของ ${submission?.studentName || 'นักเรียน'} - ข้อที่ ${idx + 1}`,
                             })
                           }
-                          className="block w-full bg-slate-50 dark:bg-slate-950/60 p-2 rounded-xl border border-slate-200 dark:border-slate-700 cursor-zoom-in hover:border-indigo-400 transition-colors"
+                          className="block w-full bg-slate-50 dark:bg-slate-950/60 p-2 rounded-xl border border-slate-200 dark:border-slate-700 cursor-zoom-in hover:border-emerald-500 transition-colors"
                         >
                           <img
                             src={studentImage}
@@ -483,15 +483,15 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
 
                   {/* Per-question AI Evaluation & Editable Score */}
                   {itemEval && (
-                    <div className="p-3 bg-violet-50/80 dark:bg-violet-950/30 rounded-xl border border-violet-200 dark:border-violet-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="text-xs text-violet-950 dark:text-violet-200 space-y-0.5">
-                        <span className="font-bold text-violet-700 dark:text-violet-300 block">
+                    <div className="p-3 bg-teal-50/80 dark:bg-teal-950/30 rounded-xl border border-teal-200 dark:border-teal-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="text-xs text-teal-950 dark:text-teal-200 space-y-0.5">
+                        <span className="font-bold text-teal-800 dark:text-teal-300 block">
                           🤖 ความเห็น AI ข้อที่ {idx + 1}:
                         </span>
                         <p className="leading-relaxed">{itemEval.comment}</p>
                       </div>
 
-                      <div className="flex items-center gap-1.5 shrink-0 bg-white dark:bg-slate-900 px-2.5 py-1.5 rounded-lg border border-violet-200 dark:border-violet-800">
+                      <div className="flex items-center gap-1.5 shrink-0 bg-white dark:bg-[#111c18] px-2.5 py-1.5 rounded-lg border border-teal-200 dark:border-teal-800">
                         <span className="text-[11px] font-semibold text-slate-500">คะแนนข้อนี้:</span>
                         <input
                           type="number"
@@ -500,7 +500,7 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
                           max={itemEval.maxScore}
                           value={itemEval.score}
                           onChange={(e) => handleAdjustItemScore(idx, Number(e.target.value))}
-                          className="w-14 px-1.5 py-0.5 text-center font-mono font-bold text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-indigo-700 dark:text-indigo-300"
+                          className="w-14 px-1.5 py-0.5 text-center font-mono font-bold text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-emerald-700 dark:text-emerald-300"
                         />
                         <span className="text-xs font-mono text-slate-500">/ {itemEval.maxScore}</span>
                       </div>
@@ -512,9 +512,9 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
           </div>
 
           {/* Grading Input Form */}
-          <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-4">
+          <div className="p-4 bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-xl space-y-4">
             <h3 className="text-sm font-bold font-prompt text-slate-900 dark:text-white flex items-center gap-2">
-              <Award className="w-4 h-4 text-indigo-600" />
+              <Award className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
               <span>สรุปคะแนนและข้อเสนอแนะของครู</span>
             </h3>
 
@@ -530,7 +530,7 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
                   max={assignment.totalPoints}
                   value={score}
                   onChange={(e) => setScore(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-sm font-bold font-mono text-indigo-600 dark:text-indigo-400 focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-sm font-bold font-mono text-emerald-700 dark:text-emerald-400 focus:ring-2 focus:ring-emerald-600 focus:outline-hidden"
                 />
               </div>
 
@@ -543,7 +543,7 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
                   value={teacherComment}
                   onChange={(e) => setTeacherComment(e.target.value)}
                   placeholder="พิมพ์ข้อความให้กำลังใจ หรือสิ่งที่ควรแก้ไขเพิ่มเติม..."
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-600 focus:outline-hidden"
                 />
               </div>
             </div>
@@ -551,7 +551,7 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
         </div>
 
         {/* Footer Buttons */}
-        <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex items-center justify-between">
+        <div className="px-6 py-4 border-t border-slate-200 dark:border-emerald-950/60 bg-slate-50/90 dark:bg-[#0d1613] flex items-center justify-between">
           <button
             type="button"
             onClick={onClose}
@@ -638,7 +638,7 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
           onClick={() => setPreviewImage(null)}
         >
           <div
-            className="relative max-w-4xl w-full bg-white dark:bg-slate-900 rounded-2xl p-3 shadow-2xl border border-slate-200 dark:border-slate-700"
+            className="relative max-w-4xl w-full bg-white dark:bg-[#111c18] rounded-2xl p-3 shadow-2xl border border-slate-200 dark:border-emerald-900/60"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-2 pb-2 mb-2 border-b border-slate-200 dark:border-slate-800">

@@ -120,6 +120,40 @@ const getInitialStorage = <T,>(key: string, defaultValue: T): T => {
   return defaultValue;
 };
 
+const normalizeStudentCode = (code?: string): string => (code || '').trim().toUpperCase();
+
+const SUBMISSION_STATUS_RANK: Record<Submission['status'], number> = {
+  graded: 4,
+  needs_revision: 3,
+  submitted: 2,
+  pending: 1,
+  overdue: 0,
+};
+
+const matchesStudentSubmission = (
+  sub: Submission,
+  student: Pick<StudentProfile, 'id' | 'code'>
+): boolean => {
+  const normCode = normalizeStudentCode(student.code);
+  const normId = (student.id || '').trim();
+  const matchCode = Boolean(normCode) && normalizeStudentCode(sub.studentCode) === normCode;
+  const matchId = Boolean(normId) && (sub.studentId || '').trim() === normId;
+  return matchCode || matchId;
+};
+
+const pickBestSubmission = (candidates: Submission[]): Submission | undefined => {
+  if (candidates.length === 0) return undefined;
+  return [...candidates].sort((a, b) => {
+    const rankDiff = (SUBMISSION_STATUS_RANK[b.status] ?? 0) - (SUBMISSION_STATUS_RANK[a.status] ?? 0);
+    if (rankDiff !== 0) return rankDiff;
+    const scoreDiff = (typeof b.score === 'number' ? 1 : 0) - (typeof a.score === 'number' ? 1 : 0);
+    if (scoreDiff !== 0) return scoreDiff;
+    const tsB = new Date(b.gradedAt || b.submissionDate).getTime() || 0;
+    const tsA = new Date(a.gradedAt || a.submissionDate).getTime() || 0;
+    return tsB - tsA;
+  })[0];
+};
+
 export default function App() {
   // Roster & Dynamic Student User Management State (loaded exclusively from Firestore, never auto-seeded)
   const [studentsRoster, setStudentsRoster] = useState<StudentProfile[]>([]);
@@ -393,17 +427,25 @@ export default function App() {
     const matchedAsg = assignments.find((a) => a.id === assignmentId);
     if (!matchedAsg) return;
 
-    const existingSubIdx = submissions.findIndex(
-      (s) => s.assignmentId === assignmentId && (s.studentId === currentStudentUser.id || s.studentCode === currentStudentUser.code)
+    const bestExisting = pickBestSubmission(
+      submissions.filter(
+        (s) => s.assignmentId === assignmentId && matchesStudentSubmission(s, currentStudentUser)
+      )
     );
+    const existingSubIdx = bestExisting
+      ? submissions.findIndex((s) => s.id === bestExisting.id)
+      : -1;
+
+    const cleanCode = (currentStudentUser.code || currentStudentUser.id || 'UNKNOWN').trim().slice(0, 64);
+    const cleanGrade = (currentStudentUser.gradeLevel || matchedAsg.gradeLevel || 'ทั่วไป').trim().slice(0, 50);
 
     const newSub: Submission = {
       id: existingSubIdx >= 0 ? submissions[existingSubIdx].id : `sub_${Date.now()}`,
       assignmentId,
       studentId: currentStudentUser.id,
       studentName: currentStudentUser.name,
-      studentCode: currentStudentUser.code,
-      gradeLevel: currentStudentUser.gradeLevel,
+      studentCode: cleanCode,
+      gradeLevel: cleanGrade,
       submissionDate: new Date().toISOString(),
       answers,
       answerImages: answerImages || {},
@@ -559,33 +601,50 @@ export default function App() {
     status: 'graded' | 'needs_revision'
   ) => {
     const nowIso = new Date().toISOString();
+    const cleanComment = (comment || '').trim().slice(0, 3000);
+    const cleanCode = (student.code || student.id || 'UNKNOWN').trim().slice(0, 64);
+    const cleanGrade = (student.gradeLevel || assignment.gradeLevel || 'ทั่วไป').trim().slice(0, 50);
+    const resolvedExisting =
+      existingSubmission ||
+      pickBestSubmission(
+        submissions.filter(
+          (s) => s.assignmentId === assignment.id && matchesStudentSubmission(s, student)
+        )
+      );
+
     let savedSubmission: Submission;
 
-    if (existingSubmission) {
+    if (resolvedExisting) {
       savedSubmission = {
-        ...existingSubmission,
+        ...resolvedExisting,
+        studentCode: resolvedExisting.studentCode?.trim() || cleanCode,
+        gradeLevel: resolvedExisting.gradeLevel?.trim() || cleanGrade,
         score,
-        teacherComment: comment,
+        teacherComment: cleanComment,
         status,
         gradedAt: nowIso,
       };
       setSubmissions((prev) =>
-        prev.map((s) => (s.id === existingSubmission.id ? savedSubmission : s))
+        prev.map((s) => (s.id === resolvedExisting.id ? savedSubmission : s))
       );
     } else {
+      const safeAsgPart = (assignment.id || 'asg').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 48);
+      const safeStdPart = (student.code || student.id || 'std').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 32);
+      const safeDocId = `sub_${safeAsgPart}_${safeStdPart}_${Date.now()}`.slice(0, 128);
+
       savedSubmission = {
-        id: `sub_${assignment.id}_${student.code}_${Date.now()}`,
+        id: safeDocId,
         assignmentId: assignment.id,
-        studentId: student.id,
-        studentName: student.name,
-        studentCode: student.code,
-        gradeLevel: student.gradeLevel,
+        studentId: student.id || `std_${safeStdPart}`,
+        studentName: (student.name || cleanCode).trim().slice(0, 200),
+        studentCode: cleanCode,
+        gradeLevel: cleanGrade,
         submissionDate: nowIso,
         answers: {},
         status,
         score,
         maxScore: assignment.totalPoints,
-        teacherComment: comment,
+        teacherComment: cleanComment,
         gradedAt: nowIso,
       };
       setSubmissions((prev) => [savedSubmission, ...prev]);
@@ -998,12 +1057,12 @@ export default function App() {
     if (role === 'teacher') return assignments;
     if (!isLoggedIn) return [];
 
-    const stdGrade = currentStudentUser?.gradeLevel;
-    const stdCode = currentStudentUser?.code;
+    const stdGrade = (currentStudentUser?.gradeLevel || '').trim();
+    const stdCode = normalizeStudentCode(currentStudentUser?.code);
     if (!stdGrade) return [];
 
     // e.g. If stdGrade is "ม.1/1", baseGrade is "ม.1"
-    const baseGrade = stdGrade.includes('/') ? stdGrade.split('/')[0] : stdGrade;
+    const baseGrade = stdGrade.includes('/') ? stdGrade.split('/')[0].trim() : stdGrade;
 
     return assignments.filter((asg) => {
       // 1. Unpublished / draft worksheets are hidden from students
@@ -1011,14 +1070,17 @@ export default function App() {
 
       // 2. If teacher specified individual student codes, enforce strict per-student match
       if (asg.assignedStudentCodes && asg.assignedStudentCodes.length > 0) {
-        return Boolean(stdCode && asg.assignedStudentCodes.includes(stdCode));
+        return Boolean(
+          stdCode && asg.assignedStudentCodes.some((c) => normalizeStudentCode(c) === stdCode)
+        );
       }
 
       // 3. Class/Room level assignment matching
-      if (asg.gradeLevel === stdGrade) return true;
-      if (asg.gradeLevel === 'ทั้งหมด') return true;
-      if (asg.gradeLevel === `${baseGrade} (ทุกห้อง)`) return true;
-      if (!asg.gradeLevel.includes('/') && asg.gradeLevel === baseGrade) return true;
+      const asgGrade = (asg.gradeLevel || '').trim();
+      if (asgGrade === stdGrade) return true;
+      if (asgGrade === 'ทั้งหมด') return true;
+      if (asgGrade === `${baseGrade} (ทุกห้อง)`) return true;
+      if (!asgGrade.includes('/') && asgGrade === baseGrade) return true;
       return false;
     });
   }, [assignments, role, isLoggedIn, currentStudentUser?.gradeLevel, currentStudentUser?.code]);
@@ -1027,11 +1089,7 @@ export default function App() {
   const visibleSubmissions = React.useMemo(() => {
     if (role === 'teacher') return submissions;
     if (!isLoggedIn) return [];
-    return submissions.filter(
-      (s) =>
-        s.studentCode === currentStudentUser.code ||
-        s.studentId === currentStudentUser.id
-    );
+    return submissions.filter((s) => matchesStudentSubmission(s, currentStudentUser));
   }, [submissions, role, isLoggedIn, currentStudentUser?.code, currentStudentUser?.id]);
 
   // Strict Notification Isolation for students (only for worksheets assigned to them)
@@ -1046,13 +1104,15 @@ export default function App() {
 
   // Helper: check if a student grade/room matches a target gradeLevel string
   const studentMatchesGradeTarget = React.useCallback((studentGrade: string | undefined, targetGrade: string | undefined) => {
-    if (!studentGrade) return false;
-    if (!targetGrade || targetGrade === 'ทั้งหมด') return true;
-    if (studentGrade === targetGrade) return true;
-    const baseStudent = studentGrade.includes('/') ? studentGrade.split('/')[0] : studentGrade;
-    const normalizedTarget = targetGrade.replace(/\s*\(ทุกห้อง\)$/, '').trim();
+    const cleanStudent = (studentGrade || '').trim();
+    if (!cleanStudent) return false;
+    const cleanTarget = (targetGrade || '').trim();
+    if (!cleanTarget || cleanTarget === 'ทั้งหมด') return true;
+    if (cleanStudent === cleanTarget) return true;
+    const baseStudent = cleanStudent.includes('/') ? cleanStudent.split('/')[0].trim() : cleanStudent;
+    const normalizedTarget = cleanTarget.replace(/\s*\(ทุกห้อง\)$/, '').trim();
     if (normalizedTarget === baseStudent) return true;
-    if (!targetGrade.includes('/') && targetGrade === baseStudent) return true;
+    if (!cleanTarget.includes('/') && cleanTarget === baseStudent) return true;
     return false;
   }, []);
 
@@ -1088,7 +1148,10 @@ export default function App() {
 
     attendanceSessions.forEach((ses) => {
       const matchGrade = ses.gradeLevel !== 'ทั้งหมด' && studentMatchesGradeTarget(stdGrade, ses.gradeLevel);
-      const matchRecord = Boolean(stdCode && ses.records?.some((r) => r.studentCode === stdCode));
+      const normStdCode = normalizeStudentCode(stdCode);
+      const matchRecord = Boolean(
+        normStdCode && ses.records?.some((r) => normalizeStudentCode(r.studentCode) === normStdCode)
+      );
       if ((matchGrade || matchRecord) && ses.subject?.trim()) {
         enrolled.add(ses.subject.trim());
       }
@@ -1272,9 +1335,12 @@ export default function App() {
 
   const isGradebookVisibleToCurrentUser =
     role === 'teacher' ||
-    (studentGradebookEnabled &&
-      (!currentStudentUser.gradeLevel ||
-        !gradebookDisabledRooms.includes(currentStudentUser.gradeLevel)));
+    (isLoggedIn &&
+      studentGradebookEnabled &&
+      Boolean(currentStudentUser.gradeLevel?.trim()) &&
+      !gradebookDisabledRooms.some((disabledRoom) =>
+        studentMatchesGradeTarget(currentStudentUser.gradeLevel, disabledRoom)
+      ));
 
   const m6MigrationPlan = React.useMemo(() => {
     if (role !== 'teacher') return null;
@@ -1294,7 +1360,7 @@ export default function App() {
   }, [role, isGradebookVisibleToCurrentUser, activeTab]);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sarabun">
+    <div className="min-h-screen bg-school-canvas text-slate-900 dark:text-slate-100 flex flex-col font-sarabun">
       {/* 3-Zone Header Contract */}
       <Header
         activeTab={activeTab}
@@ -1434,16 +1500,16 @@ export default function App() {
 
                 {/* Actionable Prompt when ม.6 Worksheets need splitting by student room */}
                 {m6MigrationPlan && m6MigrationPlan.items.length > 0 && (
-                  <div className="mb-5 p-4 bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="mb-5 p-4 bg-emerald-50/85 dark:bg-emerald-950/35 border border-emerald-200 dark:border-emerald-800/70 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-start gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
+                      <div className="w-9 h-9 rounded-xl bg-emerald-700 text-white flex items-center justify-center shrink-0">
                         <FolderGit2 className="w-5 h-5" />
                       </div>
                       <div className="text-xs">
-                        <p className="font-bold text-indigo-950 dark:text-indigo-100">
+                        <p className="font-bold text-emerald-950 dark:text-emerald-100">
                           พบใบงานระดับชั้น ม.6 จำนวน {m6MigrationPlan.items.length} เรื่อง ที่ยังไม่ได้แยกตามห้องของนักเรียน
                         </p>
-                        <p className="text-indigo-700 dark:text-indigo-300 mt-0.5">
+                        <p className="text-emerald-700 dark:text-emerald-300 mt-0.5">
                           สามารถโยกไปเก็บเป็นใบงานแยกตามห้อง ({m6MigrationPlan.availableTargetRooms.join(', ')}) พร้อมย้ายรายการส่งงานของนักเรียนให้ตรงห้องอัตโนมัติ
                         </p>
                       </div>
@@ -1451,7 +1517,7 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => setSplitModalState({ isOpen: true, baseGrade: 'ม.6' })}
-                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold whitespace-nowrap shrink-0 cursor-pointer transition-colors"
+                      className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold whitespace-nowrap shrink-0 cursor-pointer transition-colors"
                     >
                       โยกใบงาน ม.6 แยกตามห้อง
                     </button>
@@ -1467,7 +1533,7 @@ export default function App() {
                   </div>
 
                   {filteredHomeAssignments.length === 0 ? (
-                    <div className="text-center py-16 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-400 text-sm space-y-2">
+                    <div className="text-center py-16 bg-white dark:bg-[#111c18] rounded-2xl border border-slate-200/80 dark:border-emerald-950/70 text-slate-400 text-sm space-y-2">
                       <p>ไม่พบใบงานที่ตรงกับเงื่อนไขการค้นหาของคุณ</p>
                       <button
                         onClick={() =>
@@ -1480,7 +1546,7 @@ export default function App() {
                             dateSort: 'due_soon',
                           })
                         }
-                        className="text-xs text-indigo-600 dark:text-indigo-400 underline font-semibold cursor-pointer"
+                        className="text-xs text-emerald-700 dark:text-emerald-400 underline font-semibold cursor-pointer"
                       >
                         ล้างคำค้นหาและตัวกรองทั้งหมด
                       </button>
@@ -1678,7 +1744,7 @@ export default function App() {
               onOpenSettings={role === 'teacher' ? handleOpenSettings : undefined}
             />
           ) : (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-10 text-center space-y-3">
+            <div className="bg-white dark:bg-[#111c18] border border-slate-200/80 dark:border-emerald-950/70 rounded-2xl p-10 text-center space-y-3">
               <p className="text-base font-bold font-prompt text-slate-900 dark:text-white">
                 สมุดเก็บคะแนนถูกปิดการเข้าชมชั่วคราว
               </p>
@@ -1694,7 +1760,7 @@ export default function App() {
       {/* Logout Confirmation Modal */}
       {isLogoutConfirmOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center space-y-4 animate-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center space-y-4 animate-in zoom-in-95 duration-200">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-rose-500 to-pink-500 text-white flex items-center justify-center mx-auto shadow-lg shadow-rose-500/25 ring-4 ring-rose-50 dark:ring-rose-950/50">
               <LogoutIcon className="w-7 h-7" />
             </div>
@@ -1781,10 +1847,12 @@ export default function App() {
         <WorksheetSubmissionModal
           key={`${activeSubmitModalAsg.id}_${currentStudentUser.code}`}
           assignment={activeSubmitModalAsg}
-          submission={submissions.find(
-            (s) =>
-              s.assignmentId === activeSubmitModalAsg.id &&
-              (s.studentCode === currentStudentUser.code || s.studentId === currentStudentUser.id)
+          submission={pickBestSubmission(
+            submissions.filter(
+              (s) =>
+                s.assignmentId === activeSubmitModalAsg.id &&
+                matchesStudentSubmission(s, currentStudentUser)
+            )
           )}
           onClose={() => setActiveSubmitModalAsg(null)}
           onSubmitWorksheet={handleSubmitWorksheet}
@@ -1955,7 +2023,7 @@ export default function App() {
       )}
 
       {/* Clean Footer with fully functional interactive links */}
-      <footer className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-6 text-xs text-slate-500 dark:text-slate-400 mt-auto pb-20 md:pb-6">
+      <footer className="bg-white/90 dark:bg-[#0e1714]/90 backdrop-blur-md border-t border-emerald-100/80 dark:border-emerald-950/70 py-6 text-xs text-slate-500 dark:text-slate-400 mt-auto pb-20 md:pb-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row items-center justify-between gap-3">
           <div className="flex flex-col sm:flex-row items-center gap-1.5 sm:gap-2.5 text-center sm:text-left">
             <div className="flex items-center gap-2">
@@ -1966,7 +2034,7 @@ export default function App() {
             <span className="hidden sm:inline text-slate-300 dark:text-slate-700" aria-hidden="true">|</span>
             <span className="text-[11px] text-slate-600 dark:text-slate-300">
               ผู้พัฒนาระบบ:{' '}
-              <span className="font-semibold text-indigo-600 dark:text-indigo-400 font-prompt">
+              <span className="font-semibold text-emerald-700 dark:text-emerald-400 font-prompt">
                 นายปราชญ์ชยาวิช ศรีก่อเกื้อ
               </span>
             </span>
@@ -1974,21 +2042,21 @@ export default function App() {
           <div className="flex items-center gap-4 text-[11px] flex-wrap justify-center">
             <button
               onClick={() => handleOpenInfoModal('guide')}
-              className="hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition-colors cursor-pointer"
+              className="hover:text-emerald-700 dark:hover:text-emerald-400 font-medium transition-colors cursor-pointer"
             >
               คู่มือการใช้งาน
             </button>
             <span aria-hidden="true">·</span>
             <button
               onClick={() => handleOpenInfoModal('security')}
-              className="hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition-colors cursor-pointer"
+              className="hover:text-emerald-700 dark:hover:text-emerald-400 font-medium transition-colors cursor-pointer"
             >
               ความปลอดภัยข้อมูล
             </button>
             <span aria-hidden="true">·</span>
             <button
               onClick={() => handleOpenInfoModal('support')}
-              className="hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition-colors cursor-pointer"
+              className="hover:text-emerald-700 dark:hover:text-emerald-400 font-medium transition-colors cursor-pointer"
             >
               ช่วยเหลือ & สนับสนุน
             </button>

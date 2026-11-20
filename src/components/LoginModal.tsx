@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { StudentProfile, TeacherProfile, UserRole } from '../types';
 import { constantTimeEqual, sanitizeImageSrc } from '../utils/security';
-import defaultSchoolCover from '../assets/images/school_campus_cover_1795065722838.jpg';
+import defaultSchoolCover from '../assets/images/login_green_campus_1795146589835.jpg';
 
 interface LoginModalProps {
   onLoginSuccess: (
@@ -192,10 +192,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200 grid grid-cols-1 md:grid-cols-12 items-stretch">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-[#06140f]/80 backdrop-blur-sm overflow-y-auto">
+      <div className="bg-white dark:bg-[#101a16] border border-emerald-900/15 dark:border-emerald-800/40 rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200 grid grid-cols-1 md:grid-cols-12 items-stretch">
         {/* Left / Top School Cover Panel */}
-        <div className="md:col-span-6 relative min-h-[210px] sm:min-h-[250px] md:min-h-[540px] bg-slate-900 overflow-hidden flex flex-col justify-end">
+        <div className="md:col-span-6 relative min-h-[210px] sm:min-h-[250px] md:min-h-[540px] bg-[#0a2118] overflow-hidden flex flex-col justify-end">
           {resolvedCoverSrc ? (
             <img
               src={resolvedCoverSrc}
@@ -205,16 +205,17 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               className="absolute inset-0 w-full h-full object-cover"
             />
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 flex items-center justify-center">
-              <GraduationCap className="w-24 h-24 text-indigo-400/25" />
+            <div className="absolute inset-0 bg-gradient-to-br from-[#071812] via-emerald-950 to-[#0f2e24] flex items-center justify-center">
+              <GraduationCap className="w-24 h-24 text-emerald-400/25" />
             </div>
           )}
 
           {/* Measured Contrast Scrim for AA Legibility */}
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/45 to-slate-950/15" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#051610]/92 via-[#09231a]/50 to-[#09231a]/15" />
+          <div className="absolute inset-3 rounded-2xl ring-1 ring-inset ring-white/15 pointer-events-none" />
 
           <div className="relative z-10 p-6 sm:p-8 space-y-3 text-white">
-            <div className="w-11 h-11 rounded-2xl bg-white/15 backdrop-blur-md border border-white/25 flex items-center justify-center text-white shadow-lg">
+            <div className="w-11 h-11 rounded-2xl bg-emerald-500/20 backdrop-blur-md border border-emerald-200/30 flex items-center justify-center text-white shadow-lg">
               <GraduationCap className="w-6 h-6" />
             </div>
 
@@ -222,12 +223,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold font-prompt tracking-tight leading-snug text-balance">
                 {displaySchoolName}
               </h1>
-              <p className="text-xs sm:text-sm text-slate-200/95 leading-relaxed max-w-sm">
+              <p className="text-xs sm:text-sm text-emerald-50/90 leading-relaxed max-w-sm">
                 {displaySchoolSubtitle}
               </p>
             </div>
 
-            <div className="pt-2 flex items-center gap-2 text-[11px] text-slate-300 font-medium">
+            <div className="pt-2 flex items-center gap-2 text-[11px] text-emerald-100/80 font-medium">
               <span>นักเรียน</span>
               <span aria-hidden="true">·</span>
               <span>ครูผู้สอน</span>
@@ -238,13 +239,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         </div>
 
         {/* Right Form Panel */}
-        <div className="md:col-span-6 p-6 sm:p-8 lg:p-10 flex flex-col justify-center space-y-6 relative bg-white dark:bg-slate-900">
+        <div className="md:col-span-6 p-6 sm:p-8 lg:p-10 flex flex-col justify-center space-y-6 relative bg-white dark:bg-[#101a16]">
           {isDismissable && onClose && (
             <button
               type="button"
               onClick={onClose}
               aria-label="ปิดหน้าต่างเข้าสู่ระบบ"
-              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-950/50 transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -260,13 +261,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           </div>
 
           {/* Role Toggle Selector */}
-          <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+          <div className="flex p-1 bg-[#f1f5f1] dark:bg-slate-800/80 rounded-xl border border-emerald-900/10 dark:border-emerald-900/40">
             <button
               type="button"
               onClick={() => handleRoleSwitch('student')}
               className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${
                 loginRole === 'student'
-                  ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                  ? 'bg-white dark:bg-[#162620] text-emerald-700 dark:text-emerald-300 shadow-xs ring-1 ring-emerald-900/5'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
@@ -278,7 +279,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               onClick={() => handleRoleSwitch('teacher')}
               className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${
                 loginRole === 'teacher'
-                  ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                  ? 'bg-white dark:bg-[#162620] text-emerald-700 dark:text-emerald-300 shadow-xs ring-1 ring-emerald-900/5'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
@@ -311,7 +312,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   placeholder={loginRole === 'student' ? 'เช่น ST-68042 หรือ 68042' : 'เช่น admin หรือ TCH-001'}
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                  className="w-full pl-10 pr-4 py-2.5 bg-[#f7f9f7] dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-mono focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 focus:outline-hidden transition-all"
                 />
               </div>
             </div>
@@ -328,13 +329,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="กรอกรหัสผ่านของคุณ"
-                  className="w-full pl-10 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                  className="w-full pl-10 pr-10 py-2.5 bg-[#f7f9f7] dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-mono focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 focus:outline-hidden transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-300 cursor-pointer"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -344,7 +345,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             <button
               type="submit"
               disabled={lockoutSecondsLeft > 0}
-              className="w-full py-3 px-6 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs shadow-md transition-colors flex items-center justify-center gap-2 cursor-pointer mt-2"
+              className="w-full py-3 px-6 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-600 hover:to-teal-600 active:scale-[0.99] disabled:from-slate-400 disabled:to-slate-400 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs shadow-md shadow-emerald-900/20 transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
             >
               {lockoutSecondsLeft > 0 ? (
                 <>
@@ -361,10 +362,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           </form>
 
           {/* Developer Credit */}
-          <div className="pt-4 border-t border-slate-100 dark:border-slate-800 text-center">
+          <div className="pt-4 border-t border-slate-100 dark:border-emerald-950/60 text-center">
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
               ผู้พัฒนาระบบ:{' '}
-              <span className="font-semibold text-indigo-600 dark:text-indigo-400 font-prompt">
+              <span className="font-semibold text-emerald-700 dark:text-emerald-400 font-prompt">
                 นายปราชญ์ชยาวิช ศรีก่อเกื้อ
               </span>
             </p>

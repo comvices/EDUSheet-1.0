@@ -49,9 +49,9 @@ export const StatusView: React.FC<StatusViewProps> = ({
   const filteredAssignments = assignments.filter(filterByStatus);
 
   const STATUS_CARDS = [
-    { id: 'all', label: 'ทั้งหมด', icon: Filter, color: 'text-indigo-600' },
+    { id: 'all', label: 'ทั้งหมด', icon: Filter, color: 'text-emerald-700 dark:text-emerald-400' },
     { id: 'pending', label: 'ยังไม่ได้ส่ง', icon: Clock, color: 'text-amber-600' },
-    { id: 'submitted', label: 'ส่งแล้ว (รอตรวจ)', icon: CheckCircle2, color: 'text-sky-600' },
+    { id: 'submitted', label: 'ส่งแล้ว (รอตรวจ)', icon: CheckCircle2, color: 'text-teal-600' },
     { id: 'needs_revision', label: 'ให้กลับไปแก้ไข', icon: RotateCcw, color: 'text-orange-600' },
     { id: 'graded', label: 'ตรวจแล้ว/ผ่าน', icon: Award, color: 'text-emerald-600' },
     { id: 'overdue', label: 'เกินกำหนดส่ง', icon: AlertCircle, color: 'text-rose-600' },
@@ -60,9 +60,9 @@ export const StatusView: React.FC<StatusViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Title Header */}
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
+      <div className="bg-white dark:bg-[#111c18] p-6 rounded-2xl border border-slate-200/80 dark:border-emerald-950/70 shadow-xs">
         <div className="flex items-center gap-3 mb-2">
-          <div className="p-2.5 bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 rounded-xl">
+          <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-100 dark:border-emerald-900/50 text-emerald-700 dark:text-emerald-400 rounded-xl">
             <Clock className="w-6 h-6" />
           </div>
           <div>
@@ -100,13 +100,13 @@ export const StatusView: React.FC<StatusViewProps> = ({
                 onClick={() => setSelectedStatus(st.id)}
                 className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between h-20 cursor-pointer ${
                   isSelected
-                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md font-bold'
-                    : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-indigo-400'
+                    ? 'bg-gradient-to-br from-emerald-700 to-teal-700 text-white border-emerald-700 shadow-md shadow-emerald-900/15 font-bold -translate-y-0.5'
+                    : 'bg-[#f7f9f7] dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-emerald-400 hover:-translate-y-0.5'
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <Icon className={`w-4 h-4 ${isSelected ? 'text-white' : st.color}`} />
-                  <span className={`text-xs font-mono font-bold ${isSelected ? 'text-indigo-200' : 'text-slate-500'}`}>
+                  <span className={`text-xs font-mono font-bold ${isSelected ? 'text-emerald-100' : 'text-slate-500'}`}>
                     {count}
                   </span>
                 </div>
@@ -124,7 +124,7 @@ export const StatusView: React.FC<StatusViewProps> = ({
         </h3>
 
         {filteredAssignments.length === 0 ? (
-          <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-400 text-xs">
+          <div className="text-center py-12 bg-white dark:bg-[#111c18] rounded-xl border border-slate-200 dark:border-emerald-950/60 text-slate-400 text-xs">
             ไม่พบรายการใบงานในสถานะนี้
           </div>
         ) : (

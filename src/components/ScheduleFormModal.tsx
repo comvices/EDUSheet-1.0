@@ -179,11 +179,11 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+      <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/60">
+        <div className="px-5 py-4 border-b border-slate-200 dark:border-emerald-950/60 flex items-center justify-between bg-slate-50/90 dark:bg-[#0d1613]">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center">
               <CalendarClock className="w-5 h-5" />
             </div>
             <div>
@@ -236,8 +236,8 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
           )}
 
           {spanCount > 1 && (
-            <div className="p-3 bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/70 rounded-xl text-xs text-indigo-800 dark:text-indigo-200 flex items-center gap-2">
-              <Layers className="w-4 h-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
+            <div className="p-3 bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/70 rounded-xl text-xs text-emerald-800 dark:text-emerald-200 flex items-center gap-2">
+              <Layers className="w-4 h-4 shrink-0 text-emerald-700 dark:text-emerald-400" />
               <span>
                 สอนควบ <strong>{spanCount} คาบติดกัน</strong> (เวลา {startTime}–{endTime}) ระบบจะให้เช็คชื่อเพียงครั้งเดียวสำหรับช่วงคาบนี้
               </span>
@@ -252,7 +252,7 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
             <select
               value={teacherId}
               onChange={(e) => setTeacherId(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-emerald-950/60 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
             >
               {teachersList.map((tch) => (
                 <option key={tch.id} value={tch.id}>
@@ -277,8 +277,8 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
                     onClick={() => setDayOfWeek(d.id)}
                     className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                       isSelected
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
-                        : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                        ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
+                        : 'bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-emerald-950/60 hover:bg-slate-100 dark:hover:bg-slate-700'
                     }`}
                   >
                     <span className="hidden sm:inline">{d.label}</span>
@@ -298,7 +298,7 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
               <select
                 value={period}
                 onChange={(e) => handlePeriodChange(Number(e.target.value))}
-                className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-emerald-950/60 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
               >
                 {activePeriods.map((p) => (
                   <option key={p.id} value={p.period}>
@@ -320,7 +320,7 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
               <select
                 value={endPeriod}
                 onChange={(e) => handleEndPeriodChange(Number(e.target.value))}
-                className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-emerald-950/60 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
               >
                 {consecutiveEndOptions.map((p, idx) => (
                   <option key={p.id} value={p.period}>
@@ -347,7 +347,7 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
                   type="time"
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                  className="w-full pl-9 pr-3 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-emerald-950/60 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
                   required
                 />
               </div>
@@ -363,7 +363,7 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
                   type="time"
                   value={endTime}
                   onChange={(e) => setEndTime(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                  className="w-full pl-9 pr-3 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-emerald-950/60 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
                   required
                 />
               </div>
@@ -379,7 +379,7 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
               <select
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-emerald-950/60 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
               >
                 {selectableSubjects.map((subj) => (
                   <option key={subj} value={subj}>
@@ -399,7 +399,7 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
               <select
                 value={gradeLevel}
                 onChange={(e) => setGradeLevel(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-emerald-950/60 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
               >
                 {selectableGrades.map((grade) => (
                   <option key={grade} value={grade}>
@@ -424,7 +424,7 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
                 value={classroom}
                 onChange={(e) => setClassroom(e.target.value)}
                 placeholder="เช่น ห้อง 312, ห้องวิทย์ 1"
-                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-emerald-950/60 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
               />
             </div>
 
@@ -437,13 +437,13 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="เช่น คาบซ่อมเสริม, สลับกลุ่ม A/B"
-                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-emerald-950/60 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
               />
             </div>
           </div>
 
           {/* Footer Buttons */}
-          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-emerald-950/60">
             <button
               type="button"
               onClick={onClose}
@@ -453,7 +453,7 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+              className="px-5 py-2.5 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
             >
               {editingSchedule ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
               <span>{editingSchedule ? 'บันทึกการแก้ไขคาบสอน' : 'เพิ่มลงตารางสอน'}</span>

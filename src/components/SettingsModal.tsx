@@ -729,7 +729,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         },
       ],
       confirmLabel: 'ยืนยันบันทึกหน้าปก',
-      variant: 'indigo',
+      variant: 'emerald',
       onExecute: () => {
         onSaveSchoolBranding({
           schoolCoverUrl: cleanCover,
@@ -743,11 +743,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
         {/* Main Modal Header */}
-        <div className="px-5 sm:px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900">
+        <div className="px-5 sm:px-6 py-4 border-b border-slate-200 dark:border-emerald-950/60 flex items-center justify-between bg-slate-50/90 dark:bg-[#0d1613]">
           <div className="flex items-center gap-3 text-slate-900 dark:text-white">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 shrink-0">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-700 to-teal-700 text-white flex items-center justify-center shadow-md shadow-emerald-900/20 shrink-0">
               <Settings className="w-5 h-5 animate-spin-slow" />
             </div>
             <div>
@@ -755,7 +755,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <h2 className="text-base sm:text-lg font-bold font-prompt text-slate-900 dark:text-white">
                   เมนูตั้งค่าระบบ (Settings)
                 </h2>
-                <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-[10px] font-semibold rounded-full">
+                <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-[10px] font-semibold rounded-full">
                   <ShieldCheck className="w-3 h-3" /> สำหรับครูผู้สอน
                 </span>
               </div>
@@ -776,14 +776,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Local Toast Alert */}
         {localToast && (
-          <div className="bg-indigo-600 text-white px-4 py-2 text-xs font-semibold flex items-center justify-between shadow-md animate-in slide-in-from-top-1">
+          <div className="bg-emerald-700 text-white px-4 py-2 text-xs font-semibold flex items-center justify-between shadow-md animate-in slide-in-from-top-1">
             <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-200" />
               {localToast}
             </span>
             <button
               onClick={() => setLocalToast(null)}
-              className="text-indigo-200 hover:text-white text-xs font-bold"
+              className="text-emerald-200 hover:text-white text-xs font-bold"
             >
               ✕
             </button>
@@ -791,18 +791,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         )}
 
         {/* 4 Main Settings Tabs */}
-        <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-800/60 p-1.5 gap-1.5 flex-wrap sm:flex-nowrap">
+        <div className="flex border-b border-slate-200 dark:border-emerald-950/60 bg-slate-100/80 dark:bg-[#0d1613] p-1.5 gap-1.5 flex-wrap sm:flex-nowrap">
           <button
             onClick={() => setActiveMainTab('grades')}
             className={`flex-1 py-2.5 px-3 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
               activeMainTab === 'grades'
-                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/80 dark:border-slate-700'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/50'
+                ? 'bg-white dark:bg-[#111c18] text-emerald-700 dark:text-emerald-400 shadow-sm border border-slate-200/80 dark:border-emerald-900/60'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800/40'
             }`}
           >
             <GraduationCap className="w-4 h-4" />
             <span className="font-prompt">1. ชั้นเรียน</span>
-            <span className="px-1.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-[10px] font-mono text-indigo-700 dark:text-indigo-300">
+            <span className="px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-[10px] font-mono text-emerald-700 dark:text-emerald-300">
               {activeGrades.length}
             </span>
           </button>
@@ -811,13 +811,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             onClick={() => setActiveMainTab('subjects')}
             className={`flex-1 py-2.5 px-3 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
               activeMainTab === 'subjects'
-                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/80 dark:border-slate-700'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/50'
+                ? 'bg-white dark:bg-[#111c18] text-emerald-700 dark:text-emerald-400 shadow-sm border border-slate-200/80 dark:border-emerald-900/60'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800/40'
             }`}
           >
             <BookOpen className="w-4 h-4" />
             <span className="font-prompt">2. รายวิชา</span>
-            <span className="px-1.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-[10px] font-mono text-indigo-700 dark:text-indigo-300">
+            <span className="px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-[10px] font-mono text-emerald-700 dark:text-emerald-300">
               {activeSubjects.length}
             </span>
           </button>
@@ -826,8 +826,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             onClick={() => setActiveMainTab('students')}
             className={`flex-1 py-2.5 px-3 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
               activeMainTab === 'students'
-                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/80 dark:border-slate-700'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/50'
+                ? 'bg-white dark:bg-[#111c18] text-emerald-700 dark:text-emerald-400 shadow-sm border border-slate-200/80 dark:border-emerald-900/60'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800/40'
             }`}
           >
             <Users className="w-4 h-4 text-emerald-600" />
@@ -841,13 +841,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             onClick={() => setActiveMainTab('teachers')}
             className={`flex-1 py-2.5 px-3 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
               activeMainTab === 'teachers'
-                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/80 dark:border-slate-700'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/50'
+                ? 'bg-white dark:bg-[#111c18] text-emerald-700 dark:text-emerald-400 shadow-sm border border-slate-200/80 dark:border-emerald-900/60'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800/40'
             }`}
           >
-            <UserCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+            <UserCheck className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
             <span className="font-prompt">4. ครูผู้สอน</span>
-            <span className="px-1.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-[10px] font-mono text-indigo-700 dark:text-indigo-300">
+            <span className="px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-[10px] font-mono text-emerald-700 dark:text-emerald-300">
               {teachers.length}
             </span>
           </button>
@@ -856,11 +856,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             onClick={() => setActiveMainTab('school')}
             className={`flex-1 py-2.5 px-3 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
               activeMainTab === 'school'
-                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/80 dark:border-slate-700'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/50'
+                ? 'bg-white dark:bg-[#111c18] text-emerald-700 dark:text-emerald-400 shadow-sm border border-slate-200/80 dark:border-emerald-900/60'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800/40'
             }`}
           >
-            <ImageIcon className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+            <ImageIcon className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
             <span className="font-prompt">5. หน้าปกโรงเรียน</span>
           </button>
         </div>
@@ -873,8 +873,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {activeMainTab === 'grades' && (
             <div className="space-y-6 animate-in fade-in duration-150">
               {/* Introduction Card */}
-              <div className="p-4 bg-gradient-to-r from-indigo-50/80 to-purple-50/60 dark:from-indigo-950/40 dark:to-purple-950/20 border border-indigo-100 dark:border-indigo-900/60 rounded-2xl flex items-start gap-3">
-                <div className="p-2 bg-indigo-600 text-white rounded-xl shrink-0 mt-0.5">
+              <div className="p-4 bg-gradient-to-r from-emerald-50/80 to-teal-50/60 dark:from-emerald-950/40 dark:to-teal-950/20 border border-emerald-200/80 dark:border-emerald-900/60 rounded-2xl flex items-start gap-3">
+                <div className="p-2 bg-emerald-700 text-white rounded-xl shrink-0 mt-0.5">
                   <GraduationCap className="w-5 h-5" />
                 </div>
                 <div>
@@ -898,12 +898,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     value={newGradeInput}
                     onChange={(e) => setNewGradeInput(e.target.value)}
                     placeholder="พิมพ์ระดับชั้นใหม่ เช่น ป.1, ม.4/1, ปวช.1, มัธยมศึกษาปีที่ 4..."
-                    className="flex-1 px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 font-medium"
+                    className="flex-1 px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-300 dark:border-emerald-950/60 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-emerald-600 font-medium"
                   />
                   <button
                     type="submit"
                     disabled={!newGradeInput.trim()}
-                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-colors shrink-0 disabled:opacity-50 cursor-pointer shadow-xs flex items-center gap-1.5"
+                    className="px-5 py-2.5 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white font-bold text-xs rounded-xl transition-colors shrink-0 disabled:opacity-50 cursor-pointer shadow-xs flex items-center gap-1.5"
                   >
                     <Plus className="w-4 h-4" />
                     <span>เพิ่มระดับชั้น</span>
@@ -965,7 +965,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         },
                       });
                     }}
-                    className="text-[11px] text-indigo-600 dark:text-indigo-400 font-bold hover:underline cursor-pointer flex items-center gap-1"
+                    className="text-[11px] text-emerald-700 dark:text-emerald-400 font-bold hover:underline cursor-pointer flex items-center gap-1"
                   >
                     <Plus className="w-3 h-3" />
                     <span>เพิ่ม ม.1/1 ถึง ม.6/3 ทั้งหมด (18 ห้อง) ใน 1 คลิก</span>
@@ -990,10 +990,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all flex items-center gap-1 cursor-pointer ${
                           alreadyExists
                             ? 'bg-slate-100 dark:bg-slate-800/60 text-slate-400 border border-transparent cursor-not-allowed opacity-60'
-                            : 'bg-white dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
+                            : 'bg-white dark:bg-slate-800/80 hover:bg-emerald-50 dark:hover:bg-emerald-950 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-emerald-950/60'
                         }`}
                       >
-                        {alreadyExists ? <Check className="w-3 h-3 text-emerald-500" /> : <Plus className="w-3 h-3 text-indigo-500" />}
+                        {alreadyExists ? <Check className="w-3 h-3 text-emerald-500" /> : <Plus className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />}
                         <span>{suggestGrade}</span>
                       </button>
                     );
@@ -1018,10 +1018,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     return (
                       <div
                         key={grade}
-                        className="p-3.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-between group hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors shadow-2xs"
+                        className="p-3.5 bg-slate-50 dark:bg-[#0d1613] border border-slate-200 dark:border-emerald-950/60 rounded-2xl flex items-center justify-between group hover:border-emerald-400 dark:hover:border-emerald-700 transition-colors shadow-2xs"
                       >
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-xl bg-indigo-100 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs">
+                          <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 flex items-center justify-center font-bold text-xs">
                             {grade.slice(0, 2)}
                           </div>
                           <div>
@@ -1063,8 +1063,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {activeMainTab === 'subjects' && (
             <div className="space-y-6 animate-in fade-in duration-150">
               {/* Introduction Card */}
-              <div className="p-4 bg-gradient-to-r from-indigo-50/80 to-blue-50/60 dark:from-indigo-950/40 dark:to-blue-950/20 border border-indigo-100 dark:border-indigo-900/60 rounded-2xl flex items-start gap-3">
-                <div className="p-2 bg-indigo-600 text-white rounded-xl shrink-0 mt-0.5">
+              <div className="p-4 bg-gradient-to-r from-emerald-50/80 to-teal-50/60 dark:from-emerald-950/40 dark:to-teal-950/20 border border-emerald-200/80 dark:border-emerald-900/60 rounded-2xl flex items-start gap-3">
+                <div className="p-2 bg-emerald-700 text-white rounded-xl shrink-0 mt-0.5">
                   <BookOpen className="w-5 h-5" />
                 </div>
                 <div>
@@ -1088,12 +1088,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     value={newSubjectInput}
                     onChange={(e) => setNewSubjectInput(e.target.value)}
                     placeholder="พิมพ์ชื่อวิชาใหม่ เช่น วิทยาการคำนวณ, หุ่นยนต์, ดนตรีไทย, ฟิสิกส์..."
-                    className="flex-1 px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 font-medium"
+                    className="flex-1 px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-300 dark:border-emerald-950/60 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-emerald-600 font-medium"
                   />
                   <button
                     type="submit"
                     disabled={!newSubjectInput.trim()}
-                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-colors shrink-0 disabled:opacity-50 cursor-pointer shadow-xs flex items-center gap-1.5"
+                    className="px-5 py-2.5 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white font-bold text-xs rounded-xl transition-colors shrink-0 disabled:opacity-50 cursor-pointer shadow-xs flex items-center gap-1.5"
                   >
                     <Plus className="w-4 h-4" />
                     <span>เพิ่มรายวิชา</span>
@@ -1118,10 +1118,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all flex items-center gap-1 cursor-pointer ${
                           alreadyExists
                             ? 'bg-slate-100 dark:bg-slate-800/60 text-slate-400 border border-transparent cursor-not-allowed opacity-60'
-                            : 'bg-white dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
+                            : 'bg-white dark:bg-slate-800/80 hover:bg-emerald-50 dark:hover:bg-emerald-950 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-emerald-950/60'
                         }`}
                       >
-                        {alreadyExists ? <Check className="w-3 h-3 text-emerald-500" /> : <Plus className="w-3 h-3 text-indigo-500" />}
+                        {alreadyExists ? <Check className="w-3 h-3 text-emerald-500" /> : <Plus className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />}
                         <span>{suggestSubject}</span>
                       </button>
                     );
@@ -1146,10 +1146,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     return (
                       <div
                         key={subj}
-                        className="p-3.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-between group hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors shadow-2xs"
+                        className="p-3.5 bg-slate-50 dark:bg-[#0d1613] border border-slate-200 dark:border-emerald-950/60 rounded-2xl flex items-center justify-between group hover:border-emerald-400 dark:hover:border-emerald-700 transition-colors shadow-2xs"
                       >
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-xl bg-violet-100 dark:bg-violet-950/80 text-violet-600 dark:text-violet-400 flex items-center justify-center font-bold text-xs">
+                          <div className="w-8 h-8 rounded-xl bg-teal-100 dark:bg-teal-950/80 text-teal-700 dark:text-teal-400 flex items-center justify-center font-bold text-xs">
                             <BookOpen className="w-4 h-4" />
                           </div>
                           <div>
@@ -1192,13 +1192,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="space-y-5 animate-in fade-in duration-150">
               {/* Sub-nav inside Students Tab */}
               <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2 flex-wrap gap-2">
-                <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+                <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-[#0d1613] rounded-xl border border-transparent dark:border-emerald-950/60">
                   <button
                     onClick={() => setStudentSubTab('roster')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                       studentSubTab === 'roster'
-                        ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                        ? 'bg-white dark:bg-[#111c18] text-emerald-700 dark:text-emerald-400 shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     <Users className="w-3.5 h-3.5" />
@@ -1209,8 +1209,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     onClick={() => setStudentSubTab('excel')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                       studentSubTab === 'excel'
-                        ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                        ? 'bg-gradient-to-r from-emerald-700 to-teal-700 text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     <FileSpreadsheet className="w-3.5 h-3.5" />
@@ -1221,8 +1221,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     onClick={() => setStudentSubTab('manual')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                       studentSubTab === 'manual'
-                        ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                        ? 'bg-white dark:bg-[#111c18] text-emerald-700 dark:text-emerald-400 shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     <UserPlus className="w-3.5 h-3.5" />
@@ -1297,7 +1297,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             filteredStudents.map((std, idx) => (
                               <tr key={std.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                                 <td className="p-3 font-mono text-slate-400">{idx + 1}</td>
-                                <td className="p-3 font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                                <td className="p-3 font-mono font-bold text-emerald-700 dark:text-emerald-400">
                                   {std.code}
                                 </td>
                                 <td className="p-3 font-medium flex items-center gap-2">
@@ -1320,7 +1320,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                           [std.id]: !prev[std.id],
                                         }))
                                       }
-                                      className="p-0.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                                      className="p-0.5 text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors cursor-pointer"
                                       title="แสดง/ซ่อนรหัสผ่าน"
                                     >
                                       {showStudentPasswords[std.id] ? (
@@ -1335,7 +1335,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                   <div className="flex items-center justify-end gap-1">
                                     <button
                                       onClick={() => setEditingStudent(std)}
-                                      className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-lg transition-colors cursor-pointer"
+                                      className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg transition-colors cursor-pointer"
                                       title="แก้ไขข้อมูลนักเรียน"
                                     >
                                       <Edit2 className="w-3.5 h-3.5" />
@@ -1416,7 +1416,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                       <button
                         onClick={handleDownloadSampleTemplate}
-                        className="px-3.5 py-2 bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 font-bold text-xs rounded-xl transition-colors shrink-0 flex items-center gap-1.5 shadow-xs cursor-pointer"
+                        className="px-3.5 py-2 bg-white dark:bg-[#111c18] border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-950/60 font-bold text-xs rounded-xl transition-colors shrink-0 flex items-center gap-1.5 shadow-xs cursor-pointer"
                       >
                         <Download className="w-4 h-4 text-emerald-600" />
                         <span>ดาวน์โหลดไฟล์แม่แบบ Excel</span>
@@ -1501,7 +1501,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             {parsedRows.map((r, idx) => (
                               <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
                                 <td className="p-2.5 font-mono text-slate-400">{idx + 1}</td>
-                                <td className="p-2.5 font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                                <td className="p-2.5 font-mono font-bold text-emerald-700 dark:text-emerald-400">
                                   {r.code}
                                 </td>
                                 <td className="p-2.5 font-medium">{r.name}</td>
@@ -1521,7 +1521,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               {studentSubTab === 'manual' && (
                 <form onSubmit={handleManualSubmit} className="space-y-4 max-w-lg mx-auto py-2">
                   <div className="text-center space-y-1 mb-3">
-                    <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-950 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto">
+                    <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 rounded-2xl flex items-center justify-center mx-auto">
                       <UserPlus className="w-6 h-6" />
                     </div>
                     <h3 className="text-base font-bold font-prompt text-slate-900 dark:text-white">
@@ -1594,7 +1594,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                   <button
                     type="submit"
-                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition-colors flex items-center justify-center gap-1.5 cursor-pointer mt-4"
+                    className="w-full py-2.5 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white font-bold text-xs rounded-xl shadow-md transition-colors flex items-center justify-center gap-1.5 cursor-pointer mt-4"
                   >
                     <UserPlus className="w-4 h-4" />
                     <span>+ เพิ่มนักเรียนเข้าสู่ระบบ</span>
@@ -1610,8 +1610,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {activeMainTab === 'teachers' && (
             <div className="space-y-6 animate-in fade-in duration-150">
               {/* Intro Banner */}
-              <div className="p-4 bg-gradient-to-r from-sky-50/80 to-indigo-50/60 dark:from-sky-950/40 dark:to-indigo-950/20 border border-sky-100 dark:border-sky-900/60 rounded-2xl flex items-start gap-3">
-                <div className="p-2 bg-sky-600 text-white rounded-xl shrink-0 mt-0.5">
+              <div className="p-4 bg-gradient-to-r from-emerald-50/80 to-teal-50/60 dark:from-emerald-950/40 dark:to-teal-950/20 border border-emerald-200/80 dark:border-emerald-900/60 rounded-2xl flex items-start gap-3">
+                <div className="p-2 bg-teal-700 text-white rounded-xl shrink-0 mt-0.5">
                   <UserCheck className="w-5 h-5" />
                 </div>
                 <div>
@@ -1625,9 +1625,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               {/* Add New Teacher Form Card */}
-              <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl space-y-3">
+              <div className="p-4 bg-slate-50 dark:bg-[#0d1613] border border-slate-200 dark:border-emerald-950/60 rounded-2xl space-y-3">
                 <h4 className="text-xs font-bold font-prompt text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                  <UserPlus className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                  <UserPlus className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
                   <span>เพิ่มครูผู้สอนรายบุคคล</span>
                 </h4>
 
@@ -1643,7 +1643,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         value={manualTeacherCode}
                         onChange={(e) => setManualTeacherCode(e.target.value)}
                         placeholder="เช่น TCH-003, TCH-SCIENCE"
-                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-mono focus:ring-2 focus:ring-sky-500"
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-800/80 border border-slate-300 dark:border-emerald-950/60 rounded-xl text-xs font-mono focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
                       />
                     </div>
 
@@ -1657,7 +1657,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         value={manualTeacherName}
                         onChange={(e) => setManualTeacherName(e.target.value)}
                         placeholder="เช่น ครู วิทยา ศรีสวัสดิ์"
-                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs focus:ring-2 focus:ring-sky-500 font-prompt"
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-800/80 border border-slate-300 dark:border-emerald-950/60 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-emerald-600 font-prompt"
                       />
                     </div>
 
@@ -1670,7 +1670,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         value={manualTeacherSubject}
                         onChange={(e) => setManualTeacherSubject(e.target.value)}
                         placeholder="เช่น วิทยาศาสตร์, คณิตศาสตร์"
-                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 font-prompt"
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-800/80 border border-slate-300 dark:border-emerald-950/60 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-emerald-600 font-prompt"
                       />
                     </div>
 
@@ -1685,7 +1685,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         value={manualTeacherPassword}
                         onChange={(e) => setManualTeacherPassword(e.target.value)}
                         placeholder="กำหนดอย่างน้อย 6 ตัวอักษร"
-                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-mono focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-800/80 border border-slate-300 dark:border-emerald-950/60 rounded-xl text-xs font-mono focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
                       />
                     </div>
                   </div>
@@ -1694,7 +1694,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <button
                       type="submit"
                       disabled={!manualTeacherCode.trim() || !manualTeacherName.trim() || manualTeacherPassword.trim().length < 6}
-                      className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer disabled:opacity-50 shadow-xs flex items-center gap-1.5"
+                      className="px-5 py-2.5 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer disabled:opacity-50 shadow-xs flex items-center gap-1.5"
                     >
                       <UserPlus className="w-4 h-4" />
                       <span>+ ยืนยันเพิ่มครูผู้สอน</span>
@@ -1761,7 +1761,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         return (
                           <div
                             key={tch.id}
-                            className="p-3.5 bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-between gap-3 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors shadow-2xs"
+                            className="p-3.5 bg-white dark:bg-[#0d1613] border border-slate-200 dark:border-emerald-950/60 rounded-2xl flex items-center justify-between gap-3 hover:border-emerald-400 dark:hover:border-emerald-700 transition-colors shadow-2xs"
                           >
                             <div className="flex items-center gap-3 shrink min-w-0">
                               <img
@@ -1774,7 +1774,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                   {tch.name}
                                 </h5>
                                 <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 flex-wrap">
-                                  <span className="font-mono text-indigo-600 dark:text-indigo-400 font-semibold">
+                                  <span className="font-mono text-emerald-700 dark:text-emerald-400 font-semibold">
                                     {tch.code}
                                   </span>
                                   <span>·</span>
@@ -1795,7 +1795,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                         [tch.id]: !prev[tch.id],
                                       }))
                                     }
-                                    className="p-0.5 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
+                                    className="p-0.5 text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors cursor-pointer"
                                     title="แสดง/ซ่อนรหัสผ่าน"
                                   >
                                     {isShowingPass ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
@@ -1808,7 +1808,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               <button
                                 type="button"
                                 onClick={() => setEditingTeacher(tch)}
-                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-xl transition-colors cursor-pointer"
+                                className="p-2 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-xl transition-colors cursor-pointer"
                                 title={`แก้ไขข้อมูล ${tch.name}`}
                               >
                                 <Edit2 className="w-4 h-4" />
@@ -1843,8 +1843,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* ========================================================== */}
           {activeMainTab === 'school' && (
             <div className="space-y-6 animate-in fade-in duration-150">
-              <div className="p-4 bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/60 rounded-2xl flex items-start gap-3">
-                <div className="p-2 bg-indigo-600 text-white rounded-xl shrink-0 mt-0.5">
+              <div className="p-4 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-900/60 rounded-2xl flex items-start gap-3">
+                <div className="p-2 bg-emerald-700 text-white rounded-xl shrink-0 mt-0.5">
                   <ImageIcon className="w-5 h-5" />
                 </div>
                 <div>
@@ -1871,7 +1871,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         setCoverPreviewBroken(false);
                         setCoverDraftError(null);
                       }}
-                      className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                      className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
                     >
                       <RotateCcw className="w-3 h-3" />
                       <span>ใช้ภาพโรงเรียนเริ่มต้นของระบบ</span>
@@ -1879,7 +1879,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   )}
                 </div>
 
-                <div className="relative aspect-video max-h-60 w-full rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-900">
+                <div className="relative aspect-video max-h-60 w-full rounded-2xl overflow-hidden border border-slate-200 dark:border-emerald-950/60 bg-[#0d1613]">
                   {!coverPreviewBroken ? (
                     <img
                       src={sanitizeImageSrc(coverUrlDraft) || defaultSchoolCover}
@@ -1889,8 +1889,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 flex items-center justify-center">
-                      <GraduationCap className="w-16 h-16 text-indigo-400/30" />
+                    <div className="w-full h-full bg-gradient-to-br from-[#0d261d] via-[#133b2e] to-[#0f362c] flex items-center justify-center">
+                      <GraduationCap className="w-16 h-16 text-emerald-400/30" />
                     </div>
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent" />
@@ -1920,9 +1920,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     type="button"
                     onClick={() => schoolCoverFileRef.current?.click()}
                     disabled={isProcessingCover}
-                    className="py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                    className="py-2.5 px-4 bg-slate-100 dark:bg-slate-800/80 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 border border-slate-200 dark:border-emerald-950/60 text-slate-800 dark:text-slate-100 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
                   >
-                    <Upload className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <Upload className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
                     <span>
                       {isProcessingCover ? 'กำลังปรับขนาดรูปภาพ...' : 'อัปโหลดรูปภาพโรงเรียนจากเครื่อง'}
                     </span>
@@ -1937,12 +1937,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       setCoverDraftError(null);
                     }}
                     placeholder="หรือวางลิงก์รูปภาพ (https://...)"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-emerald-950/60 rounded-xl text-xs font-mono text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
                   />
                 </div>
 
                 {coverUrlDraft.startsWith('data:image/') && (
-                  <p className="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold">
+                  <p className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold">
                     อัปโหลดรูปภาพจากเครื่องและปรับขนาดให้โหลดเร็วเรียบร้อยแล้ว
                   </p>
                 )}
@@ -1962,7 +1962,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       value={schoolNameDraft}
                       onChange={(e) => setSchoolNameDraft(e.target.value)}
                       placeholder="เช่น โรงเรียน... (เว้นว่างใช้ EduSheet TH)"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-emerald-950/60 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
                     />
                   </div>
 
@@ -1976,7 +1976,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       value={schoolSubtitleDraft}
                       onChange={(e) => setSchoolSubtitleDraft(e.target.value)}
                       placeholder="เช่น ระบบใบงานออนไลน์และคลังสื่อการเรียนรู้"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-emerald-950/60 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
                     />
                   </div>
                 </div>
@@ -1984,7 +1984,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="pt-2 flex justify-end">
                   <button
                     type="submit"
-                    className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition-colors flex items-center gap-2 cursor-pointer"
+                    className="px-6 py-2.5 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white font-bold text-xs rounded-xl shadow-md transition-colors flex items-center gap-2 cursor-pointer"
                   >
                     <Save className="w-4 h-4" />
                     <span>บันทึกหน้าปกโรงเรียน</span>
@@ -1996,13 +1996,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="px-5 sm:px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex items-center justify-between">
+        <div className="px-5 sm:px-6 py-4 border-t border-slate-200 dark:border-emerald-950/60 bg-slate-50/90 dark:bg-[#0d1613] flex items-center justify-between">
           <span className="text-[11px] text-slate-400 hidden sm:inline">
             ข้อมูลการตั้งค่าจะซิงก์ตรงกับ Google Firebase Firestore แบบเรียลไทม์
           </span>
           <button
             onClick={onClose}
-            className="px-6 py-2.5 bg-slate-900 text-white dark:bg-indigo-600 hover:bg-slate-800 font-bold text-xs rounded-xl transition-colors cursor-pointer shadow-sm ml-auto"
+            className="px-6 py-2.5 bg-slate-900 text-white dark:bg-gradient-to-r dark:from-emerald-700 dark:to-teal-700 hover:bg-slate-800 dark:hover:from-emerald-800 dark:hover:to-teal-800 font-bold text-xs rounded-xl transition-colors cursor-pointer shadow-sm ml-auto"
           >
             ปิดหน้าต่างตั้งค่า
           </button>
@@ -2012,7 +2012,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       {/* In-App Confirmation Modal (for Deleting Grade, Subject, or Student) */}
       {itemToDelete && (
         <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto">
               <AlertTriangle className="w-6 h-6" />
             </div>
@@ -2054,7 +2054,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       {/* Student Edit Modal Overlay */}
       {editingStudent && (
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="text-base font-bold font-prompt text-slate-900 dark:text-white">
                 แก้ไขข้อมูลนักเรียน
@@ -2134,7 +2134,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-bold bg-indigo-600 text-white rounded-xl shadow-md hover:bg-indigo-700 cursor-pointer"
+                  className="px-4 py-2 text-xs font-bold bg-gradient-to-r from-emerald-700 to-teal-700 text-white rounded-xl shadow-md hover:from-emerald-800 hover:to-teal-800 cursor-pointer"
                 >
                   บันทึกการแก้ไข
                 </button>
@@ -2147,7 +2147,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       {/* Teacher Edit Modal Overlay */}
       {editingTeacher && (
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="text-base font-bold font-prompt text-slate-900 dark:text-white">
                 แก้ไขข้อมูลครูผู้สอน
@@ -2235,7 +2235,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       {/* Reset Confirmation Modal Overlay */}
       {pendingResetAction && (
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto">
               <AlertTriangle className="w-6 h-6" />
             </div>

@@ -47,12 +47,12 @@ export const AssignmentCard: React.FC<AssignmentCardProps> = ({
   });
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between h-full group relative">
+    <div className="bg-white dark:bg-[#111c18] rounded-2xl border border-slate-200/90 dark:border-emerald-950/70 p-5 shadow-2xs hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-700/70 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between h-full group relative">
       <div>
         {/* Unboxed Metadata Line (Zero-Pill Discipline) */}
         <div className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400 mb-2">
           <div className="flex items-center gap-1.5 font-medium">
-            <span className="text-indigo-600 dark:text-indigo-400 font-bold">ชั้น {assignment.gradeLevel}</span>
+            <span className="text-emerald-700 dark:text-emerald-400 font-bold">ชั้น {assignment.gradeLevel}</span>
             <span aria-hidden="true">·</span>
             <span>{assignment.subject}</span>
             <span aria-hidden="true">·</span>
@@ -70,7 +70,7 @@ export const AssignmentCard: React.FC<AssignmentCardProps> = ({
                 {onEditAssignment && (
                   <button
                     onClick={() => onEditAssignment(assignment)}
-                    className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-md transition-colors"
+                    className="p-1 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-md transition-colors cursor-pointer"
                     title="แก้ไขใบงานนี้"
                   >
                     <Edit3 className="w-3.5 h-3.5" />
@@ -79,7 +79,7 @@ export const AssignmentCard: React.FC<AssignmentCardProps> = ({
                 {onDeleteAssignment && (
                   <button
                     onClick={() => setShowDeleteConfirm(true)}
-                    className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-md transition-colors"
+                    className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-md transition-colors cursor-pointer"
                     title="ลบใบงานนี้"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -91,12 +91,12 @@ export const AssignmentCard: React.FC<AssignmentCardProps> = ({
         </div>
 
         {/* Title */}
-        <h3 className="text-base font-bold font-prompt text-slate-900 dark:text-white mb-2 line-clamp-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+        <h3 className="text-base font-bold font-prompt text-slate-900 dark:text-white mb-2 line-clamp-2 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors">
           {assignment.title}
         </h3>
 
         {/* Description */}
-        <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 mb-4">
+        <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 mb-4 leading-relaxed">
           {assignment.description}
         </p>
 
@@ -105,38 +105,38 @@ export const AssignmentCard: React.FC<AssignmentCardProps> = ({
           <div className="flex flex-wrap items-center gap-1.5 mb-2.5 text-[11px]">
             {assignment.isPublished === false && (
               <span className="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 font-bold">
-                🔒 ฉบับร่าง (ซ่อนจากนักเรียน)
+                ฉบับร่าง (ซ่อนจากนักเรียน)
               </span>
             )}
             {assignment.assignedStudentCodes && assignment.assignedStudentCodes.length > 0 && (
-              <span className="px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 font-bold">
-                👥 มอบหมายเฉพาะ {assignment.assignedStudentCodes.length} คน
+              <span className="px-2 py-0.5 rounded-md bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 font-bold">
+                มอบหมายเฉพาะ {assignment.assignedStudentCodes.length} คน
               </span>
             )}
           </div>
         )}
 
         {/* Due Date Indicator & Status Ribbon */}
-        <div className="flex items-center justify-between text-xs py-2 px-3 bg-slate-50 dark:bg-slate-800/60 rounded-lg mb-4 border border-slate-100 dark:border-slate-800">
+        <div className="flex items-center justify-between text-xs py-2 px-3 bg-[#f5f8f5] dark:bg-slate-800/60 rounded-xl mb-4 border border-emerald-900/10 dark:border-emerald-900/40">
           <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
-            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+            <Calendar className="w-3.5 h-3.5 text-emerald-700/60 dark:text-emerald-400/70" />
             <span>กำหนดส่ง: {formattedDueDate}</span>
           </div>
 
-          {/* Status badge pill */}
+          {/* Status badge */}
           {submission ? (
             submission.status === 'graded' ? (
-              <span className="flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400">
+              <span className="flex items-center gap-1 font-bold text-emerald-700 dark:text-emerald-400 tabular-nums">
                 <Award className="w-3.5 h-3.5" />
                 {submission.score}/{submission.maxScore} คะแนน
               </span>
             ) : submission.status === 'needs_revision' ? (
-              <span className="flex items-center gap-1 font-semibold text-amber-600 dark:text-amber-400">
+              <span className="flex items-center gap-1 font-semibold text-amber-700 dark:text-amber-400">
                 <AlertCircle className="w-3.5 h-3.5" />
                 ให้แก้ไข
               </span>
             ) : (
-              <span className="flex items-center gap-1 font-medium text-sky-600 dark:text-sky-400">
+              <span className="flex items-center gap-1 font-medium text-teal-700 dark:text-teal-400">
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 ส่งแล้ว (รอตรวจ)
               </span>
@@ -147,7 +147,7 @@ export const AssignmentCard: React.FC<AssignmentCardProps> = ({
               เกินกำหนดส่ง
             </span>
           ) : isDueSoon ? (
-            <span className="flex items-center gap-1 font-bold text-amber-600 dark:text-amber-400 animate-pulse">
+            <span className="flex items-center gap-1 font-bold text-amber-600 dark:text-amber-400">
               <Clock className="w-3.5 h-3.5" />
               เหลืออีก {Math.ceil(diffHours)} ชม.
             </span>
@@ -158,7 +158,7 @@ export const AssignmentCard: React.FC<AssignmentCardProps> = ({
       </div>
 
       {/* Footer Actions */}
-      <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+      <div className="pt-3 border-t border-slate-100 dark:border-emerald-950/60 flex items-center justify-between gap-2">
         <span className="text-[11px] text-slate-400 truncate">
           {role === 'teacher' && submissionCount > 0
             ? `ส่งงานแล้ว ${submissionCount} คน`
@@ -170,7 +170,7 @@ export const AssignmentCard: React.FC<AssignmentCardProps> = ({
           {role === 'student' && (!submission || submission.status === 'needs_revision') && (
             <button
               onClick={() => onOpenHintModal(assignment)}
-              className="p-1.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-lg transition-colors"
+              className="p-1.5 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 rounded-lg transition-colors cursor-pointer"
               title="ขอคำแนะนำ/คำใบ้จาก AI"
             >
               <HelpCircle className="w-4 h-4" />
@@ -181,14 +181,14 @@ export const AssignmentCard: React.FC<AssignmentCardProps> = ({
           {role === 'student' ? (
             <button
               onClick={() => onOpenSubmitModal(assignment)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer active:scale-[0.98] ${
                 submission?.status === 'graded'
-                  ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900 border border-emerald-200/80 dark:border-emerald-800'
                   : submission?.status === 'submitted'
                   ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                   : submission?.status === 'needs_revision'
                   ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-xs'
-                  : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs'
+                  : 'bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs'
               }`}
             >
               {submission?.status === 'graded' ? (
@@ -209,7 +209,7 @@ export const AssignmentCard: React.FC<AssignmentCardProps> = ({
               ) : (
                 <>
                   <Edit3 className="w-3.5 h-3.5" />
-                  <span>พิมพ์ส่งงาน</span>
+                  <span>ทำและส่งใบงาน</span>
                 </>
               )}
             </button>
@@ -222,7 +222,7 @@ export const AssignmentCard: React.FC<AssignmentCardProps> = ({
                   onOpenGradingModal(assignment, submission);
                 }
               }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 active:scale-[0.98] text-white rounded-lg text-xs font-semibold shadow-xs transition-all cursor-pointer"
             >
               <span>{submissionCount > 1 || assignment.id === 'asg_101' ? `ดูรายชื่อส่งงาน (${submissionCount || 20} คน)` : 'ตรวจใบงานนี้'}</span>
               <ChevronRight className="w-3.5 h-3.5" />
@@ -234,7 +234,7 @@ export const AssignmentCard: React.FC<AssignmentCardProps> = ({
       {/* Delete Confirmation Modal Overlay */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
               <div className="p-3 bg-rose-100 dark:bg-rose-950 rounded-xl">
                 <Trash2 className="w-6 h-6" />

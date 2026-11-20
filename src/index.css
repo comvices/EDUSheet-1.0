@@ -3,11 +3,11 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-brand-primary: #4f46e5;
-  --color-brand-primary-hover: #4338ca;
-  --color-brand-accent: #7c3aed;
-  --color-surface-light: #f8fafc;
-  --color-surface-dark: #020617;
+  --color-brand-primary: #047857;
+  --color-brand-primary-hover: #065f46;
+  --color-brand-accent: #0f766e;
+  --color-surface-light: #f6f8f6;
+  --color-surface-dark: #09110e;
 }
 
 @layer base {
@@ -20,9 +20,30 @@
   }
 
   :focus-visible {
-    outline: 2px solid #6366f1;
+    outline: 2px solid #059669;
     outline-offset: 2px;
   }
+}
+
+.bg-school-canvas {
+  background-color: #f6f8f6;
+  background-image:
+    radial-gradient(ellipse 85% 42% at 50% -8%, rgba(16, 185, 129, 0.085), transparent 70%),
+    radial-gradient(circle at 90% 18%, rgba(13, 148, 136, 0.045), transparent 45%);
+}
+
+.dark .bg-school-canvas {
+  background-color: #09110e;
+  background-image:
+    radial-gradient(ellipse 85% 42% at 50% -8%, rgba(16, 185, 129, 0.11), transparent 70%),
+    radial-gradient(circle at 85% 15%, rgba(20, 184, 166, 0.06), transparent 45%);
+}
+
+.edu-hero-grid {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 36px 36px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -45,10 +66,10 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.4);
+  background: rgba(16, 185, 129, 0.25);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.7);
+  background: rgba(4, 120, 87, 0.55);
 }

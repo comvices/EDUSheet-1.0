@@ -217,39 +217,40 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Classroom Hero Banner with Teacher and Students (Soft harmonious tone) */}
-      <div className="relative overflow-hidden rounded-2xl bg-slate-900 text-white shadow-lg border border-slate-200/80 dark:border-slate-800">
+      {/* Classroom Hero Banner with Teacher and Students (Soft harmonious green-slate tone) */}
+      <div className="relative overflow-hidden rounded-3xl bg-[#10261e] text-white shadow-lg border border-emerald-900/30 dark:border-emerald-800/40 group">
         <img
           src={classroomBannerImg}
           alt="Classroom Teacher and Students"
-          className="absolute inset-0 w-full h-full object-cover opacity-35"
+          className="absolute inset-0 w-full h-full object-cover opacity-45 group-hover:scale-[1.015] transition-transform duration-700"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-indigo-950/70 to-slate-900/60" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0a1d17]/88 via-[#113127]/72 to-[#13382d]/55" />
+        <div className="absolute inset-0 edu-hero-grid opacity-30 pointer-events-none" />
         <div className="relative z-10 px-6 sm:px-8 py-7 sm:py-9 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-1.5 max-w-2xl">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-[11px] font-medium text-indigo-200">
-              <School className="w-3.5 h-3.5 text-indigo-300" />
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-wide text-emerald-200/95">
+              <School className="w-3.5 h-3.5 text-emerald-300" />
               <span>ห้องเรียนประจำรายวิชา (Classroom Hub)</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-bold font-prompt text-white tracking-tight">
               บรรยากาศการเรียนการสอนและบทเรียนออนไลน์
             </h2>
-            <p className="text-xs sm:text-sm text-slate-200/90 leading-relaxed">
+            <p className="text-xs sm:text-sm text-emerald-50/85 leading-relaxed">
               ศึกษาบทเรียนตามหน่วยการเรียนรู้ เข้าถึงสื่อการสอน วิดีโอ และส่งใบงานประจำวิชาได้อย่างสะดวกครบถ้วนในที่เดียว
             </p>
           </div>
-          <div className="hidden md:flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-2.5 rounded-xl border border-white/15 text-xs font-semibold text-indigo-100 shrink-0">
-            <BookOpen className="w-4 h-4 text-indigo-300" />
+          <div className="hidden md:flex items-center gap-2.5 bg-white/10 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-white/15 text-xs font-semibold text-emerald-100 shrink-0 shadow-xs">
+            <BookOpen className="w-4 h-4 text-emerald-300" />
             <span>พร้อมเรียนรู้ออนไลน์ตลอด 24 ชม.</span>
           </div>
         </div>
       </div>
 
       {/* Subject Selector Header */}
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
+      <div className="bg-white dark:bg-[#111c18] p-6 rounded-2xl border border-slate-200/80 dark:border-emerald-950/70 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 rounded-xl">
+            <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-100 dark:border-emerald-900/50 text-emerald-700 dark:text-emerald-400 rounded-xl">
               <BookOpen className="w-6 h-6" />
             </div>
             <div>
@@ -267,7 +268,7 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
               <button
                 type="button"
                 onClick={onRestoreWorksheets}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold cursor-pointer transition-colors shadow-xs"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold cursor-pointer transition-colors shadow-xs"
                 title="กู้คืนใบงานและข้อมูลทั้งหมดของโรงเรียน"
               >
                 <Sparkles className="w-4 h-4" />
@@ -278,7 +279,7 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
               <button
                 type="button"
                 onClick={onOpenCreateClassroom}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold cursor-pointer transition-colors shadow-xs"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold cursor-pointer transition-colors shadow-xs"
               >
                 <Plus className="w-4 h-4" />
                 <span>สร้างห้องเรียนรายวิชา</span>
@@ -288,9 +289,9 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
               <button
                 type="button"
                 onClick={() => onOpenSettings('subjects')}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#f4f7f4] hover:bg-emerald-50 dark:bg-slate-800/80 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
               >
-                <Settings className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                <Settings className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
                 <span>จัดการรายวิชา</span>
               </button>
             )}
@@ -299,7 +300,7 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
 
         {/* Subject Grid */}
         {role === 'student' && subjects.filter((s) => s !== 'ทั้งหมด').length === 0 ? (
-          <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-800/60 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl text-center text-xs text-slate-500 dark:text-slate-400">
+          <div className="mt-4 p-4 bg-[#f6f8f6] dark:bg-slate-800/60 border border-dashed border-emerald-200 dark:border-emerald-900/50 rounded-xl text-center text-xs text-slate-500 dark:text-slate-400">
             ยังไม่มีรายวิชาที่เปิดสอนสำหรับระดับชั้น <strong>{studentGradeLevel || 'ของคุณ'}</strong> ในขณะนี้
           </div>
         ) : (
@@ -317,14 +318,14 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
                   onClick={() => setSelectedSubject(subjName)}
                   className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between h-24 cursor-pointer ${
                     isSelected
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-md font-bold'
-                      : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-indigo-400'
+                      ? 'bg-gradient-to-br from-emerald-700 to-teal-700 text-white border-emerald-700 shadow-md shadow-emerald-900/15 font-bold -translate-y-0.5'
+                      : 'bg-[#f7f9f7] dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-emerald-400 hover:-translate-y-0.5'
                   }`}
                 >
-                  <BookOpen className={`w-5 h-5 ${isSelected ? 'text-white' : 'text-indigo-600 dark:text-indigo-400'}`} />
+                  <BookOpen className={`w-5 h-5 ${isSelected ? 'text-white' : 'text-emerald-700 dark:text-emerald-400'}`} />
                   <div>
                     <p className="text-xs font-semibold leading-tight line-clamp-1">{subjName}</p>
-                    <p className={`text-[10px] font-mono ${isSelected ? 'text-indigo-200' : 'text-slate-400'}`}>
+                    <p className={`text-[10px] font-mono ${isSelected ? 'text-emerald-100' : 'text-slate-400'}`}>
                       {count} ใบงาน
                     </p>
                   </div>
@@ -340,7 +341,7 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="text-base font-bold font-prompt text-slate-900 dark:text-white flex items-center gap-2">
-              <School className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <School className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
               <span>
                 ห้องเรียนรายวิชา {selectedSubject !== 'ทั้งหมด' ? `(${selectedSubject})` : ''}
               </span>
@@ -356,9 +357,9 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
 
         {/* Auto-Derived Classrooms Sync Banner for Teachers */}
         {role === 'teacher' && autoClassrooms.length > 0 && onSaveBatchClassrooms && (
-          <div className="bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/70 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="bg-emerald-50/75 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-start gap-3">
-              <div className="p-2 bg-indigo-600 text-white rounded-xl shrink-0 mt-0.5">
+              <div className="p-2 bg-emerald-700 text-white rounded-xl shrink-0 mt-0.5">
                 <Sparkles className="w-4 h-4" />
               </div>
               <div className="space-y-0.5">
@@ -374,7 +375,7 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
               type="button"
               disabled={isSavingBatch}
               onClick={handlePersistAllAutoClassrooms}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer shrink-0"
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-60 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer shrink-0"
             >
               <Save className="w-3.5 h-3.5" />
               <span>
@@ -387,8 +388,8 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
         )}
 
         {visibleClassrooms.length === 0 ? (
-          <div className="bg-white dark:bg-slate-900 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl p-8 text-center space-y-3">
-            <School className="w-10 h-10 text-slate-300 dark:text-slate-700 mx-auto" />
+          <div className="bg-white dark:bg-[#111c18] border border-dashed border-emerald-200 dark:border-emerald-900/50 rounded-2xl p-8 text-center space-y-3">
+            <School className="w-10 h-10 text-emerald-300 dark:text-emerald-800 mx-auto" />
             <div className="space-y-1">
               <p className="text-sm font-bold font-prompt text-slate-700 dark:text-slate-200">
                 ยังไม่มีห้องเรียนรายวิชา{selectedSubject !== 'ทั้งหมด' ? `ในวิชา ${selectedSubject}` : ''}
@@ -403,7 +404,7 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
               <button
                 type="button"
                 onClick={onOpenCreateClassroom}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>สร้างห้องเรียนรายวิชาแรก</span>
@@ -428,10 +429,10 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
                     setActiveClassroomId(cls.id);
                     setActiveClassroomSubject(cls.subject);
                   }}
-                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-400 rounded-2xl overflow-hidden shadow-xs hover:shadow-lg transition-all flex flex-col cursor-pointer group"
+                  className="bg-white dark:bg-[#111c18] border border-slate-200/80 dark:border-emerald-950/70 hover:border-emerald-400 dark:hover:border-emerald-700 rounded-2xl overflow-hidden shadow-xs hover:shadow-lg hover:-translate-y-0.5 transition-all flex flex-col cursor-pointer group"
                 >
                   {/* Cover Header */}
-                  <div className="relative aspect-video bg-slate-900 overflow-hidden">
+                  <div className="relative aspect-video bg-[#0f241d] overflow-hidden">
                     {safeCover ? (
                       <img
                         src={safeCover}
@@ -440,15 +441,15 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 flex items-center justify-center">
-                        <BookOpen className="w-12 h-12 text-indigo-400/40" />
+                      <div className="w-full h-full bg-gradient-to-br from-[#0e221b] via-[#13382c] to-[#0b1914] flex items-center justify-center">
+                        <BookOpen className="w-12 h-12 text-emerald-400/35" />
                       </div>
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/30 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#081510]/88 via-[#081510]/25 to-transparent" />
 
                     <div className="absolute bottom-3 left-4 right-4 text-white flex items-end justify-between gap-2">
                       <div>
-                        <span className="text-[11px] font-mono font-bold text-indigo-200 block">
+                        <span className="text-[11px] font-mono font-bold text-emerald-200 block">
                           {cls.courseCode}
                         </span>
                         <h4 className="text-sm sm:text-base font-bold font-prompt leading-snug line-clamp-1">
@@ -468,7 +469,7 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
                   <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
                     <div className="space-y-1.5">
                       <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                        <span className="text-indigo-600 dark:text-indigo-400 font-semibold">
+                        <span className="text-emerald-700 dark:text-emerald-400 font-semibold">
                           {cls.subject}
                         </span>
                         <span aria-hidden="true">·</span>
@@ -485,20 +486,20 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
                       )}
                     </div>
 
-                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                    <div className="pt-3 border-t border-slate-100 dark:border-emerald-950/60 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
                       <span className="inline-flex items-center gap-1 truncate max-w-[150px]">
                         <User className="w-3.5 h-3.5 shrink-0" />
                         <span className="truncate">{cls.teacherName}</span>
                       </span>
                       <span className="inline-flex items-center gap-1 font-mono tabular-nums shrink-0">
-                        <Layers className="w-3.5 h-3.5 text-indigo-500" />
+                        <Layers className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                         {unitCount} หน่วย · {linkedCount} งาน
                       </span>
                     </div>
                   </div>
 
                   {/* Enter Classroom Bar */}
-                  <div className="px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-bold text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/40 transition-colors">
+                  <div className="px-4 py-2.5 bg-[#f7f9f7] dark:bg-emerald-950/30 border-t border-slate-100 dark:border-emerald-950/60 flex items-center justify-between text-xs font-bold text-emerald-700 dark:text-emerald-400 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-950/50 transition-colors">
                     <span className="flex items-center gap-2">
                       <span>เข้าสู่ห้องเรียนรายวิชา</span>
                       {isAuto && role === 'teacher' && (
@@ -507,7 +508,7 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
                         </span>
                       )}
                     </span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </div>
               );
@@ -517,10 +518,10 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
       </div>
 
       {/* Room Quick Filter for Current Subject */}
-      <div className="bg-white dark:bg-slate-900 px-5 py-3.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div className="bg-white dark:bg-[#111c18] px-5 py-3.5 rounded-xl border border-slate-200/80 dark:border-emerald-950/70 shadow-2xs flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-2">
           <span className="font-semibold text-slate-700 dark:text-slate-300">
-            วิชา: <strong className="text-indigo-600 dark:text-indigo-400">{selectedSubject}</strong>
+            วิชา: <strong className="text-emerald-700 dark:text-emerald-400">{selectedSubject}</strong>
           </span>
           <span className="text-slate-400">·</span>
           <span className="text-slate-500">
@@ -536,7 +537,7 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
         </h3>
 
         {filteredAssignments.length === 0 ? (
-          <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-400 text-xs">
+          <div className="text-center py-12 bg-white dark:bg-[#111c18] rounded-xl border border-slate-200/80 dark:border-emerald-950/70 text-slate-400 text-xs">
             ไม่พบใบงานในวิชา {selectedSubject} ในขณะนี้
           </div>
         ) : (

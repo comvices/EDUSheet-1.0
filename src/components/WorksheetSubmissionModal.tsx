@@ -225,11 +225,11 @@ export const WorksheetSubmissionModal: React.FC<WorksheetSubmissionModalProps> =
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
         {/* Modal Header */}
-        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900/80">
+        <div className="px-6 py-4 border-b border-slate-200 dark:border-emerald-950/60 flex items-center justify-between bg-slate-50/90 dark:bg-[#0d1613]">
           <div>
-            <div className="flex items-center gap-2 text-xs text-indigo-600 dark:text-indigo-400 font-medium mb-0.5">
+            <div className="flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-400 font-medium mb-0.5">
               <span>ชั้น {assignment.gradeLevel}</span>
               <span aria-hidden="true">·</span>
               <span>วิชา{assignment.subject}</span>
@@ -245,10 +245,10 @@ export const WorksheetSubmissionModal: React.FC<WorksheetSubmissionModalProps> =
             <button
               type="button"
               onClick={() => window.print()}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-emerald-900/60 bg-white dark:bg-[#111c18] hover:bg-emerald-50/60 dark:hover:bg-emerald-950/40 text-slate-700 dark:text-slate-200 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
               title="พิมพ์ใบงานชุดนี้ หรือ บันทึกเป็น PDF"
             >
-              <Printer className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              <Printer className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
               <span>พิมพ์ใบงาน / บันทึก PDF</span>
             </button>
 
@@ -264,11 +264,11 @@ export const WorksheetSubmissionModal: React.FC<WorksheetSubmissionModalProps> =
         {/* Modal Body */}
         <div className="p-6 overflow-y-auto space-y-6 flex-1 text-slate-800 dark:text-slate-200">
           {/* Instructions Box */}
-          <div className="p-4 bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60 rounded-xl">
-            <h4 className="text-xs font-bold font-prompt text-indigo-900 dark:text-indigo-200 mb-1">
+          <div className="p-4 bg-emerald-50/70 dark:bg-emerald-950/35 border border-emerald-200/80 dark:border-emerald-900/60 rounded-xl">
+            <h4 className="text-xs font-bold font-prompt text-emerald-950 dark:text-emerald-200 mb-1">
               📌 คำชี้แจงในการทำใบงาน
             </h4>
-            <p className="text-xs text-indigo-800 dark:text-indigo-300">
+            <p className="text-xs text-emerald-800 dark:text-emerald-300">
               {assignment.instructions} (คะแนนเต็ม {assignment.totalPoints} คะแนน)
             </p>
           </div>
@@ -282,10 +282,10 @@ export const WorksheetSubmissionModal: React.FC<WorksheetSubmissionModalProps> =
                   <span>ผลการตรวจและคะแนนจากครูผู้สอน</span>
                 </div>
                 <div className="text-lg font-bold font-mono tabular-nums text-emerald-700 dark:text-emerald-300">
-                  {submission.score} / {submission.maxScore} คะแนน
+                  {submission.score} / {submission.maxScore ?? assignment.totalPoints} คะแนน
                 </div>
               </div>
-              <p className="text-xs text-emerald-900 dark:text-emerald-200 bg-white/60 dark:bg-slate-900/60 p-3 rounded-lg border border-emerald-100 dark:border-emerald-900/40 italic">
+              <p className="text-xs text-emerald-900 dark:text-emerald-200 bg-white/60 dark:bg-[#0d1613]/60 p-3 rounded-lg border border-emerald-100 dark:border-emerald-900/40 italic">
                 "{submission.teacherComment || 'ไม่มีคำติชมเพิ่มเติม'}"
               </p>
             </div>
@@ -332,7 +332,7 @@ export const WorksheetSubmissionModal: React.FC<WorksheetSubmissionModalProps> =
                       <button
                         type="button"
                         onClick={() => onOpenHintModal(assignment, q.text)}
-                        className="inline-flex items-center gap-1 text-[11px] text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 px-2 py-1 rounded-md transition-colors"
+                        className="inline-flex items-center gap-1 text-[11px] text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 px-2 py-1 rounded-md transition-colors cursor-pointer"
                       >
                         <Sparkles className="w-3 h-3" />
                         <span>ขอคำใบ้ AI</span>
@@ -349,8 +349,8 @@ export const WorksheetSubmissionModal: React.FC<WorksheetSubmissionModalProps> =
                         key={oIdx}
                         className={`flex items-center gap-3 p-3.5 rounded-xl border text-sm sm:text-[15px] cursor-pointer transition-colors ${
                           answers[q.id] === opt
-                            ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-400 text-indigo-950 dark:text-indigo-100 font-semibold shadow-2xs'
-                            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200'
+                            ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 text-emerald-950 dark:text-emerald-100 font-semibold shadow-2xs'
+                            : 'bg-white dark:bg-[#111c18] border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200'
                         }`}
                       >
                         <input
@@ -360,7 +360,7 @@ export const WorksheetSubmissionModal: React.FC<WorksheetSubmissionModalProps> =
                           disabled={isReadOnly}
                           checked={answers[q.id] === opt}
                           onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                          className="w-4 h-4 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                          className="w-4 h-4 text-emerald-700 focus:ring-emerald-600 cursor-pointer"
                         />
                         <span className="leading-relaxed">{opt}</span>
                       </label>
@@ -373,7 +373,7 @@ export const WorksheetSubmissionModal: React.FC<WorksheetSubmissionModalProps> =
                     value={answers[q.id] || ''}
                     onChange={(e) => handleAnswerChange(q.id, e.target.value)}
                     placeholder="พิมพ์คำตอบสั้นที่นี่..."
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-sm sm:text-[15px] text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                    className="w-full px-4 py-3 bg-white dark:bg-[#111c18] border border-slate-300 dark:border-slate-700 rounded-xl text-sm sm:text-[15px] text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-600 focus:outline-hidden"
                   />
                 ) : (
                   <div>
@@ -383,7 +383,7 @@ export const WorksheetSubmissionModal: React.FC<WorksheetSubmissionModalProps> =
                       value={answers[q.id] || ''}
                       onChange={(e) => handleAnswerChange(q.id, e.target.value)}
                       placeholder="พิมพ์คำอธิบายหรือวิธีทำส่งครูในช่องนี้..."
-                      className="w-full px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-sm sm:text-[15px] leading-relaxed text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden resize-y font-normal"
+                      className="w-full px-4 py-3.5 bg-white dark:bg-[#111c18] border border-slate-300 dark:border-slate-700 rounded-xl text-sm sm:text-[15px] leading-relaxed text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-600 focus:outline-hidden resize-y font-normal"
                     />
                     <div className="text-xs text-slate-400 text-right mt-1 font-mono">
                       {(answers[q.id] || '').length} ตัวอักษร
@@ -394,9 +394,9 @@ export const WorksheetSubmissionModal: React.FC<WorksheetSubmissionModalProps> =
                 {/* Per-question student image attachment */}
                 <div className="pt-2 border-t border-slate-200/80 dark:border-slate-700/70">
                   {answerImages[q.id] ? (
-                    <div className="p-3 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800/70 rounded-xl space-y-2.5">
+                    <div className="p-3 bg-white dark:bg-[#111c18] border border-emerald-200 dark:border-emerald-800/70 rounded-xl space-y-2.5">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
                           <ImagePlus className="w-3.5 h-3.5" />
                           <span>ภาพคำตอบที่แนบสำหรับข้อที่ {idx + 1}</span>
                         </span>
@@ -416,7 +416,7 @@ export const WorksheetSubmissionModal: React.FC<WorksheetSubmissionModalProps> =
                           </button>
                           {!isReadOnly && (
                             <>
-                              <label className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 rounded-md transition-colors cursor-pointer">
+                              <label className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 rounded-md transition-colors cursor-pointer">
                                 <span>เปลี่ยนรูป</span>
                                 <input
                                   type="file"
@@ -463,11 +463,11 @@ export const WorksheetSubmissionModal: React.FC<WorksheetSubmissionModalProps> =
                       <span className="text-[11px] text-slate-500 dark:text-slate-400">
                         แนบภาพคำตอบของข้อนี้ (เช่น ถ่ายรูปวิธีทำในสมุด หรือภาพชิ้นงาน)
                       </span>
-                      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-lg shadow-2xs hover:bg-indigo-50/50 dark:hover:bg-indigo-950/40 transition-colors cursor-pointer">
+                      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[#111c18] border border-slate-300 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-lg shadow-2xs hover:bg-emerald-50/50 dark:hover:bg-emerald-950/40 transition-colors cursor-pointer">
                         {uploadingQuestionId === q.id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-700" />
                         ) : (
-                          <ImagePlus className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                          <ImagePlus className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
                         )}
                         <span>
                           {uploadingQuestionId === q.id
@@ -502,7 +502,7 @@ export const WorksheetSubmissionModal: React.FC<WorksheetSubmissionModalProps> =
             <div className="p-4 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl bg-slate-50/50 dark:bg-slate-800/30">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
-                  <Upload className="w-4 h-4 text-indigo-500" />
+                  <Upload className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
                   <span>แนบไฟล์ประกอบการส่ง (รูปถ่ายใบงาน / PDF / เอกสาร)</span>
                 </div>
                 {!isReadOnly && (
@@ -523,10 +523,10 @@ export const WorksheetSubmissionModal: React.FC<WorksheetSubmissionModalProps> =
                   {attachedFiles.map((file, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center justify-between p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs"
+                      className="flex items-center justify-between p-2 bg-white dark:bg-[#111c18] border border-slate-200 dark:border-slate-700 rounded-lg text-xs"
                     >
                       <div className="flex items-center gap-2 truncate">
-                        <FileText className="w-4 h-4 text-indigo-500 shrink-0" />
+                        <FileText className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
                         <span className="font-medium text-slate-800 dark:text-slate-200 truncate">
                           {file.name}
                         </span>
@@ -548,7 +548,7 @@ export const WorksheetSubmissionModal: React.FC<WorksheetSubmissionModalProps> =
         </div>
 
         {/* Modal Footer */}
-        <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex items-center justify-between">
+        <div className="px-6 py-4 border-t border-slate-200 dark:border-emerald-950/60 bg-slate-50/90 dark:bg-[#0d1613] flex items-center justify-between">
           <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2 font-mono">
             {savedDraftTime && (
               <span className="text-emerald-600 dark:text-emerald-400 font-medium">
@@ -571,7 +571,7 @@ export const WorksheetSubmissionModal: React.FC<WorksheetSubmissionModalProps> =
                 <button
                   type="button"
                   onClick={handleSaveDraft}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg hover:bg-slate-100 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
                 >
                   <Save className="w-3.5 h-3.5" />
                   <span>บันทึกร่าง</span>
@@ -581,7 +581,7 @@ export const WorksheetSubmissionModal: React.FC<WorksheetSubmissionModalProps> =
                   type="submit"
                   form="submission-form"
                   disabled={isSubmitting}
-                  className="inline-flex items-center gap-1.5 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-md transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-5 py-2 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white text-xs font-semibold rounded-lg shadow-md transition-all cursor-pointer"
                 >
                   <Send className="w-3.5 h-3.5" />
                   <span>{isSubmitting ? 'กำลังส่งงาน...' : 'ยืนยันการส่งใบงาน'}</span>
@@ -596,7 +596,7 @@ export const WorksheetSubmissionModal: React.FC<WorksheetSubmissionModalProps> =
         isOpen={isDraftConfirmOpen}
         title="ยืนยันการบันทึกร่างใบงาน?"
         description="บันทึกร่างคำตอบปัจจุบันชั่วคราวก่อนส่งงานจริง"
-        variant="indigo"
+        variant="emerald"
         details={[
           { label: 'ใบงาน', value: assignment.title },
           {
@@ -644,7 +644,7 @@ export const WorksheetSubmissionModal: React.FC<WorksheetSubmissionModalProps> =
           onClick={() => setPreviewImage(null)}
         >
           <div
-            className="relative max-w-4xl w-full bg-white dark:bg-slate-900 rounded-2xl p-3 shadow-2xl border border-slate-200 dark:border-slate-700"
+            className="relative max-w-4xl w-full bg-white dark:bg-[#111c18] rounded-2xl p-3 shadow-2xl border border-slate-200 dark:border-emerald-900/60"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-2 pb-2 mb-2 border-b border-slate-200 dark:border-slate-800">

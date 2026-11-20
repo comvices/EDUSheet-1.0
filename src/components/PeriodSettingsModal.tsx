@@ -171,9 +171,9 @@ export const PeriodSettingsModal: React.FC<PeriodSettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+      <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/60">
+        <div className="px-5 py-4 border-b border-slate-200 dark:border-emerald-950/60 flex items-center justify-between bg-slate-50/90 dark:bg-[#0d1613]">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
               <Clock className="w-5 h-5" />
@@ -210,7 +210,7 @@ export const PeriodSettingsModal: React.FC<PeriodSettingsModalProps> = ({
               <button
                 type="button"
                 onClick={handleAddTeachingPeriod}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-bold transition-colors cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>เพิ่มคาบเรียน</span>
@@ -244,7 +244,7 @@ export const PeriodSettingsModal: React.FC<PeriodSettingsModalProps> = ({
                 className={`p-3 rounded-xl border transition-colors flex flex-col md:flex-row md:items-center gap-2.5 ${
                   row.isBreak
                     ? 'bg-amber-50/70 dark:bg-amber-950/25 border-amber-200 dark:border-amber-800/70'
-                    : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700'
+                    : 'bg-slate-50 dark:bg-[#0d1613]/60 border-slate-200 dark:border-emerald-950/60'
                 }`}
               >
                 {/* Order Controls + Type Badge */}
@@ -276,7 +276,7 @@ export const PeriodSettingsModal: React.FC<PeriodSettingsModalProps> = ({
                     className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition-colors flex items-center gap-1 cursor-pointer min-w-[100px] justify-center ${
                       row.isBreak
                         ? 'bg-amber-500 text-white border-amber-500'
-                        : 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 border-slate-200 dark:border-slate-700 hover:bg-indigo-50'
+                        : 'bg-white dark:bg-[#111c18] text-emerald-700 dark:text-emerald-300 border-slate-200 dark:border-emerald-950/60 hover:bg-emerald-50'
                     }`}
                     title="คลิกเพื่อสลับระหว่าง คาบสอน กับ คาบพักเที่ยง/พักเบรก"
                   >
@@ -305,7 +305,7 @@ export const PeriodSettingsModal: React.FC<PeriodSettingsModalProps> = ({
                       value={row.label}
                       onChange={(e) => handleUpdateRow(row.id, { label: e.target.value })}
                       placeholder="เช่น คาบที่ 1 หรือ พักเที่ยง"
-                      className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-2.5 py-1.5 bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-lg text-xs font-semibold text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
                     />
                   </div>
 
@@ -323,7 +323,7 @@ export const PeriodSettingsModal: React.FC<PeriodSettingsModalProps> = ({
                           period: Math.max(0, Math.min(12, Number(e.target.value) || 0)),
                         })
                       }
-                      className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono text-center text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-2.5 py-1.5 bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-lg text-xs font-mono text-center text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
                     />
                   </div>
 
@@ -335,7 +335,7 @@ export const PeriodSettingsModal: React.FC<PeriodSettingsModalProps> = ({
                       type="time"
                       value={row.startTime}
                       onChange={(e) => handleUpdateRow(row.id, { startTime: e.target.value })}
-                      className="w-full px-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-2 py-1.5 bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-lg text-xs font-mono text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
                     />
                   </div>
 
@@ -347,7 +347,7 @@ export const PeriodSettingsModal: React.FC<PeriodSettingsModalProps> = ({
                       type="time"
                       value={row.endTime}
                       onChange={(e) => handleUpdateRow(row.id, { endTime: e.target.value })}
-                      className="w-full px-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-2 py-1.5 bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-lg text-xs font-mono text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
                     />
                   </div>
                 </div>
@@ -366,14 +366,14 @@ export const PeriodSettingsModal: React.FC<PeriodSettingsModalProps> = ({
             ))}
           </div>
 
-          <div className="p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+          <div className="p-3 bg-slate-50 dark:bg-[#0d1613]/70 border border-slate-200 dark:border-emerald-950/60 rounded-xl text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
             💡 <strong>คำแนะนำ:</strong> สามารถตั้ง <strong>เลขคาบเป็น 0</strong> สำหรับ{' '}
             <strong>พักเที่ยง</strong> เพื่อไม่ให้ทับซ้อนกับคาบเรียนที่ 1–8 หรือจะกำหนดเลขคาบเองได้ (0–12)
             ตารางสอนรายสัปดาห์และฟอร์มเพิ่มคาบสอนจะใช้ช่วงเวลาที่ตั้งค่านี้โดยอัตโนมัติ
           </div>
 
           {/* Footer Buttons */}
-          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800 sticky bottom-0 bg-white dark:bg-slate-900">
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-emerald-950/60 sticky bottom-0 bg-white dark:bg-[#111c18]">
             <button
               type="button"
               onClick={onClose}
@@ -383,7 +383,7 @@ export const PeriodSettingsModal: React.FC<PeriodSettingsModalProps> = ({
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+              className="px-5 py-2.5 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <Save className="w-4 h-4" />
               <span>บันทึกการตั้งค่าคาบเรียน</span>
