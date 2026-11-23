@@ -22,6 +22,7 @@ import {
   FileSpreadsheet,
   Palette,
   Image as ImageIcon,
+  RefreshCw,
 } from 'lucide-react';
 import { UserRole, StudentProfile, TeacherProfile } from '../types';
 import { LogoutIcon } from './LogoutIcon';
@@ -44,6 +45,8 @@ interface HeaderProps {
   isLoggedIn: boolean;
   showGradebookTab?: boolean;
   isAdmin?: boolean;
+  onForceSync?: () => void;
+  isSyncing?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -63,6 +66,8 @@ export const Header: React.FC<HeaderProps> = ({
   isLoggedIn,
   showGradebookTab = true,
   isAdmin = false,
+  onForceSync,
+  isSyncing = false,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [settingsDropdownOpen, setSettingsDropdownOpen] = useState(false);
@@ -324,6 +329,21 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               )}
 
+              {/* Manual Cloud Sync Button */}
+              {isLoggedIn && onForceSync && (
+                <button
+                  type="button"
+                  onClick={onForceSync}
+                  disabled={isSyncing}
+                  className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50/80 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-200/70 dark:border-emerald-800/50 rounded-xl transition-colors cursor-pointer disabled:opacity-60"
+                  title="ซิงค์ข้อมูลล่าสุดจากเซิร์ฟเวอร์"
+                  aria-label="ซิงค์ข้อมูลล่าสุดจากเซิร์ฟเวอร์"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+                  <span className="hidden xl:inline">{isSyncing ? 'กำลังซิงค์...' : 'ซิงค์ข้อมูล'}</span>
+                </button>
+              )}
+
               {/* Theme Toggle (Dark/Light Mode) */}
               <button
                 type="button"
@@ -464,6 +484,21 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <KeyRound className="w-4 h-4" />
                 <span>เข้าสู่ระบบด้วยเลขประจำตัว</span>
+              </button>
+            )}
+
+            {isLoggedIn && onForceSync && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onForceSync();
+                }}
+                disabled={isSyncing}
+                className="w-full py-2 px-3 rounded-xl text-xs font-semibold text-emerald-800 dark:text-emerald-300 bg-emerald-50/80 dark:bg-emerald-950/50 border border-emerald-200/70 dark:border-emerald-800/50 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+                <span>{isSyncing ? 'กำลังซิงค์ข้อมูล...' : 'ซิงค์ข้อมูลล่าสุดจากเซิร์ฟเวอร์'}</span>
               </button>
             )}
 

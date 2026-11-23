@@ -10,6 +10,7 @@ import {
   AlertCircle,
   ShieldAlert,
   X,
+  Loader2,
 } from 'lucide-react';
 import { StudentProfile, TeacherProfile, UserRole } from '../types';
 import { constantTimeEqual, sanitizeImageSrc } from '../utils/security';
@@ -26,6 +27,7 @@ interface LoginModalProps {
   isDismissable?: boolean;
   studentsList?: StudentProfile[];
   teachersList?: TeacherProfile[];
+  onRefreshRosters?: () => Promise<{ students: StudentProfile[]; teachers: TeacherProfile[] }>;
   schoolCoverUrl?: string;
   schoolName?: string;
   schoolSubtitle?: string;
@@ -49,6 +51,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   isDismissable = false,
   studentsList = [],
   teachersList = [],
+  onRefreshRosters,
   schoolCoverUrl = '',
   schoolName = '',
   schoolSubtitle = '',
@@ -60,6 +63,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [lockoutSecondsLeft, setLockoutSecondsLeft] = useState(0);
+  const [isCheckingServer, setIsCheckingServer] = useState(false);
+  const lastRosterRefreshRef = React.useRef<number>(0);
   const [coverImageError, setCoverImageError] = useState(false);
 
   const sanitizedCustomCover = sanitizeImageSrc(schoolCoverUrl);
@@ -104,13 +109,16 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     setPassword('');
   };
 
-  const authenticateTeacherOrAdmin = (rawCode: string, rawPassword: string): boolean => {
+  const findTeacherAuthMatch = (
+    roster: TeacherProfile[],
+    rawCode: string,
+    rawPassword: string
+  ) => {
     const inputTrimmed = rawCode.trim();
     const inputUpper = inputTrimmed.toUpperCase();
     const cleanNumeric = inputUpper.replace(/^TCH-/, '');
 
-    // 1. Check exact / unambiguous matches in registered teachersList
-    const matchingTeachers = teachersList.filter((t) => {
+    const matchingTeachers = roster.filter((t) => {
       const tCode = (t.code || '').trim().toUpperCase();
       const tName = (t.name || '').trim().toLowerCase();
       const cleanTCode = tCode.replace(/^TCH-/, '');
@@ -125,20 +133,62 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     const passwordMatchedTeacher = matchingTeachers.find((t) =>
       constantTimeEqual(t.password, rawPassword)
     );
-    if (passwordMatchedTeacher) {
-      setFailedAttempts(0);
-      onLoginSuccess(passwordMatchedTeacher, 'teacher');
-      return true;
-    }
-
-    // 2. Built-in System Admin fallback only if no explicit ADMIN account exists in Firestore
-    const hasExplicitAdminInDb = teachersList.some(
+    const hasExplicitAdminInDb = roster.some(
       (t) => (t.code || '').trim().toUpperCase() === 'ADMIN'
     );
 
+    return {
+      inputUpper,
+      matchingTeachers,
+      passwordMatchedTeacher,
+      hasExplicitAdminInDb,
+    };
+  };
+
+  const maybeRefreshRosters = async (): Promise<{
+    students: StudentProfile[];
+    teachers: TeacherProfile[];
+  } | null> => {
+    if (!onRefreshRosters) return null;
+    if (Date.now() - lastRosterRefreshRef.current < 15_000) return null;
+    lastRosterRefreshRef.current = Date.now();
+    setIsCheckingServer(true);
+    try {
+      return await onRefreshRosters();
+    } finally {
+      setIsCheckingServer(false);
+    }
+  };
+
+  const authenticateTeacherOrAdmin = async (rawCode: string, rawPassword: string): Promise<boolean> => {
+    let activeTeachers = teachersList;
+    let match = findTeacherAuthMatch(activeTeachers, rawCode, rawPassword);
+
+    if (!match.passwordMatchedTeacher) {
+      const isDefaultAdmin =
+        match.inputUpper === 'ADMIN' &&
+        !match.hasExplicitAdminInDb &&
+        constantTimeEqual(rawPassword, 'admin123');
+
+      if (!isDefaultAdmin) {
+        const refreshed = await maybeRefreshRosters();
+        if (refreshed) {
+          activeTeachers = refreshed.teachers;
+          match = findTeacherAuthMatch(activeTeachers, rawCode, rawPassword);
+        }
+      }
+    }
+
+    if (match.passwordMatchedTeacher) {
+      setFailedAttempts(0);
+      onLoginSuccess(match.passwordMatchedTeacher, 'teacher');
+      return true;
+    }
+
+    // Built-in System Admin fallback only if no explicit ADMIN account exists in Firestore
     if (
-      inputUpper === 'ADMIN' &&
-      !hasExplicitAdminInDb &&
+      match.inputUpper === 'ADMIN' &&
+      !match.hasExplicitAdminInDb &&
       constantTimeEqual(rawPassword, 'admin123')
     ) {
       setFailedAttempts(0);
@@ -148,7 +198,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       return true;
     }
 
-    if (matchingTeachers.length > 0 || (inputUpper === 'ADMIN' && !hasExplicitAdminInDb)) {
+    if (match.matchingTeachers.length > 0 || (match.inputUpper === 'ADMIN' && !match.hasExplicitAdminInDb)) {
       registerFailedAttempt('รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง');
       return false;
     }
@@ -157,24 +207,34 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     return false;
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (lockoutSecondsLeft > 0) return;
+    if (lockoutSecondsLeft > 0 || isCheckingServer) return;
     setErrorMsg(null);
 
     const inputCodeClean = code.trim().toUpperCase();
 
     if (loginRole === 'student') {
-      const foundStudent = studentsList.find(
-        (s) =>
-          s.code.trim().toUpperCase() === inputCodeClean ||
-          s.code.trim().toUpperCase().replace(/^ST-/, '') === inputCodeClean
-      );
+      const findStd = (roster: StudentProfile[]) =>
+        roster.find(
+          (s) =>
+            s.code.trim().toUpperCase() === inputCodeClean ||
+            s.code.trim().toUpperCase().replace(/^ST-/, '') === inputCodeClean
+        );
+
+      let foundStudent = findStd(studentsList);
 
       // Seamless Admin login even if user did not switch the Student/Teacher tab
       if (!foundStudent && inputCodeClean === 'ADMIN') {
-        authenticateTeacherOrAdmin(code, password);
+        await authenticateTeacherOrAdmin(code, password);
         return;
+      }
+
+      if (!foundStudent || !constantTimeEqual(foundStudent.password, password)) {
+        const refreshed = await maybeRefreshRosters();
+        if (refreshed) {
+          foundStudent = findStd(refreshed.students);
+        }
       }
 
       if (!foundStudent) {
@@ -190,7 +250,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       setFailedAttempts(0);
       onLoginSuccess(foundStudent, 'student');
     } else {
-      authenticateTeacherOrAdmin(code, password);
+      await authenticateTeacherOrAdmin(code, password);
     }
   };
 
@@ -351,13 +411,18 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
             <button
               type="submit"
-              disabled={lockoutSecondsLeft > 0}
+              disabled={lockoutSecondsLeft > 0 || isCheckingServer}
               className="theme-btn-sheen w-full py-3 px-6 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-600 hover:to-teal-600 active:scale-[0.99] disabled:from-slate-400 disabled:to-slate-400 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs shadow-md shadow-emerald-900/20 transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
             >
               {lockoutSecondsLeft > 0 ? (
                 <>
                   <ShieldAlert className="w-4 h-4" />
                   <span>กรุณารอสักครู่ ({lockoutSecondsLeft} วินาที)</span>
+                </>
+              ) : isCheckingServer ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>กำลังตรวจสอบข้อมูล...</span>
                 </>
               ) : (
                 <>

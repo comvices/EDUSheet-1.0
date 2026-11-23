@@ -27,11 +27,20 @@ import {
   INITIAL_SUBMISSIONS,
 } from './data/mockData';
 import {
-  subscribeAssignments,
-  subscribeSubmissions,
-  subscribeStudents,
-  subscribeTeachers,
-  subscribeSettings,
+  loadAssignmentsCacheFirst,
+  loadSubmissionsCacheFirst,
+  loadStudentSubmissionsCacheFirst,
+  loadStudentsCacheFirst,
+  loadTeachersCacheFirst,
+  loadSettingsCacheFirst,
+  loadResourcesCacheFirst,
+  loadTeachingSchedulesCacheFirst,
+  loadAttendanceSessionsCacheFirst,
+  loadSubjectClassroomsCacheFirst,
+  subscribeSingleAssignment,
+  subscribeGroupSubmissions,
+  isCollectionSyncFresh,
+  type AppSettingsPayload,
   saveAssignmentToFirestore,
   deleteAssignmentFromFirestore,
   saveSubmissionToFirestore,
@@ -47,16 +56,12 @@ import {
   saveGradebookVisibilityToFirestore,
   saveSchoolBrandingToFirestore,
   saveSystemThemeToFirestore,
-  subscribeResources,
   saveResourceToFirestore,
   deleteResourceFromFirestore,
-  subscribeTeachingSchedules,
   saveTeachingScheduleToFirestore,
   deleteTeachingScheduleFromFirestore,
-  subscribeAttendanceSessions,
   saveAttendanceSessionToFirestore,
   deleteAttendanceSessionFromFirestore,
-  subscribeSubjectClassrooms,
   saveSubjectClassroomToFirestore,
   saveMultipleSubjectClassroomsToFirestore,
   deleteSubjectClassroomFromFirestore,
@@ -94,7 +99,17 @@ import {
   GradeSplitMigrationPlan,
   extractBaseGrade,
 } from './components/SplitWorksheetsModal';
-import { CheckCircle2, KeyRound, AlertTriangle, FolderGit2, ShieldAlert } from 'lucide-react';
+import {
+  CheckCircle2,
+  KeyRound,
+  AlertTriangle,
+  FolderGit2,
+  ShieldAlert,
+  Database,
+  ExternalLink,
+  RefreshCw,
+  X,
+} from 'lucide-react';
 import { LogoutIcon } from './components/LogoutIcon';
 import { AmbientThemeBackdrop } from './components/ThemeGraphics';
 import {
@@ -105,6 +120,13 @@ import {
   setCachedActiveTheme,
 } from './utils/themes';
 import { setApiSessionToken, clearApiSessionToken } from './utils/security';
+import {
+  clearQuotaStatus,
+  FIRESTORE_PRICING_URL,
+  FIRESTORE_UPGRADE_URL,
+  subscribeQuotaStatus,
+  type FirestoreQuotaState,
+} from './lib/firebase';
 
 const DEFAULT_GUEST_STUDENT: StudentProfile = {
   id: 'guest_student',
@@ -246,84 +268,181 @@ export default function App() {
     } catch (e) {}
   }, [periodConfigs]);
 
-  // Google Firebase Firestore Real-Time Sync (Strictly read-only on startup; never auto-creates mock items)
+  const [quotaStatus, setQuotaStatus] = useState<FirestoreQuotaState>({ exceeded: false });
+  const [isQuotaBannerDismissed, setIsQuotaBannerDismissed] = useState(false);
+
   React.useEffect(() => {
-    const unsubAssignments = subscribeAssignments((remoteAssignments) => {
-      setAssignments(remoteAssignments || []);
-    });
-
-    const unsubSubmissions = subscribeSubmissions((remoteSubmissions) => {
-      setSubmissions(remoteSubmissions || []);
-    });
-
-    const unsubStudents = subscribeStudents((remoteStudents) => {
-      setStudentsRoster(remoteStudents || []);
-    });
-
-    const unsubTeachers = subscribeTeachers((remoteTeachers) => {
-      setTeachersRoster(remoteTeachers || []);
-    });
-
-    const unsubSettings = subscribeSettings((remoteSettings) => {
-      const cleanedGrades = (remoteSettings.gradeLevels || []).filter((g) => g && g !== 'ทั้งหมด');
-      setGradeLevelsList(['ทั้งหมด', ...cleanedGrades]);
-
-      const cleanedSubjects = (remoteSettings.subjects || []).filter((s) => s && s !== 'ทั้งหมด');
-      setSubjectsList(['ทั้งหมด', ...cleanedSubjects]);
-
-      if (remoteSettings.periodConfigs && remoteSettings.periodConfigs.length > 0) {
-        setPeriodConfigs(remoteSettings.periodConfigs);
-      }
-      if (typeof remoteSettings.studentGradebookEnabled === 'boolean') {
-        setStudentGradebookEnabled(remoteSettings.studentGradebookEnabled);
-      }
-      if (Array.isArray(remoteSettings.gradebookDisabledRooms)) {
-        setGradebookDisabledRooms(remoteSettings.gradebookDisabledRooms);
-      }
-      if (typeof remoteSettings.schoolCoverUrl === 'string') {
-        setSchoolCoverUrl(remoteSettings.schoolCoverUrl);
-      }
-      if (typeof remoteSettings.schoolName === 'string') {
-        setSchoolName(remoteSettings.schoolName);
-      }
-      if (typeof remoteSettings.schoolSubtitle === 'string') {
-        setSchoolSubtitle(remoteSettings.schoolSubtitle);
-      }
-      if (remoteSettings.themeColor) {
-        setActiveTheme(remoteSettings.themeColor);
-        applyPastelThemeToDom(remoteSettings.themeColor);
-        setCachedActiveTheme(remoteSettings.themeColor);
+    const unsubQuota = subscribeQuotaStatus((state) => {
+      setQuotaStatus(state);
+      if (state.exceeded) {
+        setIsQuotaBannerDismissed(false);
       }
     });
+    return () => unsubQuota();
+  }, []);
 
-    const unsubResources = subscribeResources((remoteResources) => {
-      setResources(remoteResources || []);
+  const [isManualSyncing, setIsManualSyncing] = useState(false);
+
+  const applyRemoteSettings = React.useCallback((remoteSettings: AppSettingsPayload) => {
+    const cleanedGrades = (remoteSettings.gradeLevels || []).filter((g) => g && g !== 'ทั้งหมด');
+    setGradeLevelsList(['ทั้งหมด', ...cleanedGrades]);
+
+    const cleanedSubjects = (remoteSettings.subjects || []).filter((s) => s && s !== 'ทั้งหมด');
+    setSubjectsList(['ทั้งหมด', ...cleanedSubjects]);
+
+    if (remoteSettings.periodConfigs && remoteSettings.periodConfigs.length > 0) {
+      setPeriodConfigs(remoteSettings.periodConfigs);
+    }
+    if (typeof remoteSettings.studentGradebookEnabled === 'boolean') {
+      setStudentGradebookEnabled(remoteSettings.studentGradebookEnabled);
+    }
+    if (Array.isArray(remoteSettings.gradebookDisabledRooms)) {
+      setGradebookDisabledRooms(remoteSettings.gradebookDisabledRooms);
+    }
+    if (typeof remoteSettings.schoolCoverUrl === 'string') {
+      setSchoolCoverUrl(remoteSettings.schoolCoverUrl);
+    }
+    if (typeof remoteSettings.schoolName === 'string') {
+      setSchoolName(remoteSettings.schoolName);
+    }
+    if (typeof remoteSettings.schoolSubtitle === 'string') {
+      setSchoolSubtitle(remoteSettings.schoolSubtitle);
+    }
+    if (remoteSettings.themeColor) {
+      setActiveTheme(remoteSettings.themeColor);
+      applyPastelThemeToDom(remoteSettings.themeColor);
+      setCachedActiveTheme(remoteSettings.themeColor);
+    }
+  }, []);
+
+  // Google Firebase Firestore Cache-First + TTL Sync:
+  // 1) Startup loads lightweight login rosters & school settings from IndexedDB cache first (0 reads if within TTL)
+  React.useEffect(() => {
+    let cancelled = false;
+    loadStudentsCacheFirst({
+      onEmit: (remoteStudents) => {
+        if (!cancelled) setStudentsRoster(remoteStudents || []);
+      },
+    });
+    loadTeachersCacheFirst({
+      onEmit: (remoteTeachers) => {
+        if (!cancelled) setTeachersRoster(remoteTeachers || []);
+      },
+    });
+    loadSettingsCacheFirst({
+      onEmit: (remoteSettings) => {
+        if (!cancelled) applyRemoteSettings(remoteSettings);
+      },
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [applyRemoteSettings]);
+
+  // 2) Classroom, worksheet, submission & attendance data load cache-first AFTER login,
+  //    and students only query their own/group submissions instead of the entire school
+  React.useEffect(() => {
+    if (!isLoggedIn) return;
+    let cancelled = false;
+
+    loadAssignmentsCacheFirst({
+      onEmit: (remoteAssignments) => {
+        if (!cancelled) setAssignments(remoteAssignments || []);
+      },
     });
 
-    const unsubSchedules = subscribeTeachingSchedules((remoteSchedules) => {
-      setTeachingSchedules(remoteSchedules || []);
+    if (role === 'student') {
+      loadStudentSubmissionsCacheFirst(currentStudentUser.code, {
+        onEmit: (remoteSubmissions) => {
+          if (!cancelled) setSubmissions(remoteSubmissions || []);
+        },
+      });
+    } else {
+      loadSubmissionsCacheFirst({
+        onEmit: (remoteSubmissions) => {
+          if (!cancelled) setSubmissions(remoteSubmissions || []);
+        },
+      });
+    }
+
+    loadResourcesCacheFirst({
+      onEmit: (remoteResources) => {
+        if (!cancelled) setResources(remoteResources || []);
+      },
     });
 
-    const unsubAttendance = subscribeAttendanceSessions((remoteSessions) => {
-      setAttendanceSessions(remoteSessions || []);
+    loadTeachingSchedulesCacheFirst({
+      onEmit: (remoteSchedules) => {
+        if (!cancelled) setTeachingSchedules(remoteSchedules || []);
+      },
     });
 
-    const unsubSubjectClassrooms = subscribeSubjectClassrooms((remoteClassrooms) => {
-      setSubjectClassrooms(remoteClassrooms || []);
+    loadAttendanceSessionsCacheFirst({
+      onEmit: (remoteSessions) => {
+        if (!cancelled) setAttendanceSessions(remoteSessions || []);
+      },
+    });
+
+    loadSubjectClassroomsCacheFirst({
+      onEmit: (remoteClassrooms) => {
+        if (!cancelled) setSubjectClassrooms(remoteClassrooms || []);
+      },
     });
 
     return () => {
-      unsubAssignments();
-      unsubSubmissions();
-      unsubStudents();
-      unsubTeachers();
-      unsubSettings();
-      unsubResources();
-      unsubSchedules();
-      unsubAttendance();
-      unsubSubjectClassrooms();
+      cancelled = true;
     };
+  }, [isLoggedIn, role, currentStudentUser.code]);
+
+  const handleRefreshAuthRosters = React.useCallback(async () => {
+    const [freshStudents, freshTeachers] = await Promise.all([
+      loadStudentsCacheFirst({
+        forceServer: true,
+        onEmit: (data) => setStudentsRoster(data || []),
+      }),
+      loadTeachersCacheFirst({
+        forceServer: true,
+        onEmit: (data) => setTeachersRoster(data || []),
+      }),
+    ]);
+    return { students: freshStudents, teachers: freshTeachers };
   }, []);
+
+  const handleForceSyncFromCloud = React.useCallback(async () => {
+    if (!isLoggedIn || isManualSyncing) return;
+    setIsManualSyncing(true);
+    try {
+      const tasks: Promise<unknown>[] = [
+        loadSettingsCacheFirst({ forceServer: true, onEmit: applyRemoteSettings }),
+        loadAssignmentsCacheFirst({ forceServer: true, onEmit: (d) => setAssignments(d || []) }),
+        loadResourcesCacheFirst({ forceServer: true, onEmit: (d) => setResources(d || []) }),
+        loadTeachingSchedulesCacheFirst({ forceServer: true, onEmit: (d) => setTeachingSchedules(d || []) }),
+        loadAttendanceSessionsCacheFirst({ forceServer: true, onEmit: (d) => setAttendanceSessions(d || []) }),
+        loadSubjectClassroomsCacheFirst({ forceServer: true, onEmit: (d) => setSubjectClassrooms(d || []) }),
+      ];
+
+      if (role === 'student') {
+        tasks.push(
+          loadStudentSubmissionsCacheFirst(currentStudentUser.code, {
+            forceServer: true,
+            onEmit: (d) => setSubmissions(d || []),
+          })
+        );
+      } else {
+        tasks.push(
+          loadSubmissionsCacheFirst({ forceServer: true, onEmit: (d) => setSubmissions(d || []) }),
+          loadStudentsCacheFirst({ forceServer: true, onEmit: (d) => setStudentsRoster(d || []) }),
+          loadTeachersCacheFirst({ forceServer: true, onEmit: (d) => setTeachersRoster(d || []) })
+        );
+      }
+
+      await Promise.all(tasks);
+      setToastMessage('ซิงค์ข้อมูลล่าสุดจากเซิร์ฟเวอร์เรียบร้อยแล้ว 🔄');
+      setTimeout(() => setToastMessage(null), 4000);
+    } finally {
+      setIsManualSyncing(false);
+    }
+  }, [isLoggedIn, isManualSyncing, role, currentStudentUser.code, applyRemoteSettings]);
 
   // Filter State for Home View
   const [filters, setFilters] = useState<FilterState>({
@@ -375,6 +494,58 @@ export default function App() {
     baseGrade?: string;
     focusAssignmentId?: string;
   }>({ isOpen: false });
+
+  // 3) Scoped live listeners ONLY when a student opens a collaborative group worksheet modal
+  const activeGroupModalAssignmentId =
+    isLoggedIn && activeSubmitModalAsg?.workMode === 'group' ? activeSubmitModalAsg.id : '';
+  const liveGroupModalAsg = activeGroupModalAssignmentId
+    ? assignments.find((a) => a.id === activeGroupModalAssignmentId) || activeSubmitModalAsg
+    : null;
+  const activeGroupModalGroupId =
+    role === 'student' && liveGroupModalAsg
+      ? findStudentGroup(liveGroupModalAsg, currentStudentUser.code)?.id || ''
+      : '';
+
+  React.useEffect(() => {
+    if (!activeGroupModalAssignmentId) return;
+    return subscribeSingleAssignment(activeGroupModalAssignmentId, (freshAsg) => {
+      if (!freshAsg) return;
+      setAssignments((prev) => prev.map((a) => (a.id === freshAsg.id ? freshAsg : a)));
+    });
+  }, [activeGroupModalAssignmentId]);
+
+  React.useEffect(() => {
+    if (!activeGroupModalAssignmentId || !activeGroupModalGroupId) return;
+    return subscribeGroupSubmissions(
+      activeGroupModalAssignmentId,
+      activeGroupModalGroupId,
+      (groupSubs) => {
+        if (groupSubs.length === 0) return;
+        setSubmissions((prev) => {
+          const incomingMap = new Map(groupSubs.map((s) => [s.id, s]));
+          const updated = prev.map((s) => incomingMap.get(s.id) || s);
+          const existingIds = new Set(updated.map((s) => s.id));
+          const additions = groupSubs.filter((s) => !existingIds.has(s.id));
+          return [...additions, ...updated];
+        });
+      }
+    );
+  }, [activeGroupModalAssignmentId, activeGroupModalGroupId]);
+
+  // 4) Silent teacher refresh when opening grading / roster / gradebook if submissions cache is > 60s old
+  React.useEffect(() => {
+    if (!isLoggedIn || role !== 'teacher') return;
+    const needsFreshSubs =
+      activeTab === 'gradebook' ||
+      Boolean(activeRosterModalAsg) ||
+      Boolean(activeGradingModalAsg);
+    if (!needsFreshSubs) return;
+    if (isCollectionSyncFresh('submissions', 60_000)) return;
+    loadSubmissionsCacheFirst({
+      forceServer: true,
+      onEmit: (data) => setSubmissions(data || []),
+    });
+  }, [isLoggedIn, role, activeTab, activeRosterModalAsg, activeGradingModalAsg]);
 
   const handleOpenSettings = (tab: SettingsTab = 'grades') => {
     setSettingsInitialTab(tab);
@@ -464,6 +635,7 @@ export default function App() {
     setShowDefaultAdminWarning(false);
     setIsLogoutConfirmOpen(false);
     setIsLoggedIn(false);
+    setSubmissions([]);
     setIsLoginModalOpen(true);
     showToast('ออกจากระบบเรียบร้อยแล้ว');
   };
@@ -1899,6 +2071,67 @@ export default function App() {
     <div className="relative min-h-screen bg-school-canvas text-slate-900 dark:text-slate-100 flex flex-col font-sarabun">
       <AmbientThemeBackdrop />
 
+      {/* Firestore Free Daily Quota Exceeded Banner */}
+      {quotaStatus.exceeded && !isQuotaBannerDismissed && (
+        <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-5 sm:max-w-lg z-[115] bg-amber-50 dark:bg-slate-900 border-2 border-amber-400 dark:border-amber-600 rounded-2xl p-4 shadow-2xl text-xs space-y-2.5 animate-in fade-in slide-in-from-bottom-4 duration-200">
+          <div className="flex items-start justify-between gap-2.5">
+            <div className="flex items-start gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5">
+                <Database className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="font-bold font-prompt text-amber-950 dark:text-amber-200">
+                  โควต้าการอ่านฐานข้อมูล Firestore ฟรีรายวันเต็มแล้ว
+                </p>
+                <p className="text-amber-800 dark:text-amber-300/90 mt-0.5 leading-relaxed">
+                  ระบบกำลังแสดงข้อมูลจากแคชในเครื่องเท่าที่มีอยู่ โดยโควต้าจะรีเซ็ตใหม่ในวันถัดไป หรือสามารถอัปเกรดฐานข้อมูลได้ทันที
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsQuotaBannerDismissed(true)}
+              className="p-1 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer shrink-0"
+              aria-label="ปิดการแจ้งเตือนโควต้า"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 pl-10">
+            <a
+              href={FIRESTORE_UPGRADE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold transition-colors"
+            >
+              <span>อัปเกรด / จัดการโควต้า</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+            <a
+              href={FIRESTORE_PRICING_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 hover:bg-amber-100/70 font-semibold transition-colors"
+            >
+              <span>ดูรายละเอียด Spark Plan</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+            <button
+              type="button"
+              onClick={() => {
+                clearQuotaStatus();
+                window.location.reload();
+              }}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-slate-800 font-semibold cursor-pointer"
+            >
+              <RefreshCw className="w-3 h-3" />
+              <span>ลองใหม่</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 3-Zone Header Contract */}
       <Header
         activeTab={activeTab}
@@ -1917,6 +2150,8 @@ export default function App() {
         isLoggedIn={isLoggedIn}
         showGradebookTab={isGradebookVisibleToCurrentUser}
         isAdmin={isAdminUser}
+        onForceSync={handleForceSyncFromCloud}
+        isSyncing={isManualSyncing}
       />
 
       {/* Main Container (Responsive padding with mobile bottom nav safe-area) */}
@@ -2358,6 +2593,7 @@ export default function App() {
           isDismissable={isLoggedIn}
           studentsList={studentsRoster}
           teachersList={teachersRoster}
+          onRefreshRosters={handleRefreshAuthRosters}
           schoolCoverUrl={schoolCoverUrl}
           schoolName={schoolName}
           schoolSubtitle={schoolSubtitle}

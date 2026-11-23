@@ -23,7 +23,7 @@ import { Assignment, Submission, Question, StudentProfile } from '../types';
 import { SaveConfirmModal } from './SaveConfirmModal';
 import { findStudentGroup, normalizeCode } from '../utils/groupHelpers';
 
-const MAX_TOTAL_ANSWER_IMAGES_CHARS = 780_000;
+const MAX_TOTAL_ANSWER_IMAGES_CHARS = 520_000;
 
 async function compressStudentAnswerImage(file: File): Promise<string> {
   if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') {
@@ -43,9 +43,9 @@ async function compressStudentAnswerImage(file: File): Promise<string> {
     });
 
     const attempts = [
-      { maxDim: 960, quality: 0.74 },
-      { maxDim: 800, quality: 0.62 },
-      { maxDim: 680, quality: 0.5 },
+      { maxDim: 840, quality: 0.66 },
+      { maxDim: 720, quality: 0.56 },
+      { maxDim: 600, quality: 0.46 },
     ];
 
     let bestDataUrl = '';
@@ -66,7 +66,7 @@ async function compressStudentAnswerImage(file: File): Promise<string> {
       ctx.fillRect(0, 0, w, h);
       ctx.drawImage(img, 0, 0, w, h);
       bestDataUrl = canvas.toDataURL('image/jpeg', quality);
-      if (bestDataUrl.length <= 160_000) {
+      if (bestDataUrl.length <= 90_000) {
         return bestDataUrl;
       }
     }

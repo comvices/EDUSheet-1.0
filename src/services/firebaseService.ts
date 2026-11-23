@@ -5,9 +5,22 @@ import {
   deleteDoc,
   onSnapshot,
   getDocs,
+  getDocsFromCache,
+  getDocsFromServer,
+  getDocFromCache,
+  getDocFromServer,
+  query,
+  where,
   writeBatch,
+  type Query,
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import {
+  clearQuotaStatus,
+  db,
+  handleFirestoreError,
+  isQuotaExceededError,
+  OperationType,
+} from '../lib/firebase';
 import {
   Assignment,
   Submission,
@@ -33,6 +46,558 @@ const TEACHING_SCHEDULES_COLLECTION = 'teachingSchedules';
 const ATTENDANCE_SESSIONS_COLLECTION = 'attendanceSessions';
 const SUBJECT_CLASSROOMS_COLLECTION = 'subjectClassrooms';
 
+const SYNC_TS_PREFIX = 'edusheet_sync_ts_';
+
+export const CACHE_TTL = {
+  STUDENTS: 30 * 60 * 1000, // 30 minutes
+  TEACHERS: 30 * 60 * 1000, // 30 minutes
+  SETTINGS: 15 * 60 * 1000, // 15 minutes
+  RESOURCES: 20 * 60 * 1000, // 20 minutes
+  SCHEDULES: 20 * 60 * 1000, // 20 minutes
+  ATTENDANCE: 15 * 60 * 1000, // 15 minutes
+  CLASSROOMS: 20 * 60 * 1000, // 20 minutes
+  ASSIGNMENTS: 5 * 60 * 1000, // 5 minutes
+  SUBMISSIONS: 3 * 60 * 1000, // 3 minutes
+} as const;
+
+interface SyncMeta {
+  ts: number;
+  count: number;
+}
+
+function getSyncStorageKey(key: string): string {
+  return `${SYNC_TS_PREFIX}${key}`;
+}
+
+function readSyncMeta(key: string): SyncMeta | null {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return null;
+    const raw = window.localStorage.getItem(getSyncStorageKey(key));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (typeof parsed?.ts === 'number' && typeof parsed?.count === 'number') {
+      return { ts: parsed.ts, count: parsed.count };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function writeSyncMeta(key: string, count: number): void {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    window.localStorage.setItem(
+      getSyncStorageKey(key),
+      JSON.stringify({ ts: Date.now(), count })
+    );
+  } catch {
+    // Ignore localStorage quota/private-mode failures
+  }
+}
+
+function touchSyncMeta(key: string, minCountIfExists = 0): void {
+  const existing = readSyncMeta(key);
+  if (!existing) return;
+  writeSyncMeta(key, Math.max(minCountIfExists, existing.count));
+}
+
+export function isCollectionSyncFresh(syncKey: string, maxAgeMs: number): boolean {
+  const meta = readSyncMeta(syncKey);
+  if (!meta) return false;
+  return Date.now() - meta.ts < maxAgeMs;
+}
+
+export function clearAllSyncTimestamps(): void {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i);
+      if (k && k.startsWith(SYNC_TS_PREFIX)) {
+        keysToRemove.push(k);
+      }
+    }
+    keysToRemove.forEach((k) => window.localStorage.removeItem(k));
+  } catch {
+    // Ignore storage failures
+  }
+}
+
+export interface AppSettingsPayload {
+  gradeLevels: string[];
+  subjects: string[];
+  periodConfigs?: PeriodConfig[];
+  studentGradebookEnabled?: boolean;
+  gradebookDisabledRooms?: string[];
+  schoolCoverUrl?: string;
+  schoolName?: string;
+  schoolSubtitle?: string;
+  themeColor?: PastelThemeId;
+}
+
+function parseSettingsPayload(data?: Record<string, any> | null): AppSettingsPayload {
+  if (!data) {
+    return {
+      gradeLevels: [],
+      subjects: [],
+      studentGradebookEnabled: true,
+      gradebookDisabledRooms: [],
+      schoolCoverUrl: '',
+      schoolName: '',
+      schoolSubtitle: '',
+      themeColor: undefined,
+    };
+  }
+  return {
+    gradeLevels: data.gradeLevels || [],
+    subjects: data.subjects || [],
+    periodConfigs: Array.isArray(data.periodConfigs) ? data.periodConfigs : undefined,
+    studentGradebookEnabled:
+      typeof data.studentGradebookEnabled === 'boolean' ? data.studentGradebookEnabled : true,
+    gradebookDisabledRooms: Array.isArray(data.gradebookDisabledRooms)
+      ? data.gradebookDisabledRooms
+      : [],
+    schoolCoverUrl: typeof data.schoolCoverUrl === 'string' ? data.schoolCoverUrl : '',
+    schoolName: typeof data.schoolName === 'string' ? data.schoolName : '',
+    schoolSubtitle: typeof data.schoolSubtitle === 'string' ? data.schoolSubtitle : '',
+    themeColor: isValidPastelTheme(data.themeColor) ? data.themeColor : undefined,
+  };
+}
+
+const sortAssignments = (list: Assignment[]) =>
+  [...list].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+
+const sortSubmissions = (list: Submission[]) =>
+  [...list].sort(
+    (a, b) => new Date(b.submissionDate).getTime() - new Date(a.submissionDate).getTime()
+  );
+
+const sortResources = (list: LearningResource[]) =>
+  [...list].sort(
+    (a, b) => new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime()
+  );
+
+const DAY_ORDER: Record<string, number> = {
+  monday: 1,
+  tuesday: 2,
+  wednesday: 3,
+  thursday: 4,
+  friday: 5,
+};
+
+const sortTeachingSchedules = (list: TeachingSchedule[]) =>
+  [...list].sort((a, b) => {
+    const dDiff = (DAY_ORDER[a.dayOfWeek] || 9) - (DAY_ORDER[b.dayOfWeek] || 9);
+    if (dDiff !== 0) return dDiff;
+    return a.period - b.period;
+  });
+
+const sortAttendanceSessions = (list: AttendanceSession[]) =>
+  [...list].sort((a, b) => {
+    const dateCompare = b.date.localeCompare(a.date);
+    if (dateCompare !== 0) return dateCompare;
+    return a.period - b.period;
+  });
+
+const sortSubjectClassrooms = (list: SubjectClassroom[]) =>
+  [...list].sort(
+    (a, b) => new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime()
+  );
+
+async function hydrateCollectionFromCache<T>(
+  colName: string,
+  sortItems: (list: T[]) => T[],
+  onData: (list: T[]) => void
+): Promise<void> {
+  try {
+    const cachedSnap = await getDocsFromCache(collection(db, colName));
+    if (!cachedSnap.empty) {
+      const list: T[] = [];
+      cachedSnap.forEach((docSnap) => {
+        list.push(docSnap.data() as T);
+      });
+      onData(sortItems(list));
+    }
+  } catch {
+    // Cache may be empty on first visit
+  }
+}
+
+export interface CacheFirstLoadOptions<T> {
+  forceServer?: boolean;
+  onEmit?: (data: T) => void;
+}
+
+async function fetchCollectionCacheFirst<T>(params: {
+  colName: string;
+  syncKey?: string;
+  ttlMs: number;
+  sortItems: (list: T[]) => T[];
+  forceServer?: boolean;
+  onEmit?: (list: T[]) => void;
+}): Promise<T[]> {
+  const { colName, syncKey = colName, ttlMs, sortItems, forceServer = false, onEmit } = params;
+  const colRef = collection(db, colName);
+
+  let cachedList: T[] = [];
+  let hasCachedDocs = false;
+
+  try {
+    const cachedSnap = await getDocsFromCache(colRef);
+    if (!cachedSnap.empty) {
+      hasCachedDocs = true;
+      const raw: T[] = [];
+      cachedSnap.forEach((docSnap) => {
+        raw.push(docSnap.data() as T);
+      });
+      cachedList = sortItems(raw);
+      onEmit?.(cachedList);
+    }
+  } catch {
+    // Local cache miss
+  }
+
+  const meta = readSyncMeta(syncKey);
+  const isFresh = Boolean(meta && Date.now() - meta.ts < ttlMs);
+
+  if (!forceServer && isFresh) {
+    if (hasCachedDocs) {
+      return cachedList;
+    }
+    if (meta && meta.count === 0) {
+      onEmit?.([]);
+      return [];
+    }
+  }
+
+  try {
+    const serverSnap = await getDocsFromServer(colRef);
+    clearQuotaStatus();
+    const raw: T[] = [];
+    serverSnap.forEach((docSnap) => {
+      raw.push(docSnap.data() as T);
+    });
+    const sorted = sortItems(raw);
+    writeSyncMeta(syncKey, sorted.length);
+    onEmit?.(sorted);
+    return sorted;
+  } catch (error) {
+    const msg = (error instanceof Error ? error.message : String(error || '')).toLowerCase();
+    if (isQuotaExceededError(error)) {
+      handleFirestoreError(error, OperationType.LIST, colName);
+      return cachedList;
+    }
+    if (msg.includes('offline') || msg.includes('unavailable') || msg.includes('failed to get')) {
+      console.warn(`⚠️ Firestore offline while loading ${colName}, serving cached data.`);
+      return cachedList;
+    }
+    handleFirestoreError(error, OperationType.LIST, colName);
+    return cachedList;
+  }
+}
+
+export function loadAssignmentsCacheFirst(options?: CacheFirstLoadOptions<Assignment[]>) {
+  return fetchCollectionCacheFirst<Assignment>({
+    colName: ASSIGNMENTS_COLLECTION,
+    ttlMs: CACHE_TTL.ASSIGNMENTS,
+    sortItems: sortAssignments,
+    forceServer: options?.forceServer,
+    onEmit: options?.onEmit,
+  });
+}
+
+export function loadSubmissionsCacheFirst(options?: CacheFirstLoadOptions<Submission[]>) {
+  return fetchCollectionCacheFirst<Submission>({
+    colName: SUBMISSIONS_COLLECTION,
+    ttlMs: CACHE_TTL.SUBMISSIONS,
+    sortItems: sortSubmissions,
+    forceServer: options?.forceServer,
+    onEmit: options?.onEmit,
+  });
+}
+
+function buildStudentCodeVariants(studentCode: string): string[] {
+  const raw = (studentCode || '').trim();
+  if (!raw) return [];
+  const upper = raw.toUpperCase();
+  const lower = raw.toLowerCase();
+  const withoutPrefix = upper.startsWith('ST-') ? upper.slice(3) : '';
+  return Array.from(
+    new Set([raw, upper, lower, withoutPrefix].filter(Boolean))
+  ).slice(0, 10);
+}
+
+async function runMergedQueriesFromCache(queries: Query[]): Promise<Submission[]> {
+  const map = new Map<string, Submission>();
+  for (const q of queries) {
+    try {
+      const snap = await getDocsFromCache(q);
+      snap.forEach((docSnap) => {
+        const sub = docSnap.data() as Submission;
+        if (sub?.id) map.set(sub.id, sub);
+      });
+    } catch {
+      // Cache miss on this query
+    }
+  }
+  return sortSubmissions(Array.from(map.values()));
+}
+
+async function runMergedQueriesFromServer(queries: Query[]): Promise<Submission[]> {
+  const snaps = await Promise.all(queries.map((q) => getDocsFromServer(q)));
+  const map = new Map<string, Submission>();
+  for (const snap of snaps) {
+    snap.forEach((docSnap) => {
+      const sub = docSnap.data() as Submission;
+      if (sub?.id) map.set(sub.id, sub);
+    });
+  }
+  return sortSubmissions(Array.from(map.values()));
+}
+
+// Student-scoped submission loader: reads ONLY this student's own submissions or group submissions (avoids reading entire school)
+export async function loadStudentSubmissionsCacheFirst(
+  studentCode: string,
+  options?: CacheFirstLoadOptions<Submission[]>
+): Promise<Submission[]> {
+  const variants = buildStudentCodeVariants(studentCode);
+  if (variants.length === 0) {
+    options?.onEmit?.([]);
+    return [];
+  }
+
+  const syncKey = `submissions_std_${variants[0].toUpperCase()}`;
+  const colRef = collection(db, SUBMISSIONS_COLLECTION);
+  const queries: Query[] = [
+    query(colRef, where('studentCode', 'in', variants)),
+    query(colRef, where('groupMemberCodes', 'array-contains-any', variants)),
+  ];
+
+  const cachedList = await runMergedQueriesFromCache(queries);
+  if (cachedList.length > 0) {
+    options?.onEmit?.(cachedList);
+  }
+
+  const meta = readSyncMeta(syncKey);
+  const isFresh = Boolean(meta && Date.now() - meta.ts < CACHE_TTL.SUBMISSIONS);
+  if (!options?.forceServer && isFresh && (cachedList.length > 0 || meta?.count === 0)) {
+    if (cachedList.length === 0) options?.onEmit?.([]);
+    return cachedList;
+  }
+
+  try {
+    const serverList = await runMergedQueriesFromServer(queries);
+    clearQuotaStatus();
+    writeSyncMeta(syncKey, serverList.length);
+    options?.onEmit?.(serverList);
+    return serverList;
+  } catch (error) {
+    const msg = (error instanceof Error ? error.message : String(error || '')).toLowerCase();
+    if (isQuotaExceededError(error)) {
+      handleFirestoreError(error, OperationType.LIST, `${SUBMISSIONS_COLLECTION}?student=${variants[0]}`);
+      return cachedList;
+    }
+    if (msg.includes('offline') || msg.includes('unavailable') || msg.includes('failed to get')) {
+      console.warn('⚠️ Firestore offline while loading student submissions, serving cached data.');
+      return cachedList;
+    }
+    handleFirestoreError(error, OperationType.LIST, `${SUBMISSIONS_COLLECTION}?student=${variants[0]}`);
+    return cachedList;
+  }
+}
+
+export function loadStudentsCacheFirst(options?: CacheFirstLoadOptions<StudentProfile[]>) {
+  return fetchCollectionCacheFirst<StudentProfile>({
+    colName: STUDENTS_COLLECTION,
+    ttlMs: CACHE_TTL.STUDENTS,
+    sortItems: (list) => list,
+    forceServer: options?.forceServer,
+    onEmit: options?.onEmit,
+  });
+}
+
+export function loadTeachersCacheFirst(options?: CacheFirstLoadOptions<TeacherProfile[]>) {
+  return fetchCollectionCacheFirst<TeacherProfile>({
+    colName: TEACHERS_COLLECTION,
+    ttlMs: CACHE_TTL.TEACHERS,
+    sortItems: (list) => list,
+    forceServer: options?.forceServer,
+    onEmit: options?.onEmit,
+  });
+}
+
+export async function loadSettingsCacheFirst(
+  options?: CacheFirstLoadOptions<AppSettingsPayload>
+): Promise<AppSettingsPayload> {
+  const docRef = doc(db, SETTINGS_COLLECTION, MAIN_SETTINGS_DOC);
+  const syncKey = SETTINGS_COLLECTION;
+
+  let cachedPayload: AppSettingsPayload | null = null;
+  try {
+    const cachedDoc = await getDocFromCache(docRef);
+    if (cachedDoc.exists()) {
+      cachedPayload = parseSettingsPayload(cachedDoc.data());
+      options?.onEmit?.(cachedPayload);
+    }
+  } catch {
+    // Local cache miss
+  }
+
+  const meta = readSyncMeta(syncKey);
+  const isFresh = Boolean(meta && Date.now() - meta.ts < CACHE_TTL.SETTINGS);
+  if (!options?.forceServer && isFresh && (cachedPayload !== null || meta?.count === 0)) {
+    const resolved = cachedPayload || parseSettingsPayload(null);
+    if (cachedPayload === null) options?.onEmit?.(resolved);
+    return resolved;
+  }
+
+  try {
+    const serverDoc = await getDocFromServer(docRef);
+    clearQuotaStatus();
+    const payload = parseSettingsPayload(serverDoc.exists() ? serverDoc.data() : null);
+    writeSyncMeta(syncKey, serverDoc.exists() ? 1 : 0);
+    options?.onEmit?.(payload);
+    return payload;
+  } catch (error) {
+    const msg = (error instanceof Error ? error.message : String(error || '')).toLowerCase();
+    if (isQuotaExceededError(error)) {
+      handleFirestoreError(error, OperationType.GET, `${SETTINGS_COLLECTION}/${MAIN_SETTINGS_DOC}`);
+      return cachedPayload || parseSettingsPayload(null);
+    }
+    if (msg.includes('offline') || msg.includes('unavailable') || msg.includes('failed to get')) {
+      return cachedPayload || parseSettingsPayload(null);
+    }
+    handleFirestoreError(error, OperationType.GET, `${SETTINGS_COLLECTION}/${MAIN_SETTINGS_DOC}`);
+    return cachedPayload || parseSettingsPayload(null);
+  }
+}
+
+export function loadResourcesCacheFirst(options?: CacheFirstLoadOptions<LearningResource[]>) {
+  return fetchCollectionCacheFirst<LearningResource>({
+    colName: RESOURCES_COLLECTION,
+    ttlMs: CACHE_TTL.RESOURCES,
+    sortItems: sortResources,
+    forceServer: options?.forceServer,
+    onEmit: options?.onEmit,
+  });
+}
+
+export function loadTeachingSchedulesCacheFirst(
+  options?: CacheFirstLoadOptions<TeachingSchedule[]>
+) {
+  return fetchCollectionCacheFirst<TeachingSchedule>({
+    colName: TEACHING_SCHEDULES_COLLECTION,
+    ttlMs: CACHE_TTL.SCHEDULES,
+    sortItems: sortTeachingSchedules,
+    forceServer: options?.forceServer,
+    onEmit: options?.onEmit,
+  });
+}
+
+export function loadAttendanceSessionsCacheFirst(
+  options?: CacheFirstLoadOptions<AttendanceSession[]>
+) {
+  return fetchCollectionCacheFirst<AttendanceSession>({
+    colName: ATTENDANCE_SESSIONS_COLLECTION,
+    ttlMs: CACHE_TTL.ATTENDANCE,
+    sortItems: sortAttendanceSessions,
+    forceServer: options?.forceServer,
+    onEmit: options?.onEmit,
+  });
+}
+
+export function loadSubjectClassroomsCacheFirst(
+  options?: CacheFirstLoadOptions<SubjectClassroom[]>
+) {
+  return fetchCollectionCacheFirst<SubjectClassroom>({
+    colName: SUBJECT_CLASSROOMS_COLLECTION,
+    ttlMs: CACHE_TTL.CLASSROOMS,
+    sortItems: sortSubjectClassrooms,
+    forceServer: options?.forceServer,
+    onEmit: options?.onEmit,
+  });
+}
+
+// Scoped Real-Time Listener for a single active assignment (used ONLY while student opens group worksheet modal)
+export function subscribeSingleAssignment(
+  assignmentId: string,
+  onData: (assignment: Assignment | null) => void
+): () => void {
+  if (!assignmentId) return () => {};
+  try {
+    const docRef = doc(db, ASSIGNMENTS_COLLECTION, assignmentId);
+    return onSnapshot(
+      docRef,
+      (docSnap) => {
+        onData(docSnap.exists() ? (docSnap.data() as Assignment) : null);
+      },
+      async (error) => {
+        handleFirestoreError(error, OperationType.GET, `${ASSIGNMENTS_COLLECTION}/${assignmentId}`);
+        if (isQuotaExceededError(error)) {
+          try {
+            const cachedDoc = await getDocFromCache(docRef);
+            if (cachedDoc.exists()) {
+              onData(cachedDoc.data() as Assignment);
+            }
+          } catch {
+            // No cached doc
+          }
+        }
+      }
+    );
+  } catch (err) {
+    console.error('Error subscribing to single assignment:', err);
+    return () => {};
+  }
+}
+
+// Scoped Real-Time Listener for a single collaborative group's submissions (reads only 1-6 docs while modal is open)
+export function subscribeGroupSubmissions(
+  assignmentId: string,
+  groupId: string,
+  onData: (submissions: Submission[]) => void
+): () => void {
+  if (!assignmentId || !groupId) return () => {};
+  try {
+    const q = query(collection(db, SUBMISSIONS_COLLECTION), where('groupId', '==', groupId));
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const list: Submission[] = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data() as Submission;
+          if (data.assignmentId === assignmentId) {
+            list.push(data);
+          }
+        });
+        onData(sortSubmissions(list));
+      },
+      async (error) => {
+        handleFirestoreError(error, OperationType.LIST, `${SUBMISSIONS_COLLECTION}?groupId=${groupId}`);
+        if (isQuotaExceededError(error)) {
+          try {
+            const cachedSnap = await getDocsFromCache(q);
+            const list: Submission[] = [];
+            cachedSnap.forEach((docSnap) => {
+              const data = docSnap.data() as Submission;
+              if (data.assignmentId === assignmentId) {
+                list.push(data);
+              }
+            });
+            if (list.length > 0) onData(sortSubmissions(list));
+          } catch {
+            // No cached group submissions
+          }
+        }
+      }
+    );
+  } catch (err) {
+    console.error('Error subscribing to group submissions:', err);
+    return () => {};
+  }
+}
+
 // 1. Subscribe to Assignments in Real-Time
 export function subscribeAssignments(onData: (assignments: Assignment[]) => void) {
   try {
@@ -44,12 +609,13 @@ export function subscribeAssignments(onData: (assignments: Assignment[]) => void
         snapshot.forEach((docSnap) => {
           list.push(docSnap.data() as Assignment);
         });
-        // Sort by creation or due date
-        list.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-        onData(list);
+        onData(sortAssignments(list));
       },
       (error) => {
         handleFirestoreError(error, OperationType.LIST, ASSIGNMENTS_COLLECTION);
+        if (isQuotaExceededError(error)) {
+          hydrateCollectionFromCache<Assignment>(ASSIGNMENTS_COLLECTION, sortAssignments, onData);
+        }
       }
     );
   } catch (err) {
@@ -69,13 +635,13 @@ export function subscribeSubmissions(onData: (submissions: Submission[]) => void
         snapshot.forEach((docSnap) => {
           list.push(docSnap.data() as Submission);
         });
-        list.sort(
-          (a, b) => new Date(b.submissionDate).getTime() - new Date(a.submissionDate).getTime()
-        );
-        onData(list);
+        onData(sortSubmissions(list));
       },
       (error) => {
         handleFirestoreError(error, OperationType.LIST, SUBMISSIONS_COLLECTION);
+        if (isQuotaExceededError(error)) {
+          hydrateCollectionFromCache<Submission>(SUBMISSIONS_COLLECTION, sortSubmissions, onData);
+        }
       }
     );
   } catch (err) {
@@ -99,6 +665,9 @@ export function subscribeStudents(onData: (students: StudentProfile[]) => void) 
       },
       (error) => {
         handleFirestoreError(error, OperationType.LIST, STUDENTS_COLLECTION);
+        if (isQuotaExceededError(error)) {
+          hydrateCollectionFromCache<StudentProfile>(STUDENTS_COLLECTION, (l) => l, onData);
+        }
       }
     );
   } catch (err) {
@@ -122,6 +691,9 @@ export function subscribeTeachers(onData: (teachers: TeacherProfile[]) => void) 
       },
       (error) => {
         handleFirestoreError(error, OperationType.LIST, TEACHERS_COLLECTION);
+        if (isQuotaExceededError(error)) {
+          hydrateCollectionFromCache<TeacherProfile>(TEACHERS_COLLECTION, (l) => l, onData);
+        }
       }
     );
   } catch (err) {
@@ -131,55 +703,26 @@ export function subscribeTeachers(onData: (teachers: TeacherProfile[]) => void) 
 }
 
 // 5. Subscribe to Settings (Grade levels, Subjects & Period configs)
-export function subscribeSettings(
-  onData: (settings: {
-    gradeLevels: string[];
-    subjects: string[];
-    periodConfigs?: PeriodConfig[];
-    studentGradebookEnabled?: boolean;
-    gradebookDisabledRooms?: string[];
-    schoolCoverUrl?: string;
-    schoolName?: string;
-    schoolSubtitle?: string;
-    themeColor?: PastelThemeId;
-  }) => void
-) {
+export function subscribeSettings(onData: (settings: AppSettingsPayload) => void) {
   try {
     const docRef = doc(db, SETTINGS_COLLECTION, MAIN_SETTINGS_DOC);
     return onSnapshot(
       docRef,
       (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          onData({
-            gradeLevels: data.gradeLevels || [],
-            subjects: data.subjects || [],
-            periodConfigs: Array.isArray(data.periodConfigs) ? data.periodConfigs : undefined,
-            studentGradebookEnabled:
-              typeof data.studentGradebookEnabled === 'boolean' ? data.studentGradebookEnabled : true,
-            gradebookDisabledRooms: Array.isArray(data.gradebookDisabledRooms)
-              ? data.gradebookDisabledRooms
-              : [],
-            schoolCoverUrl: typeof data.schoolCoverUrl === 'string' ? data.schoolCoverUrl : '',
-            schoolName: typeof data.schoolName === 'string' ? data.schoolName : '',
-            schoolSubtitle: typeof data.schoolSubtitle === 'string' ? data.schoolSubtitle : '',
-            themeColor: isValidPastelTheme(data.themeColor) ? data.themeColor : undefined,
-          });
-        } else {
-          onData({
-            gradeLevels: [],
-            subjects: [],
-            studentGradebookEnabled: true,
-            gradebookDisabledRooms: [],
-            schoolCoverUrl: '',
-            schoolName: '',
-            schoolSubtitle: '',
-            themeColor: undefined,
-          });
-        }
+        onData(parseSettingsPayload(docSnap.exists() ? docSnap.data() : null));
       },
-      (error) => {
+      async (error) => {
         handleFirestoreError(error, OperationType.GET, `${SETTINGS_COLLECTION}/${MAIN_SETTINGS_DOC}`);
+        if (isQuotaExceededError(error)) {
+          try {
+            const cachedDoc = await getDocFromCache(docRef);
+            if (cachedDoc.exists()) {
+              onData(parseSettingsPayload(cachedDoc.data()));
+            }
+          } catch {
+            // No cached settings doc available
+          }
+        }
       }
     );
   } catch (err) {
@@ -199,11 +742,13 @@ export function subscribeResources(onData: (resources: LearningResource[]) => vo
         snapshot.forEach((docSnap) => {
           list.push(docSnap.data() as LearningResource);
         });
-        list.sort((a, b) => new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime());
-        onData(list);
+        onData(sortResources(list));
       },
       (error) => {
         handleFirestoreError(error, OperationType.LIST, RESOURCES_COLLECTION);
+        if (isQuotaExceededError(error)) {
+          hydrateCollectionFromCache<LearningResource>(RESOURCES_COLLECTION, sortResources, onData);
+        }
       }
     );
   } catch (err) {
@@ -222,6 +767,7 @@ export async function saveAssignmentToFirestore(asg: Assignment): Promise<void> 
   const path = `${ASSIGNMENTS_COLLECTION}/${asg.id}`;
   try {
     await setDoc(doc(db, ASSIGNMENTS_COLLECTION, asg.id), sanitizeForFirestore(asg));
+    touchSyncMeta(ASSIGNMENTS_COLLECTION, 1);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -231,6 +777,7 @@ export async function deleteAssignmentFromFirestore(asgId: string): Promise<void
   const path = `${ASSIGNMENTS_COLLECTION}/${asgId}`;
   try {
     await deleteDoc(doc(db, ASSIGNMENTS_COLLECTION, asgId));
+    touchSyncMeta(ASSIGNMENTS_COLLECTION, 0);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
   }
@@ -240,6 +787,10 @@ export async function saveSubmissionToFirestore(sub: Submission): Promise<void> 
   const path = `${SUBMISSIONS_COLLECTION}/${sub.id}`;
   try {
     await setDoc(doc(db, SUBMISSIONS_COLLECTION, sub.id), sanitizeForFirestore(sub));
+    touchSyncMeta(SUBMISSIONS_COLLECTION, 1);
+    if (sub.studentCode) {
+      touchSyncMeta(`submissions_std_${sub.studentCode.trim().toUpperCase()}`, 1);
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -259,6 +810,12 @@ export async function saveMultipleSubmissionsToFirestore(
       }
       await batch.commit();
     }
+    touchSyncMeta(SUBMISSIONS_COLLECTION, 1);
+    submissionsList.forEach((s) => {
+      if (s.studentCode) {
+        touchSyncMeta(`submissions_std_${s.studentCode.trim().toUpperCase()}`, 1);
+      }
+    });
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, SUBMISSIONS_COLLECTION);
   }
@@ -305,6 +862,8 @@ export async function batchMigrateWorksheetsAndSubmissions(params: {
       }
       await batch.commit();
     }
+    touchSyncMeta(ASSIGNMENTS_COLLECTION, 1);
+    touchSyncMeta(SUBMISSIONS_COLLECTION, 1);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `${ASSIGNMENTS_COLLECTION}_migration`);
   }
@@ -314,6 +873,7 @@ export async function saveStudentToFirestore(student: StudentProfile): Promise<v
   const path = `${STUDENTS_COLLECTION}/${student.id}`;
   try {
     await setDoc(doc(db, STUDENTS_COLLECTION, student.id), sanitizeForFirestore(student));
+    touchSyncMeta(STUDENTS_COLLECTION, 1);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -326,6 +886,7 @@ export async function saveMultipleStudentsToFirestore(students: StudentProfile[]
       batch.set(doc(db, STUDENTS_COLLECTION, std.id), sanitizeForFirestore(std));
     }
     await batch.commit();
+    touchSyncMeta(STUDENTS_COLLECTION, 1);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, STUDENTS_COLLECTION);
   }
@@ -335,6 +896,7 @@ export async function deleteStudentFromFirestore(studentId: string): Promise<voi
   const path = `${STUDENTS_COLLECTION}/${studentId}`;
   try {
     await deleteDoc(doc(db, STUDENTS_COLLECTION, studentId));
+    touchSyncMeta(STUDENTS_COLLECTION, 0);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
   }
@@ -344,6 +906,7 @@ export async function saveTeacherToFirestore(teacher: TeacherProfile): Promise<v
   const path = `${TEACHERS_COLLECTION}/${teacher.id}`;
   try {
     await setDoc(doc(db, TEACHERS_COLLECTION, teacher.id), sanitizeForFirestore(teacher));
+    touchSyncMeta(TEACHERS_COLLECTION, 1);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -360,6 +923,7 @@ export async function updateTeacherThemeInFirestore(
       sanitizeForFirestore({ themeColor }),
       { merge: true }
     );
+    touchSyncMeta(TEACHERS_COLLECTION, 1);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -369,6 +933,7 @@ export async function deleteTeacherFromFirestore(teacherId: string): Promise<voi
   const path = `${TEACHERS_COLLECTION}/${teacherId}`;
   try {
     await deleteDoc(doc(db, TEACHERS_COLLECTION, teacherId));
+    touchSyncMeta(TEACHERS_COLLECTION, 0);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
   }
@@ -389,6 +954,7 @@ export async function saveSettingsToFirestore(
       }),
       { merge: true }
     );
+    touchSyncMeta(SETTINGS_COLLECTION, 1);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -407,6 +973,7 @@ export async function savePeriodConfigsToFirestore(
       }),
       { merge: true }
     );
+    touchSyncMeta(SETTINGS_COLLECTION, 1);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -427,6 +994,7 @@ export async function saveGradebookVisibilityToFirestore(
       }),
       { merge: true }
     );
+    touchSyncMeta(SETTINGS_COLLECTION, 1);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -449,6 +1017,7 @@ export async function saveSchoolBrandingToFirestore(branding: {
       }),
       { merge: true }
     );
+    touchSyncMeta(SETTINGS_COLLECTION, 1);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -467,6 +1036,7 @@ export async function saveSystemThemeToFirestore(
       }),
       { merge: true }
     );
+    touchSyncMeta(SETTINGS_COLLECTION, 1);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -496,6 +1066,7 @@ export async function clearDatabase(): Promise<void> {
       });
       await batch.commit();
     }
+    clearAllSyncTimestamps();
   } catch (error) {
     console.error('Error clearing database:', error);
     handleFirestoreError(error, OperationType.WRITE, 'all_collections');
@@ -564,6 +1135,7 @@ export async function resetDataKeepUsers(): Promise<void> {
       });
       await batch.commit();
     }
+    clearAllSyncTimestamps();
   } catch (error) {
     console.error('Error resetting database while keeping users:', error);
     handleFirestoreError(error, OperationType.WRITE, 'reset_data_keep_users');
@@ -574,6 +1146,7 @@ export async function saveResourceToFirestore(res: LearningResource): Promise<vo
   const path = `${RESOURCES_COLLECTION}/${res.id}`;
   try {
     await setDoc(doc(db, RESOURCES_COLLECTION, res.id), sanitizeForFirestore(res));
+    touchSyncMeta(RESOURCES_COLLECTION, 1);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -583,6 +1156,7 @@ export async function deleteResourceFromFirestore(resId: string): Promise<void> 
   const path = `${RESOURCES_COLLECTION}/${resId}`;
   try {
     await deleteDoc(doc(db, RESOURCES_COLLECTION, resId));
+    touchSyncMeta(RESOURCES_COLLECTION, 0);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
   }
@@ -599,22 +1173,17 @@ export function subscribeTeachingSchedules(onData: (schedules: TeachingSchedule[
         snapshot.forEach((docSnap) => {
           list.push(docSnap.data() as TeachingSchedule);
         });
-        const dayOrder: Record<string, number> = {
-          monday: 1,
-          tuesday: 2,
-          wednesday: 3,
-          thursday: 4,
-          friday: 5,
-        };
-        list.sort((a, b) => {
-          const dDiff = (dayOrder[a.dayOfWeek] || 9) - (dayOrder[b.dayOfWeek] || 9);
-          if (dDiff !== 0) return dDiff;
-          return a.period - b.period;
-        });
-        onData(list);
+        onData(sortTeachingSchedules(list));
       },
       (error) => {
         handleFirestoreError(error, OperationType.LIST, TEACHING_SCHEDULES_COLLECTION);
+        if (isQuotaExceededError(error)) {
+          hydrateCollectionFromCache<TeachingSchedule>(
+            TEACHING_SCHEDULES_COLLECTION,
+            sortTeachingSchedules,
+            onData
+          );
+        }
       }
     );
   } catch (err) {
@@ -629,6 +1198,7 @@ export async function saveTeachingScheduleToFirestore(schedule: TeachingSchedule
   const path = `${TEACHING_SCHEDULES_COLLECTION}/${schedule.id}`;
   try {
     await setDoc(doc(db, TEACHING_SCHEDULES_COLLECTION, schedule.id), sanitizeForFirestore(schedule));
+    touchSyncMeta(TEACHING_SCHEDULES_COLLECTION, 1);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -638,6 +1208,7 @@ export async function deleteTeachingScheduleFromFirestore(scheduleId: string): P
   const path = `${TEACHING_SCHEDULES_COLLECTION}/${scheduleId}`;
   try {
     await deleteDoc(doc(db, TEACHING_SCHEDULES_COLLECTION, scheduleId));
+    touchSyncMeta(TEACHING_SCHEDULES_COLLECTION, 0);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
   }
@@ -654,15 +1225,17 @@ export function subscribeAttendanceSessions(onData: (sessions: AttendanceSession
         snapshot.forEach((docSnap) => {
           list.push(docSnap.data() as AttendanceSession);
         });
-        list.sort((a, b) => {
-          const dateCompare = b.date.localeCompare(a.date);
-          if (dateCompare !== 0) return dateCompare;
-          return a.period - b.period;
-        });
-        onData(list);
+        onData(sortAttendanceSessions(list));
       },
       (error) => {
         handleFirestoreError(error, OperationType.LIST, ATTENDANCE_SESSIONS_COLLECTION);
+        if (isQuotaExceededError(error)) {
+          hydrateCollectionFromCache<AttendanceSession>(
+            ATTENDANCE_SESSIONS_COLLECTION,
+            sortAttendanceSessions,
+            onData
+          );
+        }
       }
     );
   } catch (err) {
@@ -675,6 +1248,7 @@ export async function saveAttendanceSessionToFirestore(session: AttendanceSessio
   const path = `${ATTENDANCE_SESSIONS_COLLECTION}/${session.id}`;
   try {
     await setDoc(doc(db, ATTENDANCE_SESSIONS_COLLECTION, session.id), sanitizeForFirestore(session));
+    touchSyncMeta(ATTENDANCE_SESSIONS_COLLECTION, 1);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -684,6 +1258,7 @@ export async function deleteAttendanceSessionFromFirestore(sessionId: string): P
   const path = `${ATTENDANCE_SESSIONS_COLLECTION}/${sessionId}`;
   try {
     await deleteDoc(doc(db, ATTENDANCE_SESSIONS_COLLECTION, sessionId));
+    touchSyncMeta(ATTENDANCE_SESSIONS_COLLECTION, 0);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
   }
@@ -700,11 +1275,17 @@ export function subscribeSubjectClassrooms(onData: (classrooms: SubjectClassroom
         snapshot.forEach((docSnap) => {
           list.push(docSnap.data() as SubjectClassroom);
         });
-        list.sort((a, b) => new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime());
-        onData(list);
+        onData(sortSubjectClassrooms(list));
       },
       (error) => {
         handleFirestoreError(error, OperationType.LIST, SUBJECT_CLASSROOMS_COLLECTION);
+        if (isQuotaExceededError(error)) {
+          hydrateCollectionFromCache<SubjectClassroom>(
+            SUBJECT_CLASSROOMS_COLLECTION,
+            sortSubjectClassrooms,
+            onData
+          );
+        }
       }
     );
   } catch (err) {
@@ -717,6 +1298,7 @@ export async function saveSubjectClassroomToFirestore(classroom: SubjectClassroo
   const path = `${SUBJECT_CLASSROOMS_COLLECTION}/${classroom.id}`;
   try {
     await setDoc(doc(db, SUBJECT_CLASSROOMS_COLLECTION, classroom.id), sanitizeForFirestore(classroom));
+    touchSyncMeta(SUBJECT_CLASSROOMS_COLLECTION, 1);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -737,6 +1319,7 @@ export async function saveMultipleSubjectClassroomsToFirestore(
       });
       await batch.commit();
     }
+    touchSyncMeta(SUBJECT_CLASSROOMS_COLLECTION, 1);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `${SUBJECT_CLASSROOMS_COLLECTION}/batch`);
   }
@@ -746,6 +1329,7 @@ export async function deleteSubjectClassroomFromFirestore(classroomId: string): 
   const path = `${SUBJECT_CLASSROOMS_COLLECTION}/${classroomId}`;
   try {
     await deleteDoc(doc(db, SUBJECT_CLASSROOMS_COLLECTION, classroomId));
+    touchSyncMeta(SUBJECT_CLASSROOMS_COLLECTION, 0);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
   }
