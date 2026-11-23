@@ -61,6 +61,7 @@ interface SubjectViewProps {
   onSaveBatchClassrooms?: (classrooms: SubjectClassroom[]) => Promise<void> | void;
   onActiveClassroomChange?: (isActive: boolean) => void;
   onRestoreWorksheets?: () => void;
+  onOpenCreateWorksheet?: (defaults?: { subject?: string; gradeLevel?: string }) => void;
 }
 
 function studentMatchesClassroomGrade(classroomGrade: string, studentGrade?: string): boolean {
@@ -102,6 +103,7 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
   onSaveBatchClassrooms,
   onActiveClassroomChange,
   onRestoreWorksheets,
+  onOpenCreateWorksheet,
 }) => {
   const [activeClassroomId, setActiveClassroomId] = useState<string | null>(null);
   const [activeClassroomSubject, setActiveClassroomSubject] = useState<string | null>(null);
@@ -212,6 +214,7 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
         onOpenRosterModal={onOpenRosterModal}
         onDeleteAssignment={onDeleteAssignment}
         onEditAssignment={onEditAssignment}
+        onOpenCreateWorksheet={role === 'teacher' ? onOpenCreateWorksheet : undefined}
       />
     );
   }
@@ -535,9 +538,28 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
 
       {/* Assignment Grid */}
       <div>
-        <h3 className="text-base font-bold font-prompt text-slate-900 dark:text-white mb-4">
-          คลังใบงานวิชา {selectedSubject} ({filteredAssignments.length} รายการ)
-        </h3>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <h3 className="text-base font-bold font-prompt text-slate-900 dark:text-white">
+            คลังใบงานวิชา {selectedSubject} ({filteredAssignments.length} รายการ)
+          </h3>
+
+          {role === 'teacher' && onOpenCreateWorksheet && (
+            <button
+              type="button"
+              onClick={() =>
+                onOpenCreateWorksheet(
+                  selectedSubject !== 'ทั้งหมด' ? { subject: selectedSubject } : undefined
+                )
+              }
+              className="theme-btn-sheen px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold shadow-sm transition-all inline-flex items-center gap-1.5 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>
+                {selectedSubject !== 'ทั้งหมด' ? `สร้างใบงานวิชา ${selectedSubject}` : 'สร้างใบงานใหม่'}
+              </span>
+            </button>
+          )}
+        </div>
 
         {filteredAssignments.length === 0 ? (
           <div className="text-center py-12 bg-white dark:bg-[var(--theme-surface-dark)] rounded-xl border border-slate-200/80 dark:border-emerald-950/70 text-slate-400 text-xs theme-transition">

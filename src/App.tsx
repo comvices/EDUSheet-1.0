@@ -346,6 +346,10 @@ export default function App() {
   } | null>(null);
   const [isCreateWorksheetOpen, setIsCreateWorksheetOpen] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
+  const [createWorksheetDefaults, setCreateWorksheetDefaults] = useState<{
+    subject?: string;
+    gradeLevel?: string;
+  } | null>(null);
   const [isCreateResourceOpen, setIsCreateResourceOpen] = useState(false);
   const [editingResource, setEditingResource] = useState<LearningResource | null>(null);
   const [isCreateClassroomOpen, setIsCreateClassroomOpen] = useState(false);
@@ -1457,6 +1461,7 @@ export default function App() {
                 }}
                 onOpenCreateWorksheet={() => {
                   setEditingAssignment(null);
+                  setCreateWorksheetDefaults(null);
                   setIsCreateWorksheetOpen(true);
                 }}
               />
@@ -1707,6 +1712,15 @@ export default function App() {
             onDeleteClassroom={handleDeleteSubjectClassroom}
             onSaveClassroom={handleSaveSubjectClassroom}
             onSaveBatchClassrooms={handleSaveBatchSubjectClassrooms}
+            onOpenCreateWorksheet={
+              role === 'teacher'
+                ? (defaults) => {
+                    setEditingAssignment(null);
+                    setCreateWorksheetDefaults(defaults || null);
+                    setIsCreateWorksheetOpen(true);
+                  }
+                : undefined
+            }
           />
         )}
 
@@ -1933,10 +1947,17 @@ export default function App() {
 
       {isCreateWorksheetOpen && (
         <CreateWorksheetModal
+          key={
+            editingAssignment?.id ||
+            `new_${createWorksheetDefaults?.subject || ''}_${createWorksheetDefaults?.gradeLevel || ''}`
+          }
           editingAssignment={editingAssignment}
+          initialSubject={createWorksheetDefaults?.subject}
+          initialGradeLevel={createWorksheetDefaults?.gradeLevel}
           onClose={() => {
             setIsCreateWorksheetOpen(false);
             setEditingAssignment(null);
+            setCreateWorksheetDefaults(null);
           }}
           onCreateAssignment={handleCreateAssignment}
           onUpdateAssignment={handleUpdateAssignment}

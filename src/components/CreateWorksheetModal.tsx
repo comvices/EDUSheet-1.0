@@ -14,6 +14,8 @@ interface CreateWorksheetModalProps {
   subjectsList?: string[];
   currentTeacherName?: string;
   studentsList?: StudentProfile[];
+  initialSubject?: string;
+  initialGradeLevel?: string;
 }
 
 export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
@@ -25,6 +27,8 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
   subjectsList = [],
   currentTeacherName = 'ครูผู้สอน',
   studentsList = [],
+  initialSubject,
+  initialGradeLevel,
 }) => {
   const isEditMode = Boolean(editingAssignment);
   const [activeTab, setActiveTab] = useState<'manual' | 'ai'>('manual');
@@ -32,10 +36,33 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
   const activeSubjects = subjectsList.filter((s) => s !== 'ทั้งหมด');
   const activeGrades = gradeLevelsList.filter((g) => g !== 'ทั้งหมด');
 
+  const resolvedDefaultSubject =
+    initialSubject && initialSubject !== 'ทั้งหมด' ? initialSubject : activeSubjects[0] || '';
+  const resolvedDefaultGrade =
+    initialGradeLevel === 'ทั้งหมด'
+      ? 'ทั้งหมด'
+      : initialGradeLevel || activeGrades[0] || '';
+
   // Form State
   const [title, setTitle] = useState(editingAssignment?.title || '');
-  const [subject, setSubject] = useState(editingAssignment?.subject || activeSubjects[0] || '');
-  const [gradeLevel, setGradeLevel] = useState(editingAssignment?.gradeLevel || activeGrades[0] || '');
+  const [subject, setSubject] = useState(editingAssignment?.subject || resolvedDefaultSubject);
+  const [gradeLevel, setGradeLevel] = useState(editingAssignment?.gradeLevel || resolvedDefaultGrade);
+
+  const subjectOptions = useMemo(() => {
+    const list = [...activeSubjects];
+    if (subject && subject !== 'ทั้งหมด' && !list.includes(subject)) {
+      list.unshift(subject);
+    }
+    return list;
+  }, [activeSubjects, subject]);
+
+  const gradeOptions = useMemo(() => {
+    const list = [...activeGrades];
+    if (gradeLevel && !list.includes(gradeLevel)) {
+      list.unshift(gradeLevel);
+    }
+    return list;
+  }, [activeGrades, gradeLevel]);
   const [category, setCategory] = useState<CategoryType>(editingAssignment?.category || 'แบบฝึกหัด');
   const [description, setDescription] = useState(editingAssignment?.description || '');
   const [instructions, setInstructions] = useState(editingAssignment?.instructions || 'จงตอบคำถามให้ถูกต้องตามหลักการ');
@@ -377,7 +404,7 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
                     onChange={(e) => setSubject(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs"
                   >
-                    {activeSubjects.map((s) => (
+                    {subjectOptions.map((s) => (
                       <option key={s} value={s}>
                         {s}
                       </option>
@@ -393,9 +420,9 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
                     onChange={(e) => setGradeLevel(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs"
                   >
-                    {activeGrades.map((g) => (
+                    {gradeOptions.map((g) => (
                       <option key={g} value={g}>
-                        ชั้น {g}
+                        {g === 'ทั้งหมด' ? 'ทุกห้องเรียน (ทั้งหมด)' : `ชั้น ${g}`}
                       </option>
                     ))}
                   </select>
@@ -452,7 +479,7 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
                     onChange={(e) => setSubject(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white"
                   >
-                    {activeSubjects.map((s) => (
+                    {subjectOptions.map((s) => (
                       <option key={s} value={s}>
                         {s}
                       </option>
@@ -469,9 +496,9 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
                     onChange={(e) => setGradeLevel(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white"
                   >
-                    {activeGrades.map((g) => (
+                    {gradeOptions.map((g) => (
                       <option key={g} value={g}>
-                        ชั้น {g}
+                        {g === 'ทั้งหมด' ? 'ทุกห้องเรียน (ทั้งหมด)' : `ชั้น ${g}`}
                       </option>
                     ))}
                   </select>
