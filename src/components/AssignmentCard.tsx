@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { Calendar, Clock, FileText, CheckCircle2, AlertCircle, Edit3, HelpCircle, Eye, ChevronRight, Award, Trash2 } from 'lucide-react';
+import { Calendar, Clock, FileText, CheckCircle2, AlertCircle, Edit3, HelpCircle, Eye, ChevronRight, Award, Trash2, Users } from 'lucide-react';
 import { Assignment, Submission, UserRole } from '../types';
 import { CardCornerOrnament } from './ThemeGraphics';
+import { findStudentGroup } from '../utils/groupHelpers';
 
 interface AssignmentCardProps {
   assignment: Assignment;
   submission?: Submission;
   submissionCount?: number;
   role: UserRole;
+  currentStudentCode?: string;
   onOpenSubmitModal: (assignment: Assignment) => void;
   onOpenGradingModal: (assignment: Assignment, submission?: Submission) => void;
   onOpenHintModal: (assignment: Assignment) => void;
@@ -21,6 +23,7 @@ export const AssignmentCard: React.FC<AssignmentCardProps> = ({
   submission,
   submissionCount = 0,
   role,
+  currentStudentCode,
   onOpenSubmitModal,
   onOpenGradingModal,
   onOpenHintModal,
@@ -37,6 +40,8 @@ export const AssignmentCard: React.FC<AssignmentCardProps> = ({
 
   const isOverdue = diffHours < 0 && (!submission || submission.status === 'pending');
   const isDueSoon = diffHours > 0 && diffHours <= 24 && (!submission || submission.status === 'pending');
+  const isGroupWork = assignment.workMode === 'group';
+  const myGroup = role === 'student' ? findStudentGroup(assignment, currentStudentCode) : undefined;
 
   // Format date readable in Thai
   const formattedDueDate = dueDate.toLocaleDateString('th-TH', {
@@ -98,9 +103,31 @@ export const AssignmentCard: React.FC<AssignmentCardProps> = ({
         </h3>
 
         {/* Description */}
-        <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 mb-4 leading-relaxed">
+        <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 mb-2.5 leading-relaxed">
           {assignment.description}
         </p>
+
+        {/* Section, Question Count & Group Work Summary (Unboxed Metadata Line) */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400 font-medium mb-3">
+          <span>
+            {assignment.sections && assignment.sections.length > 0
+              ? `${assignment.sections.length} ตอน · ${assignment.questions.length} ข้อ`
+              : `${assignment.questions.length} ข้อ`}
+          </span>
+          {isGroupWork && (
+            <>
+              <span aria-hidden="true">·</span>
+              <span className="inline-flex items-center gap-1 font-bold text-teal-700 dark:text-teal-300">
+                <Users className="w-3 h-3" />
+                {role === 'student'
+                  ? myGroup
+                    ? `กลุ่ม: ${myGroup.name} (${myGroup.memberCodes.length} คน)`
+                    : `งานกลุ่ม (สูงสุด ${assignment.groupSettings?.maxGroupSize || 4} คน)`
+                  : `งานกลุ่ม (${assignment.groups?.length || 0} กลุ่ม)`}
+              </span>
+            </>
+          )}
+        </div>
 
         {/* Teacher-only Assignment Visibility Indicator */}
         {role === 'teacher' && (assignment.isPublished === false || (assignment.assignedStudentCodes && assignment.assignedStudentCodes.length > 0)) && (
@@ -126,7 +153,7 @@ export const AssignmentCard: React.FC<AssignmentCardProps> = ({
           </div>
 
           {/* Status badge */}
-          {submission ? (
+          {submission && submission.status !== 'pending' ? (
             submission.status === 'graded' ? (
               <span className="flex items-center gap-1 font-bold text-emerald-700 dark:text-emerald-400 tabular-nums">
                 <Award className="w-3.5 h-3.5" />
@@ -143,6 +170,11 @@ export const AssignmentCard: React.FC<AssignmentCardProps> = ({
                 ส่งแล้ว (รอตรวจ)
               </span>
             )
+          ) : submission?.status === 'pending' ? (
+            <span className="flex items-center gap-1 font-semibold text-amber-600 dark:text-amber-400">
+              <Clock className="w-3.5 h-3.5" />
+              {isGroupWork ? 'ร่างงานกลุ่ม' : 'กำลังทำร่าง'}
+            </span>
           ) : isOverdue ? (
             <span className="flex items-center gap-1 font-bold text-rose-600 dark:text-rose-400">
               <AlertCircle className="w-3.5 h-3.5" />
@@ -169,7 +201,7 @@ export const AssignmentCard: React.FC<AssignmentCardProps> = ({
 
         <div className="flex items-center gap-2">
           {/* AI Hint button for students */}
-          {role === 'student' && (!submission || submission.status === 'needs_revision') && (
+          {role === 'student' && (!submission || submission.status === 'pending' || submission.status === 'needs_revision') && (
             <button
               onClick={() => onOpenHintModal(assignment)}
               className="p-1.5 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 rounded-lg transition-colors cursor-pointer"
@@ -208,17 +240,22 @@ export const AssignmentCard: React.FC<AssignmentCardProps> = ({
                   <Edit3 className="w-3.5 h-3.5" />
                   <span>แก้ไขใบงาน</span>
                 </>
+              ) : submission?.status === 'pending' ? (
+                <>
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>{isGroupWork ? 'ทำใบงานกลุ่มต่อ' : 'ทำใบงานต่อ'}</span>
+                </>
               ) : (
                 <>
                   <Edit3 className="w-3.5 h-3.5" />
-                  <span>ทำและส่งใบงาน</span>
+                  <span>{isGroupWork ? 'เข้ากลุ่ม / ทำใบงาน' : 'ทำและส่งใบงาน'}</span>
                 </>
               )}
             </button>
           ) : (
             <button
               onClick={() => {
-                if (onOpenRosterModal && (submissionCount > 1 || assignment.id === 'asg_101')) {
+                if (onOpenRosterModal && (isGroupWork || submissionCount > 1 || assignment.id === 'asg_101')) {
                   onOpenRosterModal(assignment);
                 } else {
                   onOpenGradingModal(assignment, submission);
@@ -226,7 +263,13 @@ export const AssignmentCard: React.FC<AssignmentCardProps> = ({
               }}
               className="theme-btn-sheen inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 active:scale-[0.98] text-white rounded-lg text-xs font-semibold shadow-xs transition-all cursor-pointer"
             >
-              <span>{submissionCount > 1 || assignment.id === 'asg_101' ? `ดูรายชื่อส่งงาน (${submissionCount || 20} คน)` : 'ตรวจใบงานนี้'}</span>
+              <span>
+                {isGroupWork
+                  ? `จัดการกลุ่ม / ตรวจงาน (${submissionCount})`
+                  : submissionCount > 1 || assignment.id === 'asg_101'
+                  ? `ดูรายชื่อส่งงาน (${submissionCount || 20} คน)`
+                  : 'ตรวจใบงานนี้'}
+              </span>
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
           )}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   X,
   Sparkles,
@@ -7,6 +7,7 @@ import {
   RotateCcw,
   AlertCircle,
   User,
+  Users,
   CheckCircle2,
   XCircle,
   MinusCircle,
@@ -16,9 +17,10 @@ import {
   Image as ImageIcon,
   ZoomIn,
 } from 'lucide-react';
-import { Assignment, Submission } from '../types';
+import { Assignment, Submission, StudentProfile } from '../types';
 import { SaveConfirmModal } from './SaveConfirmModal';
 import { getAuthHeaders } from '../utils/security';
+import { normalizeCode } from '../utils/groupHelpers';
 
 interface ItemFeedbackResult {
   questionIndex: number;
@@ -42,19 +44,22 @@ interface AiFeedbackResult {
 interface TeacherGradingModalProps {
   assignment: Assignment;
   submission?: Submission;
+  studentsList?: StudentProfile[];
   onClose: () => void;
   onSaveGrade: (
     submissionId: string,
     score: number,
     comment: string,
     status: 'graded' | 'needs_revision',
-    aiGraded?: boolean
+    aiGraded?: boolean,
+    applyToWholeGroup?: boolean
   ) => void;
 }
 
 export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
   assignment,
   submission,
+  studentsList = [],
   onClose,
   onSaveGrade,
 }) => {
@@ -71,6 +76,37 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
     status: 'graded' | 'needs_revision';
     clampedScore: number;
   } | null>(null);
+
+  const resolvedGroup = useMemo(() => {
+    if (assignment.workMode !== 'group' && !submission?.groupId) return undefined;
+    const matched =
+      (assignment.groups || []).find((g) => g.id === submission?.groupId) ||
+      (assignment.groups || []).find(
+        (g) =>
+          submission?.studentCode &&
+          g.memberCodes.some((c) => normalizeCode(c) === normalizeCode(submission.studentCode))
+      );
+    if (matched) return matched;
+    if (submission?.groupId || (submission?.groupMemberCodes && submission.groupMemberCodes.length > 0)) {
+      return {
+        id: submission.groupId || 'grp_sub',
+        name: submission.groupName || 'กลุ่มนักเรียน',
+        memberCodes: submission.groupMemberCodes || (submission.studentCode ? [submission.studentCode] : []),
+      };
+    }
+    return undefined;
+  }, [assignment.workMode, assignment.groups, submission]);
+
+  const [applyToWholeGroup, setApplyToWholeGroup] = useState<boolean>(Boolean(resolvedGroup));
+
+  const studentNameByCode = useMemo(() => {
+    const map = new Map<string, string>();
+    studentsList.forEach((st) => {
+      const norm = normalizeCode(st.code);
+      if (norm) map.set(norm, st.name);
+    });
+    return map;
+  }, [studentsList]);
 
   // Call server-side Gemini AI for Auto-Grading assistance
   const handleRunAiGrading = async () => {
@@ -236,33 +272,55 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
 
         {/* Content */}
         <div className="p-6 overflow-y-auto space-y-6 flex-1 text-slate-800 dark:text-slate-200">
-          {/* Student Info Card */}
-          <div className="flex items-center justify-between p-4 bg-emerald-50/60 dark:bg-emerald-950/35 border border-emerald-200/80 dark:border-emerald-900/50 rounded-xl">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-emerald-700 text-white flex items-center justify-center font-bold text-sm">
-                <User className="w-5 h-5" />
+          {/* Student / Group Info Card */}
+          <div className="p-4 bg-emerald-50/60 dark:bg-emerald-950/35 border border-emerald-200/80 dark:border-emerald-900/50 rounded-xl space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-700 text-white flex items-center justify-center font-bold text-sm shrink-0">
+                  {resolvedGroup ? <Users className="w-5 h-5" /> : <User className="w-5 h-5" />}
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                    {resolvedGroup
+                      ? `${resolvedGroup.name} (${resolvedGroup.memberCodes.length} คน)`
+                      : submission?.studentName || 'ไม่พบข้อมูลนักเรียน'}
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {resolvedGroup
+                      ? `ผู้ส่ง/แก้ไขล่าสุด: ${submission?.lastEditedByName || submission?.studentName || '-'} · ชั้น ${submission?.gradeLevel || assignment.gradeLevel}`
+                      : `รหัสประจำตัว: ${submission?.studentCode || '-'} · ชั้น ${submission?.gradeLevel || assignment.gradeLevel}`}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-                  {submission?.studentName || 'ไม่พบข้อมูลนักเรียน'}
-                </h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  รหัสประจำตัว: {submission?.studentCode || '-'} · ชั้น {submission?.gradeLevel || assignment.gradeLevel}
+
+              <div className="text-right text-xs text-slate-500 dark:text-slate-400">
+                <p>
+                  ส่งเมื่อ:{' '}
+                  {submission?.submissionDate
+                    ? new Date(submission.submissionDate).toLocaleString('th-TH')
+                    : '-'}
+                </p>
+                <p className="font-semibold text-emerald-700 dark:text-emerald-400">
+                  คะแนนเต็ม {assignment.totalPoints} คะแนน
                 </p>
               </div>
             </div>
 
-            <div className="text-right text-xs text-slate-500 dark:text-slate-400">
-              <p>
-                ส่งเมื่อ:{' '}
-                {submission?.submissionDate
-                  ? new Date(submission.submissionDate).toLocaleString('th-TH')
-                  : '-'}
-              </p>
-              <p className="font-semibold text-emerald-700 dark:text-emerald-400">
-                คะแนนเต็ม {assignment.totalPoints} คะแนน
-              </p>
-            </div>
+            {resolvedGroup && resolvedGroup.memberCodes.length > 0 && (
+              <div className="pt-2.5 border-t border-emerald-200/70 dark:border-emerald-900/50 flex flex-wrap items-center gap-1.5">
+                <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 mr-1">
+                  สมาชิกกลุ่ม:
+                </span>
+                {resolvedGroup.memberCodes.map((code) => (
+                  <span
+                    key={code}
+                    className="px-2 py-0.5 rounded-md bg-white dark:bg-[var(--theme-surface-dark)] border border-emerald-200 dark:border-emerald-800 text-[11px] font-medium text-slate-700 dark:text-slate-200"
+                  >
+                    {studentNameByCode.get(normalizeCode(code)) || code} ({code})
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Attached Files if any */}
@@ -375,140 +433,208 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
 
           {/* Questions & Student Answers Side-by-Side Review */}
           <div className="space-y-4">
-            <h3 className="text-sm font-bold font-prompt text-slate-900 dark:text-white">
-              รายการโจทย์และคำตอบที่นักเรียนส่งมา
-            </h3>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-bold font-prompt text-slate-900 dark:text-white">
+                รายการโจทย์และคำตอบที่นักเรียนส่งมา
+              </h3>
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                {assignment.sections && assignment.sections.length > 0
+                  ? `${assignment.sections.length} ตอน · ${assignment.questions.length} ข้อ`
+                  : `${assignment.questions.length} ข้อ`}
+              </span>
+            </div>
 
-            {assignment.questions.map((q, idx) => {
-              const rawTextAnswer = (submission?.answers?.[q.id] || '').trim();
-              const studentImage = submission?.answerImages?.[q.id];
-              const studentAnswer =
-                rawTextAnswer ||
-                (studentImage ? '(ดูคำตอบจากรูปภาพที่นักเรียนแนบด้านล่าง)' : '(ยังไม่ได้ระบุคำตอบ)');
-              const itemEval = aiFeedbackResult?.itemFeedback?.find(
-                (it) => it.questionIndex === idx || it.questionId === q.id
-              );
-              const badge = itemEval ? getItemBadge(itemEval) : null;
+            {(() => {
+              const renderGradingQuestionCard = (
+                q: Assignment['questions'][number],
+                idx: number,
+                displayNum: number
+              ) => {
+                const rawTextAnswer = (submission?.answers?.[q.id] || '').trim();
+                const studentImage = submission?.answerImages?.[q.id];
+                const studentAnswer =
+                  rawTextAnswer ||
+                  (studentImage ? '(ดูคำตอบจากรูปภาพที่นักเรียนแนบด้านล่าง)' : '(ยังไม่ได้ระบุคำตอบ)');
+                const itemEval = aiFeedbackResult?.itemFeedback?.find(
+                  (it) => it.questionIndex === idx || it.questionId === q.id
+                );
+                const badge = itemEval ? getItemBadge(itemEval) : null;
 
-              return (
-                <div
-                  key={q.id}
-                  className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-xl space-y-2.5 text-xs"
-                >
-                  {q.imageUrl && (
-                    <div className="mb-2">
-                      <img
-                        src={q.imageUrl}
-                        alt={`ภาพประกอบข้อที่ ${idx + 1}`}
-                        className="max-h-52 rounded-xl border border-slate-200 dark:border-slate-700 object-contain bg-slate-900/5 mx-auto shadow-2xs"
-                      />
-                    </div>
-                  )}
-                  <div className="flex flex-wrap items-center justify-between gap-2 font-semibold text-slate-900 dark:text-white">
-                    <span className="text-sm">
-                      ข้อ {idx + 1}. {q.text}
-                    </span>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {badge && itemEval && (
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${badge.cls}`}
-                        >
-                          {badge.icon}
-                          <span>{badge.label}</span>
-                        </span>
-                      )}
-                      <span className="font-mono text-slate-500 font-normal">
-                        ({q.maxPoints} คะแนน)
+                return (
+                  <div
+                    key={q.id}
+                    className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-xl space-y-2.5 text-xs"
+                  >
+                    {q.imageUrl && (
+                      <div className="mb-2">
+                        <img
+                          src={q.imageUrl}
+                          alt={`ภาพประกอบข้อที่ ${displayNum}`}
+                          className="max-h-52 rounded-xl border border-slate-200 dark:border-slate-700 object-contain bg-slate-900/5 mx-auto shadow-2xs"
+                        />
+                      </div>
+                    )}
+                    <div className="flex flex-wrap items-center justify-between gap-2 font-semibold text-slate-900 dark:text-white">
+                      <span className="text-sm">
+                        ข้อ {displayNum}. {q.text}
                       </span>
-                    </div>
-                  </div>
-
-                  {/* Student Answer */}
-                  <div className="p-3.5 bg-white dark:bg-[var(--theme-surface-dark)] rounded-xl border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-sm sm:text-[15px] space-y-3">
-                    <div>
-                      <span className="font-semibold text-emerald-700 dark:text-emerald-400 block mb-1.5 text-xs">
-                        คำตอบของนักเรียน:
-                      </span>
-                      <p className="whitespace-pre-wrap leading-relaxed font-sans">{studentAnswer}</p>
-                    </div>
-
-                    {studentImage && (
-                      <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800">
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                            <ImageIcon className="w-3.5 h-3.5" />
-                            <span>ภาพคำตอบที่นักเรียนแนบมา (ข้อที่ {idx + 1})</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {badge && itemEval && (
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${badge.cls}`}
+                          >
+                            {badge.icon}
+                            <span>{badge.label}</span>
                           </span>
+                        )}
+                        <span className="font-mono text-slate-500 font-normal">
+                          ({q.maxPoints} คะแนน)
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Student Answer */}
+                    <div className="p-3.5 bg-white dark:bg-[var(--theme-surface-dark)] rounded-xl border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-sm sm:text-[15px] space-y-3">
+                      <div>
+                        <span className="font-semibold text-emerald-700 dark:text-emerald-400 block mb-1.5 text-xs">
+                          คำตอบของนักเรียน:
+                        </span>
+                        <p className="whitespace-pre-wrap leading-relaxed font-sans">{studentAnswer}</p>
+                      </div>
+
+                      {studentImage && (
+                        <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800">
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                              <ImageIcon className="w-3.5 h-3.5" />
+                              <span>ภาพคำตอบที่นักเรียนแนบมา (ข้อที่ {displayNum})</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPreviewImage({
+                                  url: studentImage,
+                                  label: `ภาพคำตอบของ ${submission?.studentName || 'นักเรียน'} - ข้อที่ ${displayNum}`,
+                                })
+                              }
+                              className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 rounded-md transition-colors cursor-pointer"
+                            >
+                              <ZoomIn className="w-3 h-3" />
+                              <span>คลิกขยายดูภาพใหญ่</span>
+                            </button>
+                          </div>
                           <button
                             type="button"
                             onClick={() =>
                               setPreviewImage({
                                 url: studentImage,
-                                label: `ภาพคำตอบของ ${submission?.studentName || 'นักเรียน'} - ข้อที่ ${idx + 1}`,
+                                label: `ภาพคำตอบของ ${submission?.studentName || 'นักเรียน'} - ข้อที่ ${displayNum}`,
                               })
                             }
-                            className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 rounded-md transition-colors cursor-pointer"
+                            className="block w-full bg-slate-50 dark:bg-slate-950/60 p-2 rounded-xl border border-slate-200 dark:border-slate-700 cursor-zoom-in hover:border-emerald-500 transition-colors"
                           >
-                            <ZoomIn className="w-3 h-3" />
-                            <span>คลิกขยายดูภาพใหญ่</span>
+                            <img
+                              src={studentImage}
+                              alt={`ภาพคำตอบของนักเรียนข้อที่ ${displayNum}`}
+                              className="max-h-64 mx-auto rounded-lg object-contain"
+                            />
                           </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setPreviewImage({
-                              url: studentImage,
-                              label: `ภาพคำตอบของ ${submission?.studentName || 'นักเรียน'} - ข้อที่ ${idx + 1}`,
-                            })
-                          }
-                          className="block w-full bg-slate-50 dark:bg-slate-950/60 p-2 rounded-xl border border-slate-200 dark:border-slate-700 cursor-zoom-in hover:border-emerald-500 transition-colors"
-                        >
-                          <img
-                            src={studentImage}
-                            alt={`ภาพคำตอบของนักเรียนข้อที่ ${idx + 1}`}
-                            className="max-h-64 mx-auto rounded-lg object-contain"
+                      )}
+                    </div>
+
+                    {/* Answer Key / Rubric */}
+                    {q.answerKey && (
+                      <div className="p-3 bg-emerald-50/60 dark:bg-emerald-950/30 rounded-xl border border-emerald-100 dark:border-emerald-900/40 text-emerald-900 dark:text-emerald-300 text-xs sm:text-sm">
+                        <span className="font-semibold block mb-0.5">เฉลย/เกณฑ์การตรวจ:</span>
+                        <p className="leading-relaxed">{q.answerKey}</p>
+                      </div>
+                    )}
+
+                    {/* Per-question AI Evaluation & Editable Score */}
+                    {itemEval && (
+                      <div className="p-3 bg-teal-50/80 dark:bg-teal-950/30 rounded-xl border border-teal-200 dark:border-teal-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="text-xs text-teal-950 dark:text-teal-200 space-y-0.5">
+                          <span className="font-bold text-teal-800 dark:text-teal-300 block">
+                            🤖 ความเห็น AI ข้อที่ {displayNum}:
+                          </span>
+                          <p className="leading-relaxed">{itemEval.comment}</p>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0 bg-white dark:bg-[var(--theme-surface-dark)] px-2.5 py-1.5 rounded-lg border border-teal-200 dark:border-teal-800">
+                          <span className="text-[11px] font-semibold text-slate-500">คะแนนข้อนี้:</span>
+                          <input
+                            type="number"
+                            step="0.5"
+                            min={0}
+                            max={itemEval.maxScore}
+                            value={itemEval.score}
+                            onChange={(e) => handleAdjustItemScore(idx, Number(e.target.value))}
+                            className="w-14 px-1.5 py-0.5 text-center font-mono font-bold text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-emerald-700 dark:text-emerald-300"
                           />
-                        </button>
+                          <span className="text-xs font-mono text-slate-500">/ {itemEval.maxScore}</span>
+                        </div>
                       </div>
                     )}
                   </div>
+                );
+              };
 
-                  {/* Answer Key / Rubric */}
-                  {q.answerKey && (
-                    <div className="p-3 bg-emerald-50/60 dark:bg-emerald-950/30 rounded-xl border border-emerald-100 dark:border-emerald-900/40 text-emerald-900 dark:text-emerald-300 text-xs sm:text-sm">
-                      <span className="font-semibold block mb-0.5">เฉลย/เกณฑ์การตรวจ:</span>
-                      <p className="leading-relaxed">{q.answerKey}</p>
-                    </div>
-                  )}
+              const sectionsList =
+                assignment.sections && assignment.sections.length > 0
+                  ? assignment.sections
+                  : null;
 
-                  {/* Per-question AI Evaluation & Editable Score */}
-                  {itemEval && (
-                    <div className="p-3 bg-teal-50/80 dark:bg-teal-950/30 rounded-xl border border-teal-200 dark:border-teal-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="text-xs text-teal-950 dark:text-teal-200 space-y-0.5">
-                        <span className="font-bold text-teal-800 dark:text-teal-300 block">
-                          🤖 ความเห็น AI ข้อที่ {idx + 1}:
-                        </span>
-                        <p className="leading-relaxed">{itemEval.comment}</p>
+              if (!sectionsList) {
+                return assignment.questions.map((q, idx) =>
+                  renderGradingQuestionCard(q, idx, idx + 1)
+                );
+              }
+
+              const validSecIds = new Set(sectionsList.map((s) => s.id));
+              return (
+                <div className="space-y-5">
+                  {sectionsList.map((sec, sIdx) => {
+                    const secEntries = assignment.questions
+                      .map((q, globalIdx) => ({ q, globalIdx }))
+                      .filter(({ q }) =>
+                        q.sectionId && validSecIds.has(q.sectionId)
+                          ? q.sectionId === sec.id
+                          : sIdx === 0
+                      );
+                    if (secEntries.length === 0) return null;
+                    const secPoints = secEntries.reduce(
+                      (sum, { q }) => sum + (Number(q.maxPoints) || 0),
+                      0
+                    );
+                    return (
+                      <div key={sec.id} className="space-y-3">
+                        <div className="px-4 py-2.5 rounded-xl bg-emerald-50/75 dark:bg-emerald-950/35 border border-emerald-200/80 dark:border-emerald-900/60 flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <h4 className="text-xs sm:text-sm font-bold font-prompt text-emerald-950 dark:text-emerald-100">
+                              {sec.title}
+                            </h4>
+                            {sec.instructions && (
+                              <p className="text-[11px] text-emerald-800 dark:text-emerald-300">
+                                {sec.instructions}
+                              </p>
+                            )}
+                          </div>
+                          <span className="text-xs font-mono font-semibold text-emerald-700 dark:text-emerald-300">
+                            {secEntries.length} ข้อ · {secPoints} คะแนน
+                          </span>
+                        </div>
+                        <div className="space-y-3">
+                          {secEntries.map(({ q, globalIdx }, qIdxInSec) =>
+                            renderGradingQuestionCard(q, globalIdx, qIdxInSec + 1)
+                          )}
+                        </div>
                       </div>
-
-                      <div className="flex items-center gap-1.5 shrink-0 bg-white dark:bg-[var(--theme-surface-dark)] px-2.5 py-1.5 rounded-lg border border-teal-200 dark:border-teal-800">
-                        <span className="text-[11px] font-semibold text-slate-500">คะแนนข้อนี้:</span>
-                        <input
-                          type="number"
-                          step="0.5"
-                          min={0}
-                          max={itemEval.maxScore}
-                          value={itemEval.score}
-                          onChange={(e) => handleAdjustItemScore(idx, Number(e.target.value))}
-                          className="w-14 px-1.5 py-0.5 text-center font-mono font-bold text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-emerald-700 dark:text-emerald-300"
-                        />
-                        <span className="text-xs font-mono text-slate-500">/ {itemEval.maxScore}</span>
-                      </div>
-                    </div>
-                  )}
+                    );
+                  })}
                 </div>
               );
-            })}
+            })()}
           </div>
 
           {/* Grading Input Form */}
@@ -547,6 +673,21 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
                 />
               </div>
             </div>
+
+            {resolvedGroup && resolvedGroup.memberCodes.length > 0 && (
+              <label className="flex items-center gap-2.5 p-3 rounded-xl bg-teal-50/80 dark:bg-teal-950/35 border border-teal-200 dark:border-teal-800/70 text-xs font-semibold text-teal-900 dark:text-teal-200 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={applyToWholeGroup}
+                  onChange={(e) => setApplyToWholeGroup(e.target.checked)}
+                  className="rounded border-slate-300 text-teal-700 focus:ring-teal-600"
+                />
+                <span>
+                  บันทึกคะแนนและความเห็นนี้ให้สมาชิกทุกคนในกลุ่ม "{resolvedGroup.name}" พร้อมกัน (
+                  {resolvedGroup.memberCodes.length} คน)
+                </span>
+              </label>
+            )}
           </div>
         </div>
 
@@ -596,7 +737,13 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
         details={
           pendingGradeAction && submission
             ? [
-                { label: 'นักเรียน', value: `${submission.studentName} (${submission.studentCode})` },
+                {
+                  label: resolvedGroup && applyToWholeGroup ? 'ตรวจให้ทั้งกลุ่ม' : 'นักเรียน',
+                  value:
+                    resolvedGroup && applyToWholeGroup
+                      ? `${resolvedGroup.name} (${resolvedGroup.memberCodes.length} คน)`
+                      : `${submission.studentName} (${submission.studentCode})`,
+                },
                 { label: 'ใบงาน', value: assignment.title },
                 {
                   label: 'คะแนนที่ได้',
@@ -624,7 +771,8 @@ export const TeacherGradingModal: React.FC<TeacherGradingModalProps> = ({
             pendingGradeAction.clampedScore,
             teacherComment,
             pendingGradeAction.status,
-            usedAiGrading
+            usedAiGrading,
+            Boolean(resolvedGroup && applyToWholeGroup)
           );
           setPendingGradeAction(null);
           onClose();

@@ -1256,6 +1256,11 @@ export const GradebookView: React.FC<GradebookViewProps> = ({
                       </div>
                       <div className="mt-0.5 text-[10px] font-normal text-slate-500 dark:text-slate-400 text-left truncate">
                         {asg.subject}
+                        {asg.workMode === 'group' && (
+                          <span className="text-teal-700 dark:text-teal-400 font-semibold">
+                            {' '}· งานกลุ่ม
+                          </span>
+                        )}
                       </div>
                     </th>
                   ))}

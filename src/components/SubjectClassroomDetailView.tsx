@@ -545,8 +545,9 @@ export const SubjectClassroomDetailView: React.FC<SubjectClassroomDetailViewProp
                                 (!currentStudentCode || s.studentCode === currentStudentCode)
                             );
                             const totalSubCount = submissions.filter(
-                              (s) => s.assignmentId === asg.id
+                              (s) => s.assignmentId === asg.id && s.status !== 'pending'
                             ).length;
+                            const isGroup = asg.workMode === 'group';
 
                             return (
                               <div
@@ -561,6 +562,14 @@ export const SubjectClassroomDetailView: React.FC<SubjectClassroomDetailViewProp
                                     <span>{asg.gradeLevel}</span>
                                     <span aria-hidden="true">·</span>
                                     <span className="tabular-nums">{asg.totalPoints} คะแนน</span>
+                                    {isGroup && (
+                                      <>
+                                        <span aria-hidden="true">·</span>
+                                        <span className="font-semibold text-teal-700 dark:text-teal-400">
+                                          งานกลุ่ม (สูงสุด {asg.groupSettings?.maxGroupSize ?? 4} คน)
+                                        </span>
+                                      </>
+                                    )}
                                     <span aria-hidden="true">·</span>
                                     <span>
                                       กำหนดส่ง {new Date(asg.dueDate).toLocaleDateString('th-TH')}
@@ -572,12 +581,22 @@ export const SubjectClassroomDetailView: React.FC<SubjectClassroomDetailViewProp
                                           className={`inline-flex items-center gap-1 font-semibold ${
                                             mySub.status === 'graded'
                                               ? 'text-emerald-600 dark:text-emerald-400'
-                                              : 'text-teal-700 dark:text-teal-400'
+                                              : mySub.status === 'pending'
+                                              ? 'text-teal-700 dark:text-teal-400'
+                                              : mySub.status === 'needs_revision'
+                                              ? 'text-rose-600 dark:text-rose-400'
+                                              : 'text-amber-700 dark:text-amber-400'
                                           }`}
                                         >
                                           <CheckCircle2 className="w-3 h-3" />
                                           {mySub.status === 'graded'
                                             ? `ตรวจแล้ว (${mySub.score ?? 0}/${asg.totalPoints})`
+                                            : mySub.status === 'pending'
+                                            ? isGroup
+                                              ? 'ร่างงานกลุ่ม'
+                                              : 'กำลังทำร่าง'
+                                            : mySub.status === 'needs_revision'
+                                            ? 'ให้กลับไปแก้ไข'
                                             : 'ส่งงานแล้ว (รอตรวจ)'}
                                         </span>
                                       </>
@@ -600,7 +619,15 @@ export const SubjectClassroomDetailView: React.FC<SubjectClassroomDetailViewProp
                                     onClick={() => onOpenSubmitModal(asg)}
                                     className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold shrink-0 cursor-pointer transition-colors"
                                   >
-                                    {mySub ? 'ดูใบงาน / แก้ไขคำตอบ' : 'ทำใบงาน'}
+                                    {!mySub || mySub.status === 'pending'
+                                      ? isGroup
+                                        ? mySub
+                                          ? 'ทำใบงานกลุ่มต่อ'
+                                          : 'เข้ากลุ่ม / ทำใบงาน'
+                                        : mySub
+                                        ? 'ทำใบงานต่อ'
+                                        : 'ทำใบงาน'
+                                      : 'ดูใบงาน / แก้ไขคำตอบ'}
                                   </button>
                                 ) : (
                                   <button
@@ -701,7 +728,9 @@ export const SubjectClassroomDetailView: React.FC<SubjectClassroomDetailViewProp
                     s.assignmentId === asg.id &&
                     (!currentStudentCode || s.studentCode === currentStudentCode)
                 );
-                const subCount = submissions.filter((s) => s.assignmentId === asg.id).length;
+                const subCount = submissions.filter(
+                  (s) => s.assignmentId === asg.id && s.status !== 'pending'
+                ).length;
 
                 return (
                   <AssignmentCard
@@ -710,6 +739,7 @@ export const SubjectClassroomDetailView: React.FC<SubjectClassroomDetailViewProp
                     submission={sub}
                     submissionCount={subCount}
                     role={role}
+                    currentStudentCode={currentStudentCode}
                     onOpenSubmitModal={onOpenSubmitModal}
                     onOpenGradingModal={onOpenGradingModal}
                     onOpenHintModal={onOpenHintModal}

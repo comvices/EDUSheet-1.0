@@ -784,25 +784,67 @@ ${JSON.stringify(studentAnswersBatch)}
 // API Route: AI Worksheet Generator for Teachers
 app.post('/api/ai/generate-worksheet', aiApiLimiter, requireApiSession(['teacher']), async (req, res) => {
   try {
-    const { subject, gradeLevel, topic, numberOfQuestions = 4 } = req.body;
+    const { subject, gradeLevel, topic, numberOfQuestions = 4, sectionsPlan } = req.body;
     const cleanTopic = String(topic || '').trim().slice(0, 200);
     if (!cleanTopic) {
       return res.status(400).json({ error: 'กรุณาระบุหัวข้อเรื่องสำหรับสร้างใบงาน' });
     }
-    const safeQuestionCount = Math.max(1, Math.min(20, Number(numberOfQuestions) || 4));
+
+    const sanitizedPlan = Array.isArray(sectionsPlan)
+      ? sectionsPlan
+          .slice(0, 15)
+          .map((sec: any, idx: number) => ({
+            id: typeof sec?.id === 'string' && sec.id.trim() ? sec.id.trim().slice(0, 64) : `sec_${idx + 1}`,
+            title: String(sec?.title || `ตอนที่ ${idx + 1}`).trim().slice(0, 150) || `ตอนที่ ${idx + 1}`,
+            instructions: String(sec?.instructions || '').trim().slice(0, 300),
+            questionType:
+              sec?.questionType === 'text' ||
+              sec?.questionType === 'multiple_choice' ||
+              sec?.questionType === 'fill_blank'
+                ? sec.questionType
+                : 'mixed',
+            questionCount: Math.max(1, Math.min(25, Number(sec?.questionCount) || 3)),
+          }))
+      : [];
+
+    const totalFromPlan = sanitizedPlan.reduce((sum, s) => sum + s.questionCount, 0);
+    const safeQuestionCount =
+      sanitizedPlan.length > 0
+        ? Math.max(1, Math.min(50, totalFromPlan))
+        : Math.max(1, Math.min(25, Number(numberOfQuestions) || 4));
     const ai = getAiClient();
+
+    const sectionPromptLines =
+      sanitizedPlan.length > 0
+        ? `\nโครงสร้างตอนที่ต้องการ (ทั้งหมด ${sanitizedPlan.length} ตอน รวม ${safeQuestionCount} ข้อ):\n` +
+          sanitizedPlan
+            .map((s, idx) => {
+              const typeHint =
+                s.questionType === 'multiple_choice'
+                  ? 'ปรนัย (multiple_choice พร้อมตัวเลือก 4 ข้อใน options)'
+                  : s.questionType === 'fill_blank'
+                  ? 'เติมคำในช่องว่าง (fill_blank)'
+                  : s.questionType === 'text'
+                  ? 'ข้อเขียนตอบแบบบรรยาย (text)'
+                  : 'รูปแบบเหมาะสมกับเนื้อหา';
+              return `- ตอนที่ ${idx + 1} (sectionId="${s.id}"): ชื่อตอน "${s.title}"${
+                s.instructions ? ` | คำชี้แจง "${s.instructions}"` : ''
+              } | จำนวน ${s.questionCount} ข้อ | ประเภท: ${typeHint}`;
+            })
+            .join('\n')
+        : '';
 
     const prompt = `คุณคือครูผู้เชี่ยวชาญด้านการออกแบบใบงานการเรียนการสอน (Worksheet Designer)
 กรุณาสร้างใบงานออนไลน์วิชา "${String(subject || 'ทั่วไป').slice(0, 100)}" ระดับชั้น "${String(gradeLevel || 'ทั่วไป').slice(0, 50)}" ในหัวข้อเรื่อง "${cleanTopic}"
-จำนวนข้อสอบ/โจทย์: ${safeQuestionCount} ข้อ
+จำนวนข้อสอบ/โจทย์รวม: ${safeQuestionCount} ข้อ${sectionPromptLines}
 
-กรุณาส่งผลลัพธ์เป็น JSON Object ตาม schema โดยระบุเฉลยคำตอบ (answerKey) ที่ชัดเจนสำหรับใช้ตรวจงานด้วย`;
+กรุณาส่งผลลัพธ์เป็น JSON Object ตาม schema โดยระบุ sections, sectionId ของแต่ละข้อ และเฉลยคำตอบ (answerKey) ที่ชัดเจนสำหรับใช้ตรวจงานด้วย (หากเป็น multiple_choice ให้ใส่ options จำนวน 4 ตัวเลือก)`;
 
     const parsed = await callGeminiJsonWithFallback({
       ai,
       prompt,
       systemInstruction:
-        'คุณคือผู้เชี่ยวชาญการออกแบบใบงานไทย สร้างคำถามและเฉลยคำตอบ (answerKey) ที่ชัดเจนถูกต้องทางวิชาการ',
+        'คุณคือผู้เชี่ยวชาญการออกแบบใบงานไทย สร้างคำถามแบ่งตอนตามโครงสร้างที่กำหนดและเฉลยคำตอบ (answerKey) ที่ชัดเจนถูกต้องทางวิชาการ',
       responseSchema: {
         type: Type.OBJECT,
         properties: {
@@ -811,12 +853,25 @@ app.post('/api/ai/generate-worksheet', aiApiLimiter, requireApiSession(['teacher
           instructions: { type: Type.STRING },
           category: { type: Type.STRING },
           totalPoints: { type: Type.NUMBER },
+          sections: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                id: { type: Type.STRING },
+                title: { type: Type.STRING },
+                instructions: { type: Type.STRING },
+              },
+              required: ['id', 'title'],
+            },
+          },
           questions: {
             type: Type.ARRAY,
             items: {
               type: Type.OBJECT,
               properties: {
                 id: { type: Type.STRING },
+                sectionId: { type: Type.STRING },
                 text: { type: Type.STRING },
                 type: { type: Type.STRING },
                 options: {
@@ -833,7 +888,60 @@ app.post('/api/ai/generate-worksheet', aiApiLimiter, requireApiSession(['teacher
         required: ['title', 'description', 'instructions', 'totalPoints', 'questions'],
       },
     });
-    return res.json({ success: true, worksheet: parsed });
+
+    const normalizedSections =
+      sanitizedPlan.length > 0
+        ? sanitizedPlan.map((s) => ({
+            id: s.id,
+            title: s.title,
+            instructions: s.instructions,
+          }))
+        : Array.isArray(parsed?.sections) && parsed.sections.length > 0
+        ? parsed.sections.map((s: any, idx: number) => ({
+            id: String(s?.id || `sec_${idx + 1}`),
+            title: String(s?.title || `ตอนที่ ${idx + 1}`),
+            instructions: String(s?.instructions || ''),
+          }))
+        : [{ id: 'sec_1', title: 'ตอนที่ 1', instructions: '' }];
+
+    const validSectionIds = new Set(normalizedSections.map((s: any) => s.id));
+    const rawQuestions = Array.isArray(parsed?.questions) ? parsed.questions : [];
+    const normalizedQuestions = rawQuestions.map((q: any, idx: number) => {
+      const qType =
+        q?.type === 'multiple_choice' || q?.type === 'fill_blank' || q?.type === 'text'
+          ? q.type
+          : 'text';
+      const fallbackSectionId = normalizedSections[0].id;
+      const sectionId =
+        typeof q?.sectionId === 'string' && validSectionIds.has(q.sectionId)
+          ? q.sectionId
+          : fallbackSectionId;
+      return {
+        id: `q_${Date.now()}_${idx + 1}`,
+        sectionId,
+        text: String(q?.text || `คำถามข้อที่ ${idx + 1}`),
+        type: qType,
+        ...(qType === 'multiple_choice'
+          ? {
+              options:
+                Array.isArray(q?.options) && q.options.length > 0
+                  ? q.options.map((opt: any) => String(opt))
+                  : ['ตัวเลือกที่ 1', 'ตัวเลือกที่ 2', 'ตัวเลือกที่ 3', 'ตัวเลือกที่ 4'],
+            }
+          : {}),
+        maxPoints: Math.max(1, Number(q?.maxPoints) || (qType === 'multiple_choice' ? 1 : 5)),
+        answerKey: String(q?.answerKey || ''),
+      };
+    });
+
+    return res.json({
+      success: true,
+      worksheet: {
+        ...parsed,
+        sections: normalizedSections,
+        questions: normalizedQuestions,
+      },
+    });
   } catch (err: any) {
     console.error('AI Generator error:', err);
     const formatted = formatGeminiErrorMessage(err);

@@ -8,6 +8,7 @@ interface GradeLevelViewProps {
   assignments: Assignment[];
   submissions: Submission[];
   role: UserRole;
+  currentStudentCode?: string;
   studentGradeLevel?: string;
   selectedGrade: string;
   setSelectedGrade: (grade: string) => void;
@@ -16,7 +17,7 @@ interface GradeLevelViewProps {
   onOpenHintModal: (assignment: Assignment) => void;
   onOpenRosterModal?: (assignment: Assignment) => void;
   onDeleteAssignment?: (assignmentId: string) => void;
-  onEditAssignment?: (assignmentId: Assignment) => void;
+  onEditAssignment?: (assignment: Assignment) => void;
   gradeLevels?: string[];
   onOpenSettings?: (tab?: 'grades' | 'subjects' | 'students') => void;
   onOpenSplitWorksheetsModal?: (baseGrade?: string) => void;
@@ -27,6 +28,7 @@ export const GradeLevelView: React.FC<GradeLevelViewProps> = ({
   assignments,
   submissions,
   role,
+  currentStudentCode,
   studentGradeLevel,
   selectedGrade,
   setSelectedGrade,
@@ -260,7 +262,9 @@ export const GradeLevelView: React.FC<GradeLevelViewProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredAssignments.map((asg) => {
               const sub = submissions.find((s) => s.assignmentId === asg.id);
-              const subCount = submissions.filter((s) => s.assignmentId === asg.id).length;
+              const subCount = submissions.filter(
+                (s) => s.assignmentId === asg.id && s.status !== 'pending'
+              ).length;
 
               return (
                 <AssignmentCard
@@ -269,6 +273,7 @@ export const GradeLevelView: React.FC<GradeLevelViewProps> = ({
                   submission={sub}
                   submissionCount={subCount}
                   role={role}
+                  currentStudentCode={currentStudentCode}
                   onOpenSubmitModal={onOpenSubmitModal}
                   onOpenGradingModal={onOpenGradingModal}
                   onOpenHintModal={onOpenHintModal}

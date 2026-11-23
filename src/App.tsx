@@ -13,7 +13,14 @@ import {
   PeriodConfig,
   SubjectClassroom,
   PastelThemeId,
+  WorksheetGroup,
 } from './types';
+import {
+  buildDeterministicSubmissionId,
+  findStudentGroup,
+  normalizeCode,
+  pickLatestGroupSubmission,
+} from './utils/groupHelpers';
 import {
   DEFAULT_PERIOD_CONFIGS,
   INITIAL_ASSIGNMENTS,
@@ -62,7 +69,7 @@ import { Header } from './components/Header';
 import { BannerHero } from './components/BannerHero';
 import { FilterBar } from './components/FilterBar';
 import { AssignmentCard } from './components/AssignmentCard';
-import { WorksheetSubmissionModal } from './components/WorksheetSubmissionModal';
+import { WorksheetSubmissionModal, GroupActionPayload } from './components/WorksheetSubmissionModal';
 import { TeacherGradingModal } from './components/TeacherGradingModal';
 import { CreateWorksheetModal } from './components/CreateWorksheetModal';
 import { ManageCategoriesModal } from './components/ManageCategoriesModal';
@@ -461,79 +468,558 @@ export default function App() {
     showToast('ออกจากระบบเรียบร้อยแล้ว');
   };
 
-  // Submission Handler from Student
+  // Submission Handler from Student (supports individual + collaborative group drafts & final submission)
   const handleSubmitWorksheet = (
     assignmentId: string,
     answers: Record<string, string>,
     files?: any[],
-    answerImages?: Record<string, string>
+    answerImages?: Record<string, string>,
+    mode: 'draft' | 'submitted' = 'submitted'
   ) => {
     const matchedAsg = assignments.find((a) => a.id === assignmentId);
     if (!matchedAsg) return;
+
+    const nowIso = new Date().toISOString();
+    const isDraft = mode === 'draft';
+    const cleanCode = (currentStudentUser.code || currentStudentUser.id || 'UNKNOWN').trim().slice(0, 64);
+    const cleanGrade = (currentStudentUser.gradeLevel || matchedAsg.gradeLevel || 'ทั่วไป').trim().slice(0, 50);
+
+    if (matchedAsg.workMode === 'group') {
+      const activeGroup = findStudentGroup(matchedAsg, currentStudentUser.code);
+      if (!activeGroup) {
+        showToast('กรุณาเลือกเข้าร่วมกลุ่มหรือสร้างกลุ่มก่อนทำและส่งใบงาน');
+        return;
+      }
+
+      const rawCodes = [
+        ...(activeGroup.memberCodes || []),
+        ...(currentStudentUser.code ? [currentStudentUser.code] : []),
+      ];
+      const uniqueMembers: string[] = [];
+      const seenNorm = new Set<string>();
+      for (const code of rawCodes) {
+        const clean = code.trim();
+        const norm = normalizeCode(clean);
+        if (clean && !seenNorm.has(norm)) {
+          seenNorm.add(norm);
+          uniqueMembers.push(clean);
+        }
+      }
+
+      const upsertedSubs: Submission[] = uniqueMembers.map((memberCode) => {
+        const normMember = normalizeCode(memberCode);
+        const rosterMatch = studentsRoster.find((st) => normalizeCode(st.code) === normMember);
+        const existingMemberSub = pickBestSubmission(
+          submissions.filter(
+            (s) => s.assignmentId === assignmentId && normalizeCode(s.studentCode) === normMember
+          )
+        );
+        const memberName =
+          normMember === normalizeCode(currentStudentUser.code)
+            ? currentStudentUser.name
+            : rosterMatch?.name || existingMemberSub?.studentName || memberCode;
+        const memberId =
+          normMember === normalizeCode(currentStudentUser.code)
+            ? currentStudentUser.id
+            : rosterMatch?.id || existingMemberSub?.studentId || `std_${normMember}`;
+        const memberGrade = (
+          rosterMatch?.gradeLevel ||
+          existingMemberSub?.gradeLevel ||
+          cleanGrade
+        )
+          .trim()
+          .slice(0, 50);
+
+        const nextStatus: Submission['status'] = isDraft
+          ? existingMemberSub?.status === 'needs_revision'
+            ? 'needs_revision'
+            : 'pending'
+          : 'submitted';
+
+        return {
+          ...(existingMemberSub || {}),
+          id: existingMemberSub?.id || buildDeterministicSubmissionId(assignmentId, memberCode),
+          assignmentId,
+          studentId: memberId,
+          studentName: memberName.trim().slice(0, 200),
+          studentCode: memberCode.slice(0, 64),
+          gradeLevel: memberGrade,
+          submissionDate: nowIso,
+          answers,
+          answerImages: answerImages || {},
+          files: files || [],
+          status: nextStatus,
+          maxScore: matchedAsg.totalPoints,
+          groupId: activeGroup.id,
+          groupName: activeGroup.name,
+          groupMemberCodes: uniqueMembers,
+          lastEditedByName: currentStudentUser.name,
+          lastEditedByCode: cleanCode,
+        };
+      });
+
+      const upsertedIdSet = new Set(upsertedSubs.map((s) => s.id));
+      const upsertedByCode = new Map(
+        upsertedSubs.map((s) => [`${s.assignmentId}_${normalizeCode(s.studentCode)}`, s])
+      );
+
+      setSubmissions((prev) => {
+        const updatedPrev = prev.map((s) => {
+          if (upsertedIdSet.has(s.id)) {
+            return upsertedSubs.find((u) => u.id === s.id) || s;
+          }
+          const byCode = upsertedByCode.get(`${s.assignmentId}_${normalizeCode(s.studentCode)}`);
+          return byCode || s;
+        });
+        const existingIds = new Set(updatedPrev.map((s) => s.id));
+        const existingCodeKeys = new Set(
+          updatedPrev.map((s) => `${s.assignmentId}_${normalizeCode(s.studentCode)}`)
+        );
+        const newlyAdded = upsertedSubs.filter(
+          (u) =>
+            !existingIds.has(u.id) &&
+            !existingCodeKeys.has(`${u.assignmentId}_${normalizeCode(u.studentCode)}`)
+        );
+        return [...newlyAdded, ...updatedPrev];
+      });
+
+      saveMultipleSubmissionsToFirestore(upsertedSubs);
+
+      if (!isDraft) {
+        const newNotif: NotificationItem = {
+          id: `notif_${Date.now()}`,
+          title: '👥 ส่งใบงานกลุ่มเรียบร้อยแล้ว',
+          message: `กลุ่ม "${activeGroup.name}" (${currentStudentUser.name}) ส่งใบงาน "${matchedAsg.title}" สำเร็จ (${upsertedSubs.length} คน)`,
+          date: 'เมื่อครู่นี้',
+          type: 'new_assignment',
+          isRead: false,
+          assignmentId,
+        };
+        setNotifications((prev) => [newNotif, ...prev]);
+        showToast(
+          `ส่งใบงานกลุ่ม "${activeGroup.name}" ใน "${matchedAsg.title}" สำเร็จทั้ง ${upsertedSubs.length} คน! 🎉`
+        );
+      } else {
+        showToast(
+          `บันทึกร่างงานกลุ่ม "${activeGroup.name}" และซิงค์ให้เพื่อนร่วมกลุ่มเรียบร้อยแล้ว 💾`
+        );
+      }
+      return;
+    }
 
     const bestExisting = pickBestSubmission(
       submissions.filter(
         (s) => s.assignmentId === assignmentId && matchesStudentSubmission(s, currentStudentUser)
       )
     );
-    const existingSubIdx = bestExisting
-      ? submissions.findIndex((s) => s.id === bestExisting.id)
-      : -1;
 
-    const cleanCode = (currentStudentUser.code || currentStudentUser.id || 'UNKNOWN').trim().slice(0, 64);
-    const cleanGrade = (currentStudentUser.gradeLevel || matchedAsg.gradeLevel || 'ทั่วไป').trim().slice(0, 50);
+    const nextStatus: Submission['status'] = isDraft
+      ? bestExisting?.status === 'needs_revision'
+        ? 'needs_revision'
+        : 'pending'
+      : 'submitted';
 
     const newSub: Submission = {
-      id: existingSubIdx >= 0 ? submissions[existingSubIdx].id : `sub_${Date.now()}`,
+      ...(bestExisting || {}),
+      id: bestExisting?.id || buildDeterministicSubmissionId(assignmentId, cleanCode),
       assignmentId,
       studentId: currentStudentUser.id,
       studentName: currentStudentUser.name,
       studentCode: cleanCode,
       gradeLevel: cleanGrade,
-      submissionDate: new Date().toISOString(),
+      submissionDate: nowIso,
       answers,
       answerImages: answerImages || {},
-      files,
-      status: 'submitted',
+      files: files || [],
+      status: nextStatus,
       maxScore: matchedAsg.totalPoints,
     };
 
-    if (existingSubIdx >= 0) {
-      const updated = [...submissions];
-      updated[existingSubIdx] = newSub;
-      setSubmissions(updated);
-    } else {
-      setSubmissions([newSub, ...submissions]);
-    }
+    setSubmissions((prev) => {
+      const idx = prev.findIndex((s) => s.id === newSub.id);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = newSub;
+        return copy;
+      }
+      return [newSub, ...prev];
+    });
 
     // Persist to Cloud Firestore
     saveSubmissionToFirestore(newSub);
 
-    // Add Notification
-    const newNotif: NotificationItem = {
-      id: `notif_${Date.now()}`,
-      title: '📥 ส่งใบงานเรียบร้อยแล้ว',
-      message: `${currentStudentUser.name} ส่งใบงาน "${matchedAsg.title}" สำเร็จ`,
-      date: 'เมื่อครู่นี้',
-      type: 'new_assignment',
-      isRead: false,
-      assignmentId,
-    };
-    setNotifications([newNotif, ...notifications]);
-
-    showToast(`ส่งใบงาน "${matchedAsg.title}" บนระบบเรียบร้อยแล้ว! 🎉`);
+    if (!isDraft) {
+      const newNotif: NotificationItem = {
+        id: `notif_${Date.now()}`,
+        title: '📥 ส่งใบงานเรียบร้อยแล้ว',
+        message: `${currentStudentUser.name} ส่งใบงาน "${matchedAsg.title}" สำเร็จ`,
+        date: 'เมื่อครู่นี้',
+        type: 'new_assignment',
+        isRead: false,
+        assignmentId,
+      };
+      setNotifications((prev) => [newNotif, ...prev]);
+      showToast(`ส่งใบงาน "${matchedAsg.title}" บนระบบเรียบร้อยแล้ว! 🎉`);
+    } else {
+      showToast(`บันทึกร่างคำตอบ "${matchedAsg.title}" เรียบร้อยแล้ว 💾`);
+    }
   };
 
-  // Teacher Grade Save Handler
+  // Student Collaborative Group Membership Handler (Create / Join / Leave)
+  const handleGroupAction = async (assignmentId: string, action: GroupActionPayload) => {
+    const liveAsg = assignments.find((a) => a.id === assignmentId);
+    if (!liveAsg || liveAsg.workMode !== 'group') return;
+
+    const studentCode = (currentStudentUser.code || '').trim();
+    const normStudent = normalizeCode(studentCode);
+    if (!studentCode || !normStudent) {
+      showToast('ไม่พบรหัสนักเรียน กรุณาเข้าสู่ระบบใหม่อีกครั้ง');
+      return;
+    }
+
+    const maxSize = liveAsg.groupSettings?.maxGroupSize ?? 4;
+    const allowCreate = liveAsg.groupSettings?.allowStudentCreateGroup !== false;
+    const currentGroups = [...(liveAsg.groups || [])];
+
+    const stripStudentFromGroups = (groupsList: WorksheetGroup[], skipGroupId?: string) => {
+      const result: WorksheetGroup[] = [];
+      for (const grp of groupsList) {
+        if (skipGroupId && grp.id === skipGroupId) {
+          result.push(grp);
+          continue;
+        }
+        const remaining = (grp.memberCodes || []).filter((c) => normalizeCode(c) !== normStudent);
+        if (remaining.length === 0 && allowCreate) {
+          continue;
+        }
+        const nextLeader =
+          grp.leaderCode && normalizeCode(grp.leaderCode) === normStudent
+            ? remaining[0]
+            : grp.leaderCode || remaining[0];
+        result.push({
+          ...grp,
+          memberCodes: remaining,
+          ...(nextLeader ? { leaderCode: nextLeader } : {}),
+        });
+      }
+      return result;
+    };
+
+    if (action.type === 'create') {
+      if (!allowCreate) {
+        showToast('ใบงานนี้ครูผู้สอนกำหนดกลุ่มไว้ล่วงหน้าแล้ว');
+        return;
+      }
+      const cleanName = (action.groupName || '').trim().slice(0, 100);
+      if (!cleanName) return;
+
+      const cleaned = stripStudentFromGroups(currentGroups);
+      const newGroup: WorksheetGroup = {
+        id: `grp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        name: cleanName,
+        memberCodes: [studentCode],
+        leaderCode: studentCode,
+      };
+      const updatedAsg: Assignment = {
+        ...liveAsg,
+        groups: [...cleaned, newGroup],
+      };
+
+      setAssignments((prev) => prev.map((a) => (a.id === assignmentId ? updatedAsg : a)));
+      await saveAssignmentToFirestore(updatedAsg);
+
+      const existingOwnSub = pickBestSubmission(
+        submissions.filter(
+          (s) => s.assignmentId === assignmentId && matchesStudentSubmission(s, currentStudentUser)
+        )
+      );
+      if (existingOwnSub) {
+        const updatedSub: Submission = {
+          ...existingOwnSub,
+          groupId: newGroup.id,
+          groupName: newGroup.name,
+          groupMemberCodes: newGroup.memberCodes,
+          lastEditedByName: currentStudentUser.name,
+          lastEditedByCode: studentCode,
+        };
+        setSubmissions((prev) => prev.map((s) => (s.id === updatedSub.id ? updatedSub : s)));
+        await saveSubmissionToFirestore(updatedSub);
+      }
+
+      showToast(`สร้างกลุ่ม "${cleanName}" เรียบร้อยแล้ว 👥`);
+      return;
+    }
+
+    if (action.type === 'join') {
+      const target = currentGroups.find((g) => g.id === action.groupId);
+      if (!target) {
+        showToast('ไม่พบกลุ่มที่เลือก อาจถูกลบไปแล้ว');
+        return;
+      }
+      if ((target.memberCodes || []).some((c) => normalizeCode(c) === normStudent)) {
+        return;
+      }
+      if ((target.memberCodes || []).length >= maxSize) {
+        showToast(`กลุ่ม "${target.name}" มีสมาชิกครบ ${maxSize} คนแล้ว`);
+        return;
+      }
+
+      const cleaned = stripStudentFromGroups(currentGroups, target.id);
+      let updatedTargetGroup: WorksheetGroup = target;
+      const nextGroups = cleaned.map((grp) => {
+        if (grp.id !== target.id) return grp;
+        const nextMembers = [...(grp.memberCodes || []), studentCode];
+        updatedTargetGroup = {
+          ...grp,
+          memberCodes: nextMembers,
+          leaderCode: grp.leaderCode || studentCode,
+        };
+        return updatedTargetGroup;
+      });
+
+      const updatedAsg: Assignment = {
+        ...liveAsg,
+        groups: nextGroups,
+      };
+      setAssignments((prev) => prev.map((a) => (a.id === assignmentId ? updatedAsg : a)));
+      await saveAssignmentToFirestore(updatedAsg);
+
+      const latestGroupSub = pickLatestGroupSubmission(
+        assignmentId,
+        updatedTargetGroup,
+        submissions
+      );
+      const existingOwnSub = pickBestSubmission(
+        submissions.filter(
+          (s) => s.assignmentId === assignmentId && matchesStudentSubmission(s, currentStudentUser)
+        )
+      );
+
+      if (latestGroupSub) {
+        const nowIso = new Date().toISOString();
+        const syncedOwnSub: Submission = {
+          ...(existingOwnSub || {}),
+          id: existingOwnSub?.id || buildDeterministicSubmissionId(assignmentId, studentCode),
+          assignmentId,
+          studentId: currentStudentUser.id,
+          studentName: currentStudentUser.name,
+          studentCode,
+          gradeLevel: (currentStudentUser.gradeLevel || liveAsg.gradeLevel || 'ทั่วไป').slice(0, 50),
+          submissionDate: latestGroupSub.submissionDate || nowIso,
+          answers: latestGroupSub.answers || {},
+          answerImages: latestGroupSub.answerImages || {},
+          files: latestGroupSub.files || [],
+          status: latestGroupSub.status,
+          maxScore: liveAsg.totalPoints,
+          ...(typeof latestGroupSub.score === 'number' ? { score: latestGroupSub.score } : {}),
+          ...(latestGroupSub.teacherComment ? { teacherComment: latestGroupSub.teacherComment } : {}),
+          ...(latestGroupSub.gradedAt ? { gradedAt: latestGroupSub.gradedAt } : {}),
+          ...(latestGroupSub.aiGraded !== undefined ? { aiGraded: latestGroupSub.aiGraded } : {}),
+          groupId: updatedTargetGroup.id,
+          groupName: updatedTargetGroup.name,
+          groupMemberCodes: updatedTargetGroup.memberCodes,
+          lastEditedByName: latestGroupSub.lastEditedByName || latestGroupSub.studentName,
+          lastEditedByCode: latestGroupSub.lastEditedByCode || latestGroupSub.studentCode,
+        };
+
+        const memberCodeSet = new Set(updatedTargetGroup.memberCodes.map(normalizeCode));
+        const memberSubsToUpdate = submissions
+          .filter(
+            (s) =>
+              s.assignmentId === assignmentId &&
+              s.id !== syncedOwnSub.id &&
+              (s.groupId === updatedTargetGroup.id || memberCodeSet.has(normalizeCode(s.studentCode)))
+          )
+          .map((s) => ({
+            ...s,
+            groupId: updatedTargetGroup.id,
+            groupName: updatedTargetGroup.name,
+            groupMemberCodes: updatedTargetGroup.memberCodes,
+          }));
+
+        const batchSubs = [syncedOwnSub, ...memberSubsToUpdate];
+        const batchMap = new Map(batchSubs.map((s) => [s.id, s]));
+        setSubmissions((prev) => {
+          const updated = prev.map((s) => batchMap.get(s.id) || s);
+          return updated.some((s) => s.id === syncedOwnSub.id)
+            ? updated
+            : [syncedOwnSub, ...updated];
+        });
+        await saveMultipleSubmissionsToFirestore(batchSubs);
+      }
+
+      showToast(`เข้าร่วมกลุ่ม "${updatedTargetGroup.name}" เรียบร้อยแล้ว 👥`);
+      return;
+    }
+
+    if (action.type === 'leave') {
+      const nextGroups = stripStudentFromGroups(currentGroups);
+      const updatedAsg: Assignment = {
+        ...liveAsg,
+        groups: nextGroups,
+      };
+      setAssignments((prev) => prev.map((a) => (a.id === assignmentId ? updatedAsg : a)));
+      await saveAssignmentToFirestore(updatedAsg);
+
+      const existingOwnSub = pickBestSubmission(
+        submissions.filter(
+          (s) => s.assignmentId === assignmentId && matchesStudentSubmission(s, currentStudentUser)
+        )
+      );
+      if (existingOwnSub) {
+        const clearedSub: Submission = {
+          ...existingOwnSub,
+          groupId: '',
+          groupName: '',
+          groupMemberCodes: [],
+        };
+        setSubmissions((prev) => prev.map((s) => (s.id === clearedSub.id ? clearedSub : s)));
+        await saveSubmissionToFirestore(clearedSub);
+      }
+
+      showToast('ออกจากกลุ่มเรียบร้อยแล้ว');
+    }
+  };
+
+  // Teacher Grade Save Handler (supports whole-group grading & individual override)
   const handleSaveGrade = (
     submissionId: string,
     score: number,
     comment: string,
     status: 'graded' | 'needs_revision',
-    aiGraded?: boolean
+    aiGraded?: boolean,
+    applyToWholeGroup?: boolean
   ) => {
     const targetSub = submissions.find((s) => s.id === submissionId);
     const targetAsg = assignments.find((a) => a.id === targetSub?.assignmentId);
+    const nowIso = new Date().toISOString();
+
+    const shouldApplyToGroup = Boolean(
+      targetAsg &&
+        targetSub &&
+        (applyToWholeGroup ?? targetAsg.workMode === 'group') &&
+        (targetAsg.workMode === 'group' || Boolean(targetSub.groupId))
+    );
+
+    if (shouldApplyToGroup && targetAsg && targetSub) {
+      const matchedGroup =
+        (targetAsg.groups || []).find((g) => g.id === targetSub.groupId) ||
+        findStudentGroup(targetAsg, targetSub.studentCode);
+
+      const memberCodesSource =
+        matchedGroup?.memberCodes && matchedGroup.memberCodes.length > 0
+          ? matchedGroup.memberCodes
+          : targetSub.groupMemberCodes && targetSub.groupMemberCodes.length > 0
+          ? targetSub.groupMemberCodes
+          : [targetSub.studentCode];
+
+      const groupName = matchedGroup?.name || targetSub.groupName || 'กลุ่มนักเรียน';
+      const groupId = matchedGroup?.id || targetSub.groupId || '';
+      const uniqueCodes: string[] = [];
+      const seen = new Set<string>();
+      for (const c of memberCodesSource) {
+        const clean = (c || '').trim();
+        const norm = normalizeCode(clean);
+        if (clean && !seen.has(norm)) {
+          seen.add(norm);
+          uniqueCodes.push(clean);
+        }
+      }
+
+      const memberCodeSet = new Set(uniqueCodes.map(normalizeCode));
+      const updatedForFirestore: Submission[] = [];
+
+      // Update any existing submissions matching this group or member codes
+      const coveredCodes = new Set<string>();
+      const existingUpdated = submissions
+        .filter(
+          (s) =>
+            s.assignmentId === targetAsg.id &&
+            (s.id === submissionId ||
+              (groupId && s.groupId === groupId) ||
+              memberCodeSet.has(normalizeCode(s.studentCode)))
+        )
+        .map((s) => {
+          coveredCodes.add(normalizeCode(s.studentCode));
+          const nextSub: Submission = {
+            ...s,
+            score,
+            teacherComment: comment,
+            status,
+            gradedAt: nowIso,
+            ...(aiGraded !== undefined ? { aiGraded } : {}),
+            ...(groupId ? { groupId } : {}),
+            ...(groupName ? { groupName } : {}),
+            ...(uniqueCodes.length > 0 ? { groupMemberCodes: uniqueCodes } : {}),
+          };
+          updatedForFirestore.push(nextSub);
+          return nextSub;
+        });
+
+      // Synthesize graded submission records for group members who hadn't created their own doc yet
+      for (const code of uniqueCodes) {
+        const norm = normalizeCode(code);
+        if (coveredCodes.has(norm)) continue;
+        const rosterMatch = studentsRoster.find((st) => normalizeCode(st.code) === norm);
+        const synthesized: Submission = {
+          id: buildDeterministicSubmissionId(targetAsg.id, code),
+          assignmentId: targetAsg.id,
+          studentId: rosterMatch?.id || `std_${norm}`,
+          studentName: (rosterMatch?.name || code).trim().slice(0, 200),
+          studentCode: code.slice(0, 64),
+          gradeLevel: (rosterMatch?.gradeLevel || targetSub.gradeLevel || targetAsg.gradeLevel || 'ทั่วไป').slice(0, 50),
+          submissionDate: targetSub.submissionDate || nowIso,
+          answers: targetSub.answers || {},
+          answerImages: targetSub.answerImages || {},
+          files: targetSub.files || [],
+          status,
+          score,
+          maxScore: targetAsg.totalPoints,
+          teacherComment: comment,
+          gradedAt: nowIso,
+          ...(aiGraded !== undefined ? { aiGraded } : {}),
+          ...(groupId ? { groupId } : {}),
+          ...(groupName ? { groupName } : {}),
+          ...(uniqueCodes.length > 0 ? { groupMemberCodes: uniqueCodes } : {}),
+        };
+        updatedForFirestore.push(synthesized);
+      }
+
+      const updateMap = new Map(updatedForFirestore.map((s) => [s.id, s]));
+      setSubmissions((prev) => {
+        const mapped = prev.map((s) => updateMap.get(s.id) || s);
+        const existingIds = new Set(mapped.map((s) => s.id));
+        const additions = updatedForFirestore.filter((s) => !existingIds.has(s.id));
+        return [...additions, ...mapped];
+      });
+
+      if (updatedForFirestore.length > 0) {
+        saveMultipleSubmissionsToFirestore(updatedForFirestore);
+      } else if (existingUpdated.length > 0) {
+        saveMultipleSubmissionsToFirestore(existingUpdated);
+      }
+
+      const newNotif: NotificationItem = {
+        id: `notif_${Date.now()}`,
+        title: status === 'graded' ? '📝 ครูตรวจใบงานกลุ่มของคุณแล้ว' : '✏️ ใบงานกลุ่มต้องแก้ไขเพิ่มเติม',
+        message:
+          status === 'graded'
+            ? `กลุ่ม "${groupName}" ใน "${targetAsg.title}" ได้รับคะแนน ${score}/${targetAsg.totalPoints} คะแนน`
+            : `ครูขอให้กลุ่ม "${groupName}" ปรับปรุงเพิ่มเติมในใบงาน "${targetAsg.title}"`,
+        date: 'เมื่อครู่นี้',
+        type: status === 'graded' ? 'graded' : 'revision',
+        isRead: false,
+        assignmentId: targetAsg.id,
+      };
+      setNotifications((prev) => [newNotif, ...prev]);
+
+      showToast(
+        status === 'graded'
+          ? `บันทึกคะแนนให้กลุ่ม "${groupName}" ทั้ง ${updatedForFirestore.length} คนเรียบร้อยแล้ว!`
+          : `ส่งกลับแก้ไขให้กลุ่ม "${groupName}" ทั้ง ${updatedForFirestore.length} คนเรียบร้อยแล้ว!`
+      );
+      return;
+    }
 
     setSubmissions((prev) =>
       prev.map((s) =>
@@ -543,7 +1029,7 @@ export default function App() {
               score,
               teacherComment: comment,
               status,
-              gradedAt: new Date().toISOString(),
+              gradedAt: nowIso,
               ...(aiGraded !== undefined ? { aiGraded } : {}),
             }
           : s
@@ -557,7 +1043,7 @@ export default function App() {
         score,
         teacherComment: comment,
         status,
-        gradedAt: new Date().toISOString(),
+        gradedAt: nowIso,
         ...(aiGraded !== undefined ? { aiGraded } : {}),
       };
       saveSubmissionToFirestore(updatedSub);
@@ -576,7 +1062,7 @@ export default function App() {
         isRead: false,
         assignmentId: targetAsg.id,
       };
-      setNotifications([newNotif, ...notifications]);
+      setNotifications((prev) => [newNotif, ...prev]);
     }
 
     showToast(status === 'graded' ? 'บันทึกผลการตรวจเรียบร้อยแล้ว!' : 'แจ้งให้นักเรียนแก้ไขเรียบร้อยแล้ว!');
@@ -1608,8 +2094,12 @@ export default function App() {
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {filteredHomeAssignments.map((asg) => {
-                        const sub = submissions.find((s) => s.assignmentId === asg.id);
-                        const subCount = submissions.filter((s) => s.assignmentId === asg.id).length;
+                        const sub = submissions.find(
+                          (s) => s.assignmentId === asg.id && s.status !== 'pending'
+                        );
+                        const subCount = submissions.filter(
+                          (s) => s.assignmentId === asg.id && s.status !== 'pending'
+                        ).length;
 
                         return (
                           <AssignmentCard
@@ -1618,6 +2108,7 @@ export default function App() {
                             submission={sub}
                             submissionCount={subCount}
                             role={role}
+                            currentStudentCode={currentStudentUser.code}
                             onOpenSubmitModal={(a) => setActiveSubmitModalAsg(a)}
                             onOpenGradingModal={(a, s) => setActiveGradingModalAsg({ assignment: a, submission: s })}
                             onOpenHintModal={(a) => setActiveHintModalAsg({ assignment: a })}
@@ -1644,6 +2135,7 @@ export default function App() {
             assignments={visibleAssignments}
             submissions={visibleSubmissions}
             role={role}
+            currentStudentCode={currentStudentUser.code}
             studentGradeLevel={currentStudentUser.gradeLevel}
             selectedGrade={selectedGradeInView}
             setSelectedGrade={setSelectedGradeInView}
@@ -1730,6 +2222,7 @@ export default function App() {
             assignments={visibleAssignments}
             submissions={visibleSubmissions}
             role={role}
+            currentStudentCode={currentStudentUser.code}
             selectedStatus={selectedStatusInView}
             setSelectedStatus={setSelectedStatusInView}
             onOpenSubmitModal={(a) => setActiveSubmitModalAsg(a)}
@@ -1871,26 +2364,30 @@ export default function App() {
         />
       )}
 
-      {activeRosterModalAsg && (
-        <SubmissionRosterModal
-          assignment={activeRosterModalAsg}
-          submissions={submissions}
-          students={studentsRoster}
-          onClose={() => setActiveRosterModalAsg(null)}
-          onSelectStudentSubmission={(sub) => {
-            const asg = assignments.find((a) => a.id === sub.assignmentId) || activeRosterModalAsg;
-            setActiveGradingModalAsg({ assignment: asg, submission: sub });
-          }}
-          onBatchSaveGrades={handleBatchSaveGrades}
-          onOpenSplitThisWorksheet={(asg) =>
-            setSplitModalState({
-              isOpen: true,
-              baseGrade: extractBaseGrade(asg.gradeLevel) || 'ม.6',
-              focusAssignmentId: asg.id,
-            })
-          }
-        />
-      )}
+      {activeRosterModalAsg && (() => {
+        const liveRosterAsg =
+          assignments.find((a) => a.id === activeRosterModalAsg.id) || activeRosterModalAsg;
+        return (
+          <SubmissionRosterModal
+            assignment={liveRosterAsg}
+            submissions={submissions}
+            students={studentsRoster}
+            onClose={() => setActiveRosterModalAsg(null)}
+            onSelectStudentSubmission={(sub) => {
+              const asg = assignments.find((a) => a.id === sub.assignmentId) || liveRosterAsg;
+              setActiveGradingModalAsg({ assignment: asg, submission: sub });
+            }}
+            onBatchSaveGrades={handleBatchSaveGrades}
+            onOpenSplitThisWorksheet={(asg) =>
+              setSplitModalState({
+                isOpen: true,
+                baseGrade: extractBaseGrade(asg.gradeLevel) || 'ม.6',
+                focusAssignmentId: asg.id,
+              })
+            }
+          />
+        );
+      })()}
 
       {splitModalState.isOpen && (
         <SplitWorksheetsModal
@@ -1906,36 +2403,61 @@ export default function App() {
         />
       )}
 
-      {activeSubmitModalAsg && (
-        <WorksheetSubmissionModal
-          key={`${activeSubmitModalAsg.id}_${currentStudentUser.code}`}
-          assignment={activeSubmitModalAsg}
-          submission={pickBestSubmission(
-            submissions.filter(
-              (s) =>
-                s.assignmentId === activeSubmitModalAsg.id &&
-                matchesStudentSubmission(s, currentStudentUser)
-            )
-          )}
-          onClose={() => setActiveSubmitModalAsg(null)}
-          onSubmitWorksheet={handleSubmitWorksheet}
-          onOpenHintModal={(a, qText) => {
-            setActiveHintModalAsg({ assignment: a, questionText: qText });
-          }}
-        />
-      )}
+      {activeSubmitModalAsg && (() => {
+        const liveSubmitAsg =
+          assignments.find((a) => a.id === activeSubmitModalAsg.id) || activeSubmitModalAsg;
+        const ownSubmission = pickBestSubmission(
+          submissions.filter(
+            (s) =>
+              s.assignmentId === liveSubmitAsg.id &&
+              matchesStudentSubmission(s, currentStudentUser)
+          )
+        );
+        const studentGroup = findStudentGroup(liveSubmitAsg, currentStudentUser.code);
+        const latestGroupSub = pickLatestGroupSubmission(
+          liveSubmitAsg.id,
+          studentGroup,
+          submissions
+        );
 
-      {activeGradingModalAsg && (
-        <TeacherGradingModal
-          assignment={activeGradingModalAsg.assignment}
-          submission={
-            activeGradingModalAsg.submission ||
-            submissions.find((s) => s.assignmentId === activeGradingModalAsg.assignment.id)
-          }
-          onClose={() => setActiveGradingModalAsg(null)}
-          onSaveGrade={handleSaveGrade}
-        />
-      )}
+        return (
+          <WorksheetSubmissionModal
+            key={`${liveSubmitAsg.id}_${currentStudentUser.code}`}
+            assignment={liveSubmitAsg}
+            submission={ownSubmission}
+            groupSubmission={latestGroupSub}
+            currentStudent={currentStudentUser}
+            studentsList={studentsRoster}
+            onClose={() => setActiveSubmitModalAsg(null)}
+            onSubmitWorksheet={handleSubmitWorksheet}
+            onGroupAction={handleGroupAction}
+            onOpenHintModal={(a, qText) => {
+              setActiveHintModalAsg({ assignment: a, questionText: qText });
+            }}
+          />
+        );
+      })()}
+
+      {activeGradingModalAsg && (() => {
+        const liveGradingAsg =
+          assignments.find((a) => a.id === activeGradingModalAsg.assignment.id) ||
+          activeGradingModalAsg.assignment;
+        const targetSubId = activeGradingModalAsg.submission?.id;
+        const liveSubmission =
+          (targetSubId ? submissions.find((s) => s.id === targetSubId) : undefined) ||
+          activeGradingModalAsg.submission ||
+          submissions.find((s) => s.assignmentId === liveGradingAsg.id);
+
+        return (
+          <TeacherGradingModal
+            assignment={liveGradingAsg}
+            submission={liveSubmission}
+            studentsList={studentsRoster}
+            onClose={() => setActiveGradingModalAsg(null)}
+            onSaveGrade={handleSaveGrade}
+          />
+        );
+      })()}
 
       {activeHintModalAsg && (
         <AIHintModal

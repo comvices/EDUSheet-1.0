@@ -40,6 +40,10 @@
           "description": "Instructions for students",
           "maxLength": 2000
         },
+        "sections": {
+          "type": "array",
+          "description": "Optional list of worksheet sections (ตอนที่) with title and section instructions"
+        },
         "questions": {
           "type": "array",
           "description": "List of questions in the worksheet"
@@ -62,6 +66,20 @@
           "type": "string",
           "description": "Name of the teacher",
           "maxLength": 200
+        },
+        "workMode": {
+          "type": "string",
+          "description": "Worksheet mode: individual or group",
+          "enum": ["individual", "group"],
+          "maxLength": 24
+        },
+        "groupSettings": {
+          "type": "object",
+          "description": "Configuration for group work such as maxGroupSize and allowStudentCreateGroup"
+        },
+        "groups": {
+          "type": "array",
+          "description": "Configured student groups with memberCodes and optional leaderCode"
         }
       },
       "required": ["id", "title", "subject", "gradeLevel", "totalPoints", "dueDate"]
@@ -136,6 +154,30 @@
           "type": "string",
           "description": "Timestamp when graded",
           "maxLength": 100
+        },
+        "groupId": {
+          "type": "string",
+          "description": "Associated group ID when submitted as a group worksheet",
+          "maxLength": 128
+        },
+        "groupName": {
+          "type": "string",
+          "description": "Display name of the student group",
+          "maxLength": 150
+        },
+        "groupMemberCodes": {
+          "type": "array",
+          "description": "List of member student codes included in this group submission"
+        },
+        "lastEditedByName": {
+          "type": "string",
+          "description": "Name of the group member who most recently saved or submitted",
+          "maxLength": 200
+        },
+        "lastEditedByCode": {
+          "type": "string",
+          "description": "Student code of the group member who most recently saved or submitted",
+          "maxLength": 64
         }
       },
       "required": ["id", "assignmentId", "studentCode", "status"]

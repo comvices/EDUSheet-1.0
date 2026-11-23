@@ -569,7 +569,9 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredAssignments.map((asg) => {
               const sub = submissions.find((s) => s.assignmentId === asg.id);
-              const subCount = submissions.filter((s) => s.assignmentId === asg.id).length;
+              const subCount = submissions.filter(
+                (s) => s.assignmentId === asg.id && s.status !== 'pending'
+              ).length;
 
               return (
                 <AssignmentCard
@@ -578,6 +580,7 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
                   submission={sub}
                   submissionCount={subCount}
                   role={role}
+                  currentStudentCode={currentStudentCode}
                   onOpenSubmitModal={onOpenSubmitModal}
                   onOpenGradingModal={onOpenGradingModal}
                   onOpenHintModal={onOpenHintModal}

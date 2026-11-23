@@ -1,5 +1,11 @@
 export type QuestionType = 'text' | 'multiple_choice' | 'fill_blank' | 'file_upload';
 
+export interface WorksheetSection {
+  id: string;
+  title: string;
+  instructions?: string;
+}
+
 export interface Question {
   id: string;
   text: string;
@@ -9,9 +15,24 @@ export interface Question {
   answerKey?: string;
   hint?: string;
   imageUrl?: string;
+  sectionId?: string;
 }
 
 export type CategoryType = 'แบบฝึกหัด' | 'ใบงานเติมคำ' | 'ข้อสอบ/แบบทดสอบ' | 'รายงาน/เรียงความ';
+
+export type WorksheetWorkMode = 'individual' | 'group';
+
+export interface WorksheetGroup {
+  id: string;
+  name: string;
+  memberCodes: string[];
+  leaderCode?: string;
+}
+
+export interface GroupWorksheetSettings {
+  maxGroupSize: number;
+  allowStudentCreateGroup: boolean;
+}
 
 export interface Assignment {
   id: string;
@@ -21,6 +42,7 @@ export interface Assignment {
   category: CategoryType;
   description: string;
   instructions: string;
+  sections?: WorksheetSection[]; // แบ่งตอนของใบงาน เช่น ตอนที่ 1, ตอนที่ 2
   questions: Question[];
   totalPoints: number;
   dueDate: string; // ISO string or YYYY-MM-DDTHH:mm
@@ -29,6 +51,9 @@ export interface Assignment {
   attachmentUrl?: string;
   assignedStudentCodes?: string[]; // ถ้าระบุ จะให้นักเรียนที่มีรหัสตรงกันเท่านั้นที่เห็นใบงานนี้
   isPublished?: boolean; // หากเป็น false จะซ่อนใบงานจากนักเรียนทั้งหมด (ฉบับร่าง)
+  workMode?: WorksheetWorkMode; // 'individual' (งานเดี่ยว) หรือ 'group' (งานกลุ่ม)
+  groupSettings?: GroupWorksheetSettings;
+  groups?: WorksheetGroup[];
 }
 
 export type SubmissionStatus = 'pending' | 'submitted' | 'graded' | 'needs_revision' | 'overdue';
@@ -56,6 +81,11 @@ export interface Submission {
   teacherComment?: string;
   gradedAt?: string;
   aiGraded?: boolean;
+  groupId?: string;
+  groupName?: string;
+  groupMemberCodes?: string[];
+  lastEditedByName?: string;
+  lastEditedByCode?: string;
 }
 
 export interface NotificationItem {

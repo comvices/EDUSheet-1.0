@@ -38,8 +38,12 @@ service cloud.firestore {
         (!('description' in data) || isValidString(data.description, 0, 2000)) &&
         (!('instructions' in data) || isValidString(data.instructions, 0, 2000)) &&
         (!('teacherName' in data) || isValidString(data.teacherName, 0, 200)) &&
+        (!('sections' in data) || (data.sections is list && data.sections.size() <= 30)) &&
         (!('questions' in data) || (data.questions is list && data.questions.size() <= 100)) &&
-        (!('assignedStudentCodes' in data) || (data.assignedStudentCodes is list && data.assignedStudentCodes.size() <= 500));
+        (!('assignedStudentCodes' in data) || (data.assignedStudentCodes is list && data.assignedStudentCodes.size() <= 500)) &&
+        (!('workMode' in data) || data.workMode in ['individual', 'group']) &&
+        (!('groupSettings' in data) || (data.groupSettings is map)) &&
+        (!('groups' in data) || (data.groups is list && data.groups.size() <= 50));
     }
 
     function isValidSubmission(docId, data) {
@@ -54,7 +58,12 @@ service cloud.firestore {
         (!('gradeLevel' in data) || isValidString(data.gradeLevel, 0, 50)) &&
         (!('score' in data) || (data.score is number && data.score >= 0 && data.score <= 1000)) &&
         (!('maxScore' in data) || (data.maxScore is number && data.maxScore >= 0 && data.maxScore <= 1000)) &&
-        (!('teacherComment' in data) || isValidString(data.teacherComment, 0, 3000));
+        (!('teacherComment' in data) || isValidString(data.teacherComment, 0, 3000)) &&
+        (!('groupId' in data) || isValidString(data.groupId, 0, 128)) &&
+        (!('groupName' in data) || isValidString(data.groupName, 0, 150)) &&
+        (!('groupMemberCodes' in data) || (data.groupMemberCodes is list && data.groupMemberCodes.size() <= 50)) &&
+        (!('lastEditedByName' in data) || isValidString(data.lastEditedByName, 0, 200)) &&
+        (!('lastEditedByCode' in data) || isValidString(data.lastEditedByCode, 0, 64));
     }
 
     function isValidStudent(docId, data) {
