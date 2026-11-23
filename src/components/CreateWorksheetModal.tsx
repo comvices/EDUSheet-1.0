@@ -303,9 +303,9 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-950/60 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 dark:border-emerald-950/60 flex items-center justify-between bg-slate-50/90 dark:bg-[#0d1613]">
+        <div className="px-6 py-4 border-b border-slate-200 dark:border-emerald-950/60 flex items-center justify-between bg-slate-50/90 dark:bg-[var(--theme-surface-dark-elevated)]">
           <div className="flex items-center gap-2">
             {isEditMode ? (
               <Edit3 className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
@@ -326,12 +326,12 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
 
         {/* Tab Switcher (Only show AI option when creating new) */}
         {!isEditMode && (
-          <div className="flex border-b border-slate-200 dark:border-emerald-950/60 bg-slate-100/70 dark:bg-[#0d1613] p-1">
+          <div className="flex border-b border-slate-200 dark:border-emerald-950/60 bg-slate-100/70 dark:bg-[var(--theme-surface-dark-elevated)] p-1">
             <button
               onClick={() => setActiveTab('manual')}
               className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                 activeTab === 'manual'
-                  ? 'bg-white dark:bg-[#111c18] text-emerald-800 dark:text-emerald-400 shadow-xs'
+                  ? 'bg-white dark:bg-[var(--theme-surface-dark)] text-emerald-800 dark:text-emerald-400 shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
               }`}
             >
@@ -419,7 +419,7 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
                 type="button"
                 onClick={handleGenerateAiWorksheet}
                 disabled={isGeneratingAi || !aiTopic.trim()}
-                className="w-full py-2.5 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white font-semibold rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="theme-btn-sheen w-full py-2.5 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white font-semibold rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 <Sparkles className="w-4 h-4 text-amber-300" />
                 <span>{isGeneratingAi ? 'กำลังประมวลผลและสร้างใบงาน...' : 'สร้างใบงานด้วย AI ทันที'}</span>
@@ -559,8 +559,8 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
                     }}
                     className={`p-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer ${
                       assignScope === 'class'
-                        ? 'bg-white dark:bg-[#111c18] border-emerald-600 ring-2 ring-emerald-500/20 text-emerald-800 dark:text-emerald-300 font-bold'
-                        : 'bg-white/60 dark:bg-[#111c18]/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                        ? 'bg-white dark:bg-[var(--theme-surface-dark)] border-emerald-600 ring-2 ring-emerald-500/20 text-emerald-800 dark:text-emerald-300 font-bold'
+                        : 'bg-white/60 dark:bg-[var(--theme-surface-dark)]/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
                     }`}
                   >
                     <span className="block">มอบหมายตามห้อง/ระดับชั้น (ชั้น {gradeLevel})</span>
@@ -574,8 +574,8 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
                     onClick={() => setAssignScope('specific')}
                     className={`p-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer ${
                       assignScope === 'specific'
-                        ? 'bg-white dark:bg-[#111c18] border-emerald-600 ring-2 ring-emerald-500/20 text-emerald-800 dark:text-emerald-300 font-bold'
-                        : 'bg-white/60 dark:bg-[#111c18]/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                        ? 'bg-white dark:bg-[var(--theme-surface-dark)] border-emerald-600 ring-2 ring-emerald-500/20 text-emerald-800 dark:text-emerald-300 font-bold'
+                        : 'bg-white/60 dark:bg-[var(--theme-surface-dark)]/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
                     }`}
                   >
                     <span className="block">
@@ -588,7 +588,7 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
                 </div>
 
                 {assignScope === 'specific' && (
-                  <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-slate-700 rounded-xl p-3 space-y-2.5">
+                  <div className="bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-slate-700 rounded-xl p-3 space-y-2.5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="relative flex-1 min-w-[180px]">
                         <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
@@ -707,7 +707,7 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
                       placeholder="พิมพ์โจทย์คำถาม..."
                       value={q.text}
                       onChange={(e) => handleQuestionChange(q.id, 'text', e.target.value)}
-                      className="w-full px-3 py-2 bg-white dark:bg-[#0d1613] border border-slate-300 dark:border-emerald-950/60 rounded-lg text-xs font-medium text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
+                      className="w-full px-3 py-2 bg-white dark:bg-[var(--theme-surface-dark-elevated)] border border-slate-300 dark:border-emerald-950/60 rounded-lg text-xs font-medium text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
                     />
 
                     <div className="grid grid-cols-2 gap-3">
@@ -718,7 +718,7 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
                         <select
                           value={q.type}
                           onChange={(e) => handleQuestionChange(q.id, 'type', e.target.value)}
-                          className="w-full px-2 py-1.5 bg-white dark:bg-[#0d1613] border border-slate-300 dark:border-emerald-950/60 rounded-lg text-xs focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
+                          className="w-full px-2 py-1.5 bg-white dark:bg-[var(--theme-surface-dark-elevated)] border border-slate-300 dark:border-emerald-950/60 rounded-lg text-xs focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
                         >
                           <option value="text">ข้อเขียนตอบแบบบรรยาย</option>
                           <option value="multiple_choice">ปรนัย (เลือกตอบ)</option>
@@ -737,7 +737,7 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
                           onChange={(e) =>
                             handleQuestionChange(q.id, 'maxPoints', Number(e.target.value))
                           }
-                          className="w-full px-2 py-1.5 bg-white dark:bg-[#0d1613] border border-slate-300 dark:border-emerald-950/60 rounded-lg text-xs font-mono focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
+                          className="w-full px-2 py-1.5 bg-white dark:bg-[var(--theme-surface-dark-elevated)] border border-slate-300 dark:border-emerald-950/60 rounded-lg text-xs font-mono focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
                         />
                       </div>
                     </div>
@@ -747,13 +747,13 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
                       placeholder="เฉลยคำตอบ/เกณฑ์ตรวจสำหรับครู (ถ้ามี)"
                       value={q.answerKey || ''}
                       onChange={(e) => handleQuestionChange(q.id, 'answerKey', e.target.value)}
-                      className="w-full px-3 py-1.5 bg-white dark:bg-[#0d1613] border border-slate-200 dark:border-emerald-950/60 rounded-lg text-[11px] text-slate-600 dark:text-slate-300 italic focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
+                      className="w-full px-3 py-1.5 bg-white dark:bg-[var(--theme-surface-dark-elevated)] border border-slate-200 dark:border-emerald-950/60 rounded-lg text-[11px] text-slate-600 dark:text-slate-300 italic focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
                     />
 
                     {/* Question Image Attachment */}
                     <div className="space-y-1.5 pt-1">
                       {q.imageUrl ? (
-                        <div className="flex items-center gap-3 p-2 bg-white dark:bg-[#0d1613] border border-slate-200 dark:border-emerald-950/60 rounded-xl">
+                        <div className="flex items-center gap-3 p-2 bg-white dark:bg-[var(--theme-surface-dark-elevated)] border border-slate-200 dark:border-emerald-950/60 rounded-xl">
                           <img
                             src={q.imageUrl}
                             alt="Question attachment preview"
@@ -773,7 +773,7 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
                         </div>
                       ) : (
                         <div className="flex items-center gap-2">
-                          <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[#111c18] border border-slate-300 dark:border-slate-700 hover:border-emerald-500 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer transition-colors shadow-2xs">
+                          <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-300 dark:border-slate-700 hover:border-emerald-500 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer transition-colors shadow-2xs">
                             <Upload className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
                             <span>แนบรูปภาพประกอบข้อนี้</span>
                             <input
@@ -795,7 +795,7 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-200 dark:border-emerald-950/60 bg-slate-50/90 dark:bg-[#0d1613] flex items-center justify-between">
+        <div className="px-6 py-4 border-t border-slate-200 dark:border-emerald-950/60 bg-slate-50/90 dark:bg-[var(--theme-surface-dark-elevated)] flex items-center justify-between">
           <button
             type="button"
             onClick={onClose}
@@ -808,7 +808,7 @@ export const CreateWorksheetModal: React.FC<CreateWorksheetModalProps> = ({
             <button
               type="submit"
               form="create-asg-form"
-              className="inline-flex items-center gap-1.5 px-5 py-2 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white text-xs font-semibold rounded-lg shadow-md transition-all cursor-pointer"
+              className="theme-btn-sheen inline-flex items-center gap-1.5 px-5 py-2 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white text-xs font-semibold rounded-lg shadow-md transition-all cursor-pointer"
             >
               <Save className="w-3.5 h-3.5" />
               <span>{isEditMode ? 'บันทึกการแก้ไขใบงาน' : 'บันทึกและเผยแพร่ใบงาน'}</span>

@@ -66,9 +66,9 @@ export const ManageCategoriesModal: React.FC<ManageCategoriesModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-950/60 rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 dark:border-emerald-950/60 flex items-center justify-between bg-slate-50/90 dark:bg-[#0d1613]">
+        <div className="px-6 py-4 border-b border-slate-200 dark:border-emerald-950/60 flex items-center justify-between bg-slate-50/90 dark:bg-[var(--theme-surface-dark-elevated)]">
           <div className="flex items-center gap-2 text-slate-900 dark:text-white">
             <Settings className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
             <h2 className="text-base font-bold font-prompt">
@@ -84,12 +84,12 @@ export const ManageCategoriesModal: React.FC<ManageCategoriesModalProps> = ({
         </div>
 
         {/* Tab switcher */}
-        <div className="flex border-b border-slate-200 dark:border-emerald-950/60 bg-slate-100/70 dark:bg-[#0d1613]/70 p-1">
+        <div className="flex border-b border-slate-200 dark:border-emerald-950/60 bg-slate-100/70 dark:bg-[var(--theme-surface-dark-elevated)]/70 p-1">
           <button
             onClick={() => setActiveTab('grades')}
             className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'grades'
-                ? 'bg-white dark:bg-[#111c18] text-emerald-700 dark:text-emerald-400 shadow-xs'
+                ? 'bg-white dark:bg-[var(--theme-surface-dark)] text-emerald-700 dark:text-emerald-400 shadow-xs'
                 : 'text-slate-600 dark:text-slate-400'
             }`}
           >
@@ -101,7 +101,7 @@ export const ManageCategoriesModal: React.FC<ManageCategoriesModalProps> = ({
             onClick={() => setActiveTab('subjects')}
             className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'subjects'
-                ? 'bg-white dark:bg-[#111c18] text-emerald-700 dark:text-emerald-400 shadow-xs'
+                ? 'bg-white dark:bg-[var(--theme-surface-dark)] text-emerald-700 dark:text-emerald-400 shadow-xs'
                 : 'text-slate-600 dark:text-slate-400'
             }`}
           >
@@ -125,7 +125,7 @@ export const ManageCategoriesModal: React.FC<ManageCategoriesModalProps> = ({
                 <button
                   type="submit"
                   disabled={!newGradeInput.trim()}
-                  className="px-4 py-2 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white font-bold text-xs rounded-xl transition-all shrink-0 disabled:opacity-50 cursor-pointer"
+                  className="theme-btn-sheen px-4 py-2 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white font-bold text-xs rounded-xl transition-all shrink-0 disabled:opacity-50 cursor-pointer"
                 >
                   + เพิ่มชั้น
                 </button>
@@ -168,7 +168,7 @@ export const ManageCategoriesModal: React.FC<ManageCategoriesModalProps> = ({
                 <button
                   type="submit"
                   disabled={!newSubjectInput.trim()}
-                  className="px-4 py-2 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white font-bold text-xs rounded-xl transition-all shrink-0 disabled:opacity-50 cursor-pointer"
+                  className="theme-btn-sheen px-4 py-2 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white font-bold text-xs rounded-xl transition-all shrink-0 disabled:opacity-50 cursor-pointer"
                 >
                   + เพิ่มวิชา
                 </button>
@@ -202,10 +202,10 @@ export const ManageCategoriesModal: React.FC<ManageCategoriesModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-200 dark:border-emerald-950/60 bg-slate-50/90 dark:bg-[#0d1613] flex justify-end">
+        <div className="px-6 py-4 border-t border-slate-200 dark:border-emerald-950/60 bg-slate-50/90 dark:bg-[var(--theme-surface-dark-elevated)] flex justify-end">
           <button
             onClick={onClose}
-            className="px-5 py-2 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-xs"
+            className="theme-btn-sheen px-5 py-2 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-xs"
           >
             เสร็จสิ้น
           </button>

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { StudentProfile, TeacherProfile, UserRole } from '../types';
 import { constantTimeEqual, sanitizeImageSrc } from '../utils/security';
+import { HeroSvgOrnaments, CardCornerOrnament } from './ThemeGraphics';
 import defaultSchoolCover from '../assets/images/login_green_campus_1795146589835.jpg';
 
 interface LoginModalProps {
@@ -141,7 +142,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       constantTimeEqual(rawPassword, 'admin123')
     ) {
       setFailedAttempts(0);
-      onLoginSuccess(BUILTIN_ADMIN_TEACHER, 'teacher', { isDefaultAdminFallback: true });
+      onLoginSuccess(BUILTIN_ADMIN_TEACHER, 'teacher', {
+        isDefaultAdminFallback: true,
+      });
       return true;
     }
 
@@ -192,10 +195,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-[#06140f]/80 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-white dark:bg-[#101a16] border border-emerald-900/15 dark:border-emerald-800/40 rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200 grid grid-cols-1 md:grid-cols-12 items-stretch">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/75 backdrop-blur-sm overflow-y-auto">
+      <div className="bg-white dark:bg-[var(--theme-surface-dark)] border border-emerald-900/15 dark:border-emerald-800/45 rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200 grid grid-cols-1 md:grid-cols-12 items-stretch theme-transition">
         {/* Left / Top School Cover Panel */}
-        <div className="md:col-span-6 relative min-h-[210px] sm:min-h-[250px] md:min-h-[540px] bg-[#0a2118] overflow-hidden flex flex-col justify-end">
+        <div className="md:col-span-6 relative min-h-[210px] sm:min-h-[250px] md:min-h-[560px] theme-hero-surface overflow-hidden flex flex-col justify-end">
           {resolvedCoverSrc ? (
             <img
               src={resolvedCoverSrc}
@@ -205,17 +208,19 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               className="absolute inset-0 w-full h-full object-cover"
             />
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-[#071812] via-emerald-950 to-[#0f2e24] flex items-center justify-center">
-              <GraduationCap className="w-24 h-24 text-emerald-400/25" />
+            <div className="absolute inset-0 theme-hero-scrim flex items-center justify-center">
+              <GraduationCap className="w-24 h-24 text-emerald-300/30" />
             </div>
           )}
 
-          {/* Measured Contrast Scrim for AA Legibility */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#051610]/92 via-[#09231a]/50 to-[#09231a]/15" />
+          {/* Measured Contrast Scrim + Theme SVG Ornaments */}
+          <div className="absolute inset-0 theme-hero-scrim opacity-90" />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-transparent to-transparent" />
+          <HeroSvgOrnaments variant="login" />
           <div className="absolute inset-3 rounded-2xl ring-1 ring-inset ring-white/15 pointer-events-none" />
 
           <div className="relative z-10 p-6 sm:p-8 space-y-3 text-white">
-            <div className="w-11 h-11 rounded-2xl bg-emerald-500/20 backdrop-blur-md border border-emerald-200/30 flex items-center justify-center text-white shadow-lg">
+            <div className="w-11 h-11 rounded-2xl bg-emerald-400/20 backdrop-blur-md border border-emerald-200/35 flex items-center justify-center text-white shadow-lg">
               <GraduationCap className="w-6 h-6" />
             </div>
 
@@ -228,7 +233,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               </p>
             </div>
 
-            <div className="pt-2 flex items-center gap-2 text-[11px] text-emerald-100/80 font-medium">
+            <div className="pt-2 flex items-center gap-2 text-[11px] text-emerald-100/85 font-medium">
               <span>นักเรียน</span>
               <span aria-hidden="true">·</span>
               <span>ครูผู้สอน</span>
@@ -239,19 +244,21 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         </div>
 
         {/* Right Form Panel */}
-        <div className="md:col-span-6 p-6 sm:p-8 lg:p-10 flex flex-col justify-center space-y-6 relative bg-white dark:bg-[#101a16]">
+        <div className="md:col-span-6 p-6 sm:p-8 lg:p-9 flex flex-col justify-center space-y-5 relative bg-white dark:bg-[var(--theme-surface-dark)] overflow-hidden theme-transition">
+          <CardCornerOrnament className="absolute -top-3 -right-3 w-28 h-28 opacity-90" />
+
           {isDismissable && onClose && (
             <button
               type="button"
               onClick={onClose}
               aria-label="ปิดหน้าต่างเข้าสู่ระบบ"
-              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-950/50 transition-colors cursor-pointer"
+              className="absolute top-4 right-4 z-10 p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-950/50 transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
           )}
 
-          <div className="space-y-1">
+          <div className="relative space-y-1">
             <h2 className="text-xl font-bold font-prompt text-slate-900 dark:text-white tracking-tight">
               เข้าสู่ระบบ
             </h2>
@@ -261,13 +268,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           </div>
 
           {/* Role Toggle Selector */}
-          <div className="flex p-1 bg-[#f1f5f1] dark:bg-slate-800/80 rounded-xl border border-emerald-900/10 dark:border-emerald-900/40">
+          <div className="flex p-1 theme-soft-surface dark:bg-slate-800/80 rounded-xl border border-emerald-900/10 dark:border-emerald-900/40">
             <button
               type="button"
               onClick={() => handleRoleSwitch('student')}
               className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${
                 loginRole === 'student'
-                  ? 'bg-white dark:bg-[#162620] text-emerald-700 dark:text-emerald-300 shadow-xs ring-1 ring-emerald-900/5'
+                  ? 'bg-white dark:bg-[var(--theme-surface-dark-elevated)] text-emerald-700 dark:text-emerald-300 shadow-xs ring-1 ring-emerald-900/10'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
@@ -279,7 +286,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               onClick={() => handleRoleSwitch('teacher')}
               className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${
                 loginRole === 'teacher'
-                  ? 'bg-white dark:bg-[#162620] text-emerald-700 dark:text-emerald-300 shadow-xs ring-1 ring-emerald-900/5'
+                  ? 'bg-white dark:bg-[var(--theme-surface-dark-elevated)] text-emerald-700 dark:text-emerald-300 shadow-xs ring-1 ring-emerald-900/10'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
@@ -312,7 +319,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   placeholder={loginRole === 'student' ? 'เช่น ST-68042 หรือ 68042' : 'เช่น admin หรือ TCH-001'}
-                  className="w-full pl-10 pr-4 py-2.5 bg-[#f7f9f7] dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-mono focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 focus:outline-hidden transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 theme-soft-surface dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-mono focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 focus:outline-hidden transition-all"
                 />
               </div>
             </div>
@@ -329,7 +336,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="กรอกรหัสผ่านของคุณ"
-                  className="w-full pl-10 pr-10 py-2.5 bg-[#f7f9f7] dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-mono focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 focus:outline-hidden transition-all"
+                  className="w-full pl-10 pr-10 py-2.5 theme-soft-surface dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-mono focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 focus:outline-hidden transition-all"
                 />
                 <button
                   type="button"
@@ -345,7 +352,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             <button
               type="submit"
               disabled={lockoutSecondsLeft > 0}
-              className="w-full py-3 px-6 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-600 hover:to-teal-600 active:scale-[0.99] disabled:from-slate-400 disabled:to-slate-400 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs shadow-md shadow-emerald-900/20 transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
+              className="theme-btn-sheen w-full py-3 px-6 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-600 hover:to-teal-600 active:scale-[0.99] disabled:from-slate-400 disabled:to-slate-400 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs shadow-md shadow-emerald-900/20 transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
             >
               {lockoutSecondsLeft > 0 ? (
                 <>
@@ -362,7 +369,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           </form>
 
           {/* Developer Credit */}
-          <div className="pt-4 border-t border-slate-100 dark:border-emerald-950/60 text-center">
+          <div className="pt-3 border-t border-slate-100 dark:border-emerald-950/60 text-center">
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
               ผู้พัฒนาระบบ:{' '}
               <span className="font-semibold text-emerald-700 dark:text-emerald-400 font-prompt">

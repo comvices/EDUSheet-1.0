@@ -2,6 +2,7 @@ import React from 'react';
 import { GraduationCap, BookOpen, ChevronRight, Settings, FolderGit2 } from 'lucide-react';
 import { Assignment, Submission, UserRole } from '../types';
 import { AssignmentCard } from './AssignmentCard';
+import { CardCornerOrnament } from './ThemeGraphics';
 
 interface GradeLevelViewProps {
   assignments: Assignment[];
@@ -64,7 +65,8 @@ export const GradeLevelView: React.FC<GradeLevelViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Title Header */}
-      <div className="bg-white dark:bg-[#111c18] p-6 rounded-2xl border border-slate-200/80 dark:border-emerald-950/70 shadow-xs">
+      <div className="relative overflow-hidden bg-white dark:bg-[var(--theme-surface-dark)] p-6 rounded-2xl border border-emerald-200/75 dark:border-emerald-950/70 shadow-xs theme-transition">
+        <CardCornerOrnament className="absolute -top-3 -right-3 w-28 h-28 opacity-65" />
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-100 dark:border-emerald-900/50 text-emerald-700 dark:text-emerald-400 rounded-xl">
@@ -103,7 +105,7 @@ export const GradeLevelView: React.FC<GradeLevelViewProps> = ({
               {onOpenSettings && (
                 <button
                   onClick={() => onOpenSettings('grades')}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#f4f7f4] hover:bg-emerald-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold cursor-pointer transition-colors whitespace-nowrap shrink-0"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 theme-soft-surface hover:bg-emerald-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold cursor-pointer transition-colors whitespace-nowrap shrink-0"
                 >
                   <Settings className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
                   <span>จัดการระดับชั้น (เมนูตั้งค่า)</span>
@@ -126,7 +128,7 @@ export const GradeLevelView: React.FC<GradeLevelViewProps> = ({
         {role === 'teacher' && (
           <div className="space-y-3 pt-3">
             {activeGradeList.length === 0 ? (
-              <div className="p-4 rounded-xl bg-[#f7f9f7] dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
+              <div className="p-4 rounded-xl theme-soft-surface dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
                 <span>ยังไม่มีระดับชั้นหรือห้องเรียนที่คุณสร้างในระบบ</span>
                 {onOpenSettings && (
                   <button
@@ -147,7 +149,7 @@ export const GradeLevelView: React.FC<GradeLevelViewProps> = ({
                     className={`py-2 px-3.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                       selectedGrade === 'ทั้งหมด'
                         ? 'bg-emerald-700 text-white shadow-sm font-bold'
-                        : 'bg-[#f4f7f4] dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-emerald-50'
+                        : 'theme-soft-surface dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-emerald-50'
                     }`}
                   >
                     ทุกระดับชั้น
@@ -178,8 +180,8 @@ export const GradeLevelView: React.FC<GradeLevelViewProps> = ({
                         }}
                         className={`py-2 px-3.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
                           isCurrentLevelActive
-                            ? 'bg-[#122b22] text-white dark:bg-emerald-900 dark:text-emerald-50 font-bold shadow-xs'
-                            : 'bg-[#f4f7f4] dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-700'
+                            ? 'bg-emerald-800 text-white dark:bg-emerald-900 dark:text-emerald-50 font-bold shadow-xs ring-2 ring-emerald-500/20'
+                            : 'theme-soft-surface dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-700'
                         }`}
                       >
                         <span>ชั้น {level}</span>
@@ -220,7 +222,7 @@ export const GradeLevelView: React.FC<GradeLevelViewProps> = ({
                         className={`py-1.5 px-3 rounded-xl text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
                           isSelected
                             ? 'bg-emerald-700 text-white shadow-sm font-bold ring-2 ring-emerald-500/25'
-                            : 'bg-[#f7f9f7] dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
+                            : 'theme-soft-surface dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
                         }`}
                       >
                         <span>ชั้น {g}</span>
@@ -244,7 +246,7 @@ export const GradeLevelView: React.FC<GradeLevelViewProps> = ({
         </div>
 
         {filteredAssignments.length === 0 ? (
-          <div className="text-center py-12 bg-white dark:bg-[#111c18] rounded-xl border border-slate-200 dark:border-emerald-950/60 text-slate-400 text-xs space-y-2">
+          <div className="text-center py-12 bg-white dark:bg-[var(--theme-surface-dark)] rounded-xl border border-slate-200 dark:border-emerald-950/60 text-slate-400 text-xs space-y-2 theme-transition">
             <p className="font-semibold text-slate-600 dark:text-slate-300">
               ไม่พบใบงานสำหรับระดับชั้น {selectedGrade}
             </p>

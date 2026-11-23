@@ -936,7 +936,7 @@ export const DAYS_OF_WEEK_LIST: {
 }[] = [
   { id: 'monday', label: 'วันจันทร์', shortLabel: 'จ.', jsDay: 1, badgeClass: 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200 dark:border-amber-800' },
   { id: 'tuesday', label: 'วันอังคาร', shortLabel: 'อ.', jsDay: 2, badgeClass: 'bg-pink-100 text-pink-800 dark:bg-pink-950/60 dark:text-pink-300 border-pink-200 dark:border-pink-800' },
-  { id: 'wednesday', label: 'วันพุธ', shortLabel: 'พ.', jsDay: 3, badgeClass: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' },
+  { id: 'wednesday', label: 'วันพุธ', shortLabel: 'พ.', jsDay: 3, badgeClass: 'bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-300 border-green-200 dark:border-green-800' },
   { id: 'thursday', label: 'วันพฤหัสบดี', shortLabel: 'พฤ.', jsDay: 4, badgeClass: 'bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300 border-orange-200 dark:border-orange-800' },
   { id: 'friday', label: 'วันศุกร์', shortLabel: 'ศ.', jsDay: 5, badgeClass: 'bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300 border-sky-200 dark:border-sky-800' },
 ];

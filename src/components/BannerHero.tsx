@@ -1,6 +1,7 @@
 import React from 'react';
 import { Search, Clock, AlertTriangle, CheckCircle, FileText, PlusCircle } from 'lucide-react';
 import { UserRole, StudentProfile, TeacherProfile } from '../types';
+import { HeroSvgOrnaments } from './ThemeGraphics';
 import heroBannerImg from '../assets/images/hero_green_academy_1795146588887.jpg';
 
 interface BannerHeroProps {
@@ -31,21 +32,25 @@ export const BannerHero: React.FC<BannerHeroProps> = ({
   onOpenCreateWorksheet,
 }) => {
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-[#0b2119] text-white shadow-lg border border-emerald-900/30 dark:border-emerald-800/40 mb-8 group">
-      {/* Background Media with composed forest-sage scrim */}
+    <div className="relative overflow-hidden rounded-3xl theme-hero-surface text-white shadow-lg border border-emerald-400/25 dark:border-emerald-800/45 mb-8 group theme-transition">
+      {/* Background Media with theme-reactive scrim & SVG graphics */}
       <img
         src={heroBannerImg}
-        alt="EduSheet Green Academy Workspace"
+        alt="EduSheet Academy Workspace"
         referrerPolicy="no-referrer"
         className="absolute inset-0 w-full h-full object-cover opacity-35 transition-transform duration-700 group-hover:scale-[1.015]"
       />
-      <div className="absolute inset-0 bg-gradient-to-r from-[#071912]/92 via-[#0d2a1f]/80 to-[#114237]/65" />
+      <div className="absolute inset-0 theme-hero-scrim" />
       <div className="absolute inset-0 edu-hero-grid opacity-30 pointer-events-none" />
-      <div className="absolute -right-20 -top-20 w-72 h-72 rounded-full bg-emerald-400/10 blur-3xl pointer-events-none" />
+      <HeroSvgOrnaments variant="home" />
+      <div
+        className="absolute -right-20 -top-20 w-72 h-72 rounded-full blur-3xl pointer-events-none opacity-25"
+        style={{ backgroundColor: 'var(--theme-svg-primary)' }}
+      />
 
       <div className="relative z-10 px-6 sm:px-10 py-8 sm:py-11 max-w-5xl">
         {/* Kicker */}
-        <div className="flex items-center gap-2 text-xs font-medium text-emerald-200/90 mb-2 font-prompt">
+        <div className="flex items-center gap-2 text-xs font-medium text-emerald-200/95 mb-2 font-prompt">
           <span>{role === 'student' ? 'ศูนย์รวมใบงานและการเรียนรู้ออนไลน์' : 'ระบบบริหารจัดการและตรวจใบงานออนไลน์'}</span>
           <span aria-hidden="true">·</span>
           <span>ภาคเรียนที่ 2/2569</span>
@@ -58,7 +63,7 @@ export const BannerHero: React.FC<BannerHeroProps> = ({
             : `สวัสดี ${teacher.name} จัดการบทเรียนและตรวจใบงานได้ทันที`}
         </h1>
 
-        <p className="text-sm sm:text-base text-emerald-50/80 max-w-2xl mb-6 leading-relaxed">
+        <p className="text-sm sm:text-base text-emerald-50/85 max-w-2xl mb-6 leading-relaxed">
           {role === 'student'
             ? 'ทำใบงาน พิมพ์คำตอบหรือแนบภาพวิธีทำส่งงานออนไลน์ ตรวจสอบคะแนน และติดตามกำหนดส่งได้ครบในระบบเดียว'
             : 'จัดการใบงานออนไลน์ ตรวจและให้คะแนนการตอบของนักเรียนด้วย AI ผู้ช่วยวิเคราะห์ และออกใบงานใหม่ได้อย่างเป็นระบบ'}
@@ -68,13 +73,13 @@ export const BannerHero: React.FC<BannerHeroProps> = ({
         {role === 'teacher' ? (
           <div className="flex flex-col sm:flex-row gap-3 max-w-2xl mb-8">
             <div className="relative flex-1">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-200/70" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-200/75" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="ค้นหาชื่อใบงาน, วิชา, ระดับชั้น หรือคำสั่ง..."
-                className="w-full pl-10 pr-4 py-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl text-sm text-white placeholder-emerald-100/50 focus:outline-hidden focus:ring-2 focus:ring-emerald-400 focus:bg-white/15 transition-all"
+                className="w-full pl-10 pr-4 py-2.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl text-sm text-white placeholder-emerald-100/55 focus:outline-hidden focus:ring-2 focus:ring-emerald-400 focus:bg-white/15 transition-all"
               />
               {searchTerm && (
                 <button
@@ -88,7 +93,7 @@ export const BannerHero: React.FC<BannerHeroProps> = ({
 
             <button
               onClick={onOpenCreateWorksheet}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold rounded-xl text-sm shadow-lg shadow-emerald-950/40 ring-1 ring-inset ring-white/15 transition-all shrink-0 cursor-pointer"
+              className="theme-btn-sheen inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-semibold rounded-xl text-sm shadow-lg shadow-emerald-950/40 ring-1 ring-inset ring-white/20 transition-all shrink-0 cursor-pointer"
             >
               <PlusCircle className="w-4 h-4" />
               <span>สร้างใบงานใหม่</span>

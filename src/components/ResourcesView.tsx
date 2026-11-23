@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { LearningResource, ResourceType, UserRole } from '../types';
 import { sanitizeHttpUrl, sanitizeImageSrc } from '../utils/security';
+import { HeroSvgOrnaments, CardCornerOrnament } from './ThemeGraphics';
 
 interface ResourcesViewProps {
   resources: LearningResource[];
@@ -160,7 +161,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
         };
       case 'document':
         return {
-          bg: 'bg-[#f4f7f4] dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700',
+          bg: 'theme-soft-surface dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700',
           icon: <FileText className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />,
           label: '📄 เอกสาร PDF',
         };
@@ -172,7 +173,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
         };
       case 'link':
         return {
-          bg: 'bg-[#f4f7f4] dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700',
+          bg: 'theme-soft-surface dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700',
           icon: <LinkIcon className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />,
           label: '🔗 ลิงก์ภายนอก',
         };
@@ -182,9 +183,14 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Banner & Hero Section */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0d261d] via-[#133b2e] to-[#0f362c] text-white p-6 sm:p-8 shadow-xl border border-emerald-800/30">
+      <div className="relative overflow-hidden rounded-3xl theme-hero-surface text-white p-6 sm:p-8 shadow-xl border border-emerald-400/25 dark:border-emerald-800/45 theme-transition">
+        <div className="absolute inset-0 theme-hero-scrim" />
         <div className="absolute inset-0 edu-hero-grid opacity-30 pointer-events-none" />
-        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
+        <HeroSvgOrnaments variant="classroom" />
+        <div
+          className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 rounded-full blur-3xl pointer-events-none opacity-25"
+          style={{ backgroundColor: 'var(--theme-svg-primary)' }}
+        />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
             <div className="inline-flex items-center gap-2 text-emerald-200 text-xs font-semibold">
@@ -204,7 +210,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
           {role === 'teacher' && (
             <button
               onClick={onOpenCreateResource}
-              className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-white text-emerald-900 hover:bg-emerald-50 font-bold font-prompt text-xs rounded-2xl shadow-lg transition-all transform hover:-translate-y-0.5 cursor-pointer shrink-0"
+              className="theme-btn-sheen inline-flex items-center justify-center gap-2 px-5 py-3 bg-white text-emerald-900 hover:bg-emerald-50 font-bold font-prompt text-xs rounded-2xl shadow-lg transition-all transform hover:-translate-y-0.5 cursor-pointer shrink-0"
             >
               <Plus className="w-4 h-4 text-emerald-700" />
               <span>+ เพิ่มสื่อการเรียนรู้ใหม่</span>
@@ -214,7 +220,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="bg-white dark:bg-[#111c18] p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-emerald-950/70 shadow-xs space-y-4">
+      <div className="bg-white dark:bg-[var(--theme-surface-dark)] p-4 sm:p-5 rounded-2xl border border-emerald-200/75 dark:border-emerald-950/70 shadow-xs space-y-4 theme-transition">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           {/* Search Input */}
           <div className="relative flex-1">
@@ -224,7 +230,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="ค้นหาชื่อสื่อ, รายวิชา, คำอธิบาย หรือชื่อครูผู้สอน..."
-              className="w-full pl-10 pr-4 py-2.5 bg-[#f7f9f7] dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600 font-medium"
+              className="w-full pl-10 pr-4 py-2.5 theme-soft-surface dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600 font-medium"
             />
             {searchTerm && (
               <button
@@ -240,7 +246,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
           <div className="flex flex-wrap items-center gap-2">
             {/* Grade Level Filter (Teacher Only) */}
             {role === 'teacher' && (
-              <div className="flex items-center gap-1.5 bg-[#f7f9f7] dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl">
+              <div className="flex items-center gap-1.5 theme-soft-surface dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl">
                 <GraduationCap className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
                 <select
                   value={selectedGrade}
@@ -260,7 +266,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
             )}
 
             {/* Subject Filter */}
-            <div className="flex items-center gap-1.5 bg-[#f7f9f7] dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl">
+            <div className="flex items-center gap-1.5 theme-soft-surface dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl">
               <BookOpen className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
               <select
                 value={selectedSubject}
@@ -290,7 +296,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
             className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors shrink-0 cursor-pointer ${
               selectedType === 'all'
                 ? 'bg-emerald-700 text-white shadow-xs'
-                : 'bg-[#f4f7f4] dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-700'
+                : 'theme-soft-surface dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-700'
             }`}
           >
             ทั้งหมด ({resources.length})
@@ -300,7 +306,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
             className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer ${
               selectedType === 'video'
                 ? 'bg-emerald-700 text-white shadow-xs'
-                : 'bg-[#f4f7f4] dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-800 dark:hover:text-emerald-300'
+                : 'theme-soft-surface dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-800 dark:hover:text-emerald-300'
             }`}
           >
             <Video className="w-3.5 h-3.5" />
@@ -311,7 +317,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
             className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer ${
               selectedType === 'document'
                 ? 'bg-emerald-700 text-white shadow-xs'
-                : 'bg-[#f4f7f4] dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-800 dark:hover:text-emerald-300'
+                : 'theme-soft-surface dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-800 dark:hover:text-emerald-300'
             }`}
           >
             <FileText className="w-3.5 h-3.5" />
@@ -322,7 +328,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
             className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer ${
               selectedType === 'slide'
                 ? 'bg-emerald-700 text-white shadow-xs'
-                : 'bg-[#f4f7f4] dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-800 dark:hover:text-emerald-300'
+                : 'theme-soft-surface dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-800 dark:hover:text-emerald-300'
             }`}
           >
             <Presentation className="w-3.5 h-3.5" />
@@ -333,7 +339,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
             className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer ${
               selectedType === 'link'
                 ? 'bg-emerald-700 text-white shadow-xs'
-                : 'bg-[#f4f7f4] dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-800 dark:hover:text-emerald-300'
+                : 'theme-soft-surface dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-800 dark:hover:text-emerald-300'
             }`}
           >
             <LinkIcon className="w-3.5 h-3.5" />
@@ -344,7 +350,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
 
       {/* Grid of Learning Resources */}
       {filteredResources.length === 0 ? (
-        <div className="text-center py-16 bg-white dark:bg-[#111c18] rounded-3xl border border-slate-200/80 dark:border-emerald-950/70 text-slate-400 space-y-3">
+        <div className="text-center py-16 bg-white dark:bg-[var(--theme-surface-dark)] rounded-3xl border border-emerald-200/75 dark:border-emerald-950/70 text-slate-400 space-y-3 theme-transition">
           <BookOpen className="w-12 h-12 mx-auto text-emerald-300 dark:text-emerald-800 stroke-1" />
           <p className="text-sm font-semibold font-prompt text-slate-600 dark:text-slate-300">
             ไม่พบสื่อการเรียนรู้ในหมวดหมู่นี้
@@ -379,11 +385,11 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
             return (
               <div
                 key={res.id}
-                className="bg-white dark:bg-[#111c18] border border-slate-200/80 dark:border-emerald-950/70 hover:border-emerald-400 dark:hover:border-emerald-700 rounded-3xl overflow-hidden shadow-xs hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex flex-col group"
+                className="theme-card-interactive bg-white dark:bg-[var(--theme-surface-dark)] border border-emerald-200/75 dark:border-emerald-950/70 hover:border-emerald-400 dark:hover:border-emerald-700 rounded-3xl overflow-hidden shadow-xs hover:-translate-y-0.5 flex flex-col group"
               >
                 {/* Media Header / Video Thumbnail Preview */}
                 {res.type === 'video' && (
-                  <div className="relative aspect-video bg-[#0b1914] overflow-hidden group-hover:brightness-105 transition-all">
+                  <div className="relative aspect-video theme-hero-surface overflow-hidden group-hover:brightness-105 transition-all">
                     {videoCover ? (
                       <img
                         src={videoCover}
@@ -391,12 +397,12 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-tr from-[#0d221b] to-[#143d2f] flex items-center justify-center">
-                        <Video className="w-12 h-12 text-emerald-400/60" />
+                      <div className="w-full h-full theme-hero-scrim flex items-center justify-center">
+                        <Video className="w-12 h-12 text-emerald-300/60" />
                       </div>
                     )}
 
-                    <div className="absolute inset-0 bg-[#081510]/40 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-slate-950/35 flex items-center justify-center">
                       <button
                         onClick={() => {
                           if (ytEmbed) {
@@ -463,14 +469,15 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
                       </span>
                     </div>
                   ) : (
-                    <div className="p-5 pb-3 border-b border-slate-100 dark:border-emerald-950/60 flex items-center justify-between gap-2">
-                      <span className={`px-3 py-1 rounded-lg text-xs font-bold border ${badge.bg} flex items-center gap-1.5`}>
+                    <div className="relative p-5 pb-3 border-b border-slate-100 dark:border-emerald-950/60 flex items-center justify-between gap-2 overflow-hidden">
+                      <CardCornerOrnament className="absolute -top-4 -right-4 w-20 h-20 opacity-60" />
+                      <span className={`px-3 py-1 rounded-lg text-xs font-bold border ${badge.bg} flex items-center gap-1.5 relative z-10`}>
                         {badge.icon}
                         <span>{badge.label}</span>
                       </span>
 
                       {res.fileSize && (
-                        <span className="text-[10px] text-slate-400 font-mono font-medium px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-md">
+                        <span className="text-[10px] text-slate-400 font-mono font-medium px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-md relative z-10">
                           {res.fileSize}
                         </span>
                       )}
@@ -486,7 +493,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
                       <span className="px-2.5 py-0.5 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 rounded-md text-[11px] font-bold">
                         {res.subject}
                       </span>
-                      <span className="px-2.5 py-0.5 bg-[#f4f7f4] dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-md text-[11px] font-bold flex items-center gap-1">
+                      <span className="px-2.5 py-0.5 theme-soft-surface dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-md text-[11px] font-bold flex items-center gap-1">
                         <GraduationCap className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                         <span>{res.gradeLevel}</span>
                       </span>
@@ -518,7 +525,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
                 </div>
 
                 {/* Action Buttons */}
-                <div className="px-5 py-3 bg-[#f7f9f7] dark:bg-emerald-950/25 border-t border-slate-100 dark:border-emerald-950/60 flex items-center justify-between gap-2">
+                <div className="px-5 py-3 theme-soft-surface dark:bg-emerald-950/25 border-t border-slate-100 dark:border-emerald-950/60 flex items-center justify-between gap-2">
                   <a
                     href={safeUrl || '#'}
                     target="_blank"
@@ -533,7 +540,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
                         setActiveVideoUrl({ url: ytEmbed, title: res.title });
                       }
                     }}
-                    className={`flex-1 py-2 px-3 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-colors cursor-pointer ${!safeUrl ? 'opacity-50 pointer-events-none' : ''}`}
+                    className={`theme-btn-sheen flex-1 py-2 px-3 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-colors cursor-pointer ${!safeUrl ? 'opacity-50 pointer-events-none' : ''}`}
                   >
                     {res.type === 'video' ? <Play className="w-3.5 h-3.5" /> : <ExternalLink className="w-3.5 h-3.5" />}
                     <span>{res.type === 'video' ? 'รับชมวิดีโอ' : res.type === 'document' ? 'เปิดดู PDF' : 'เปิดดูสื่อ'}</span>
@@ -568,7 +575,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
       {/* Delete Confirmation Modal */}
       {deletingResourceConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/70 rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center space-y-4 animate-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-950/70 rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center space-y-4 animate-in zoom-in-95 duration-200">
             <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto shadow-xs">
               <Trash2 className="w-6 h-6" />
             </div>
@@ -646,7 +653,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/70 rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col"
+            className="bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-950/70 rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col"
           >
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 dark:border-slate-800">
               <h3 className="text-sm font-bold font-prompt text-slate-900 dark:text-white truncate pr-4">
@@ -669,7 +676,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
               />
             </div>
 
-            <div className="px-5 py-3.5 bg-[#f7f9f7] dark:bg-slate-800/60 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="px-5 py-3.5 theme-soft-surface dark:bg-slate-800/60 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2">
                 {activeImagePreview.description || 'รูปภาพตัวอย่างสื่อการเรียนรู้'}
               </p>

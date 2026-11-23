@@ -6,13 +6,300 @@
   --color-brand-primary: #047857;
   --color-brand-primary-hover: #065f46;
   --color-brand-accent: #0f766e;
-  --color-surface-light: #f6f8f6;
-  --color-surface-dark: #09110e;
+  --color-surface-light: #f1f5f9;
+  --color-surface-dark: #0f172a;
+}
+
+/* ============================================================================
+   6 Personal Pastel Themes for Teachers (Default: Mint Green)
+   - Soft pastel 50-300 tints for backgrounds, menus, card borders & SVGs
+   - WCAG AA high-contrast 600-950 shades for buttons & readable text
+   ============================================================================ */
+:root,
+:root[data-pastel-theme="mint"] {
+  --color-emerald-50: #ecfdf5;
+  --color-emerald-100: #d1fae5;
+  --color-emerald-200: #a7f3d0;
+  --color-emerald-300: #6ee7b7;
+  --color-emerald-400: #34d399;
+  --color-emerald-500: #10b981;
+  --color-emerald-600: #059669;
+  --color-emerald-700: #047857;
+  --color-emerald-800: #065f46;
+  --color-emerald-900: #064e3b;
+  --color-emerald-950: #022c22;
+
+  --color-teal-50: #f0fdfa;
+  --color-teal-100: #ccfbf1;
+  --color-teal-200: #99f6e4;
+  --color-teal-300: #5eead4;
+  --color-teal-400: #2dd4bf;
+  --color-teal-500: #14b8a6;
+  --color-teal-600: #0d9488;
+  --color-teal-700: #0f766e;
+  --color-teal-800: #115e59;
+  --color-teal-900: #134e4a;
+  --color-teal-950: #042f2e;
+
+  --theme-canvas-light: #f1f5f9;
+  --theme-canvas-dark: #0f172a;
+  --theme-glow-1: rgba(148, 163, 184, 0.10);
+  --theme-glow-2: rgba(148, 163, 184, 0.06);
+  --theme-glow-dark-1: rgba(30, 41, 59, 0.32);
+  --theme-glow-dark-2: rgba(30, 41, 59, 0.18);
+  --theme-surface-soft: #eef8f3;
+  --theme-surface-dark: #162032;
+  --theme-surface-dark-elevated: #111928;
+  --theme-hero-bg: #0a2219;
+  --theme-hero-from: rgba(7, 25, 18, 0.92);
+  --theme-hero-via: rgba(13, 42, 31, 0.80);
+  --theme-hero-to: rgba(17, 66, 55, 0.62);
+  --theme-focus-ring: #059669;
+  --theme-scrollbar-thumb: rgba(16, 185, 129, 0.34);
+  --theme-scrollbar-thumb-hover: rgba(4, 120, 87, 0.65);
+  --theme-svg-primary: #10b981;
+  --theme-svg-secondary: #5eead4;
+  --theme-card-glow: rgba(16, 185, 129, 0.14);
+}
+
+:root[data-pastel-theme="sky"] {
+  --color-emerald-50: #f0f9ff;
+  --color-emerald-100: #e0f2fe;
+  --color-emerald-200: #bae6fd;
+  --color-emerald-300: #7dd3fc;
+  --color-emerald-400: #38bdf8;
+  --color-emerald-500: #0ea5e9;
+  --color-emerald-600: #0284c7;
+  --color-emerald-700: #0369a1;
+  --color-emerald-800: #075985;
+  --color-emerald-900: #0c4a6e;
+  --color-emerald-950: #082f49;
+
+  --color-teal-50: #eef4ff;
+  --color-teal-100: #e0ebff;
+  --color-teal-200: #c7d9fe;
+  --color-teal-300: #a5befe;
+  --color-teal-400: #819dfc;
+  --color-teal-500: #5d7af7;
+  --color-teal-600: #445ce6;
+  --color-teal-700: #3649c9;
+  --color-teal-800: #2d3da3;
+  --color-teal-900: #283680;
+  --color-teal-950: #19214f;
+
+  --theme-canvas-light: #f1f5f9;
+  --theme-canvas-dark: #0f172a;
+  --theme-glow-1: rgba(148, 163, 184, 0.10);
+  --theme-glow-2: rgba(148, 163, 184, 0.06);
+  --theme-glow-dark-1: rgba(30, 41, 59, 0.32);
+  --theme-glow-dark-2: rgba(30, 41, 59, 0.18);
+  --theme-surface-soft: #edf6fc;
+  --theme-surface-dark: #162032;
+  --theme-surface-dark-elevated: #111928;
+  --theme-hero-bg: #081c30;
+  --theme-hero-from: rgba(7, 23, 41, 0.92);
+  --theme-hero-via: rgba(13, 43, 74, 0.80);
+  --theme-hero-to: rgba(25, 65, 110, 0.62);
+  --theme-focus-ring: #0284c7;
+  --theme-scrollbar-thumb: rgba(56, 189, 248, 0.42);
+  --theme-scrollbar-thumb-hover: rgba(3, 105, 161, 0.72);
+  --theme-svg-primary: #38bdf8;
+  --theme-svg-secondary: #a5befe;
+  --theme-card-glow: rgba(14, 165, 233, 0.15);
+}
+
+:root[data-pastel-theme="lavender"] {
+  --color-emerald-50: #f5f3ff;
+  --color-emerald-100: #ede9fe;
+  --color-emerald-200: #ddd6fe;
+  --color-emerald-300: #c4b5fd;
+  --color-emerald-400: #a78bfa;
+  --color-emerald-500: #8b5cf6;
+  --color-emerald-600: #7c3aed;
+  --color-emerald-700: #6d28d9;
+  --color-emerald-800: #5b21b6;
+  --color-emerald-900: #4c1d95;
+  --color-emerald-950: #2e1065;
+
+  --color-teal-50: #faf5ff;
+  --color-teal-100: #f3e8ff;
+  --color-teal-200: #e9d5ff;
+  --color-teal-300: #d8b4fe;
+  --color-teal-400: #c084fc;
+  --color-teal-500: #a855f7;
+  --color-teal-600: #9333ea;
+  --color-teal-700: #7e22ce;
+  --color-teal-800: #6b21a8;
+  --color-teal-900: #581c87;
+  --color-teal-950: #3b0764;
+
+  --theme-canvas-light: #f1f5f9;
+  --theme-canvas-dark: #0f172a;
+  --theme-glow-1: rgba(148, 163, 184, 0.10);
+  --theme-glow-2: rgba(148, 163, 184, 0.06);
+  --theme-glow-dark-1: rgba(30, 41, 59, 0.32);
+  --theme-glow-dark-2: rgba(30, 41, 59, 0.18);
+  --theme-surface-soft: #f3effc;
+  --theme-surface-dark: #162032;
+  --theme-surface-dark-elevated: #111928;
+  --theme-hero-bg: #1d1138;
+  --theme-hero-from: rgba(22, 12, 46, 0.92);
+  --theme-hero-via: rgba(43, 25, 84, 0.80);
+  --theme-hero-to: rgba(66, 39, 122, 0.62);
+  --theme-focus-ring: #7c3aed;
+  --theme-scrollbar-thumb: rgba(167, 139, 250, 0.44);
+  --theme-scrollbar-thumb-hover: rgba(109, 40, 217, 0.72);
+  --theme-svg-primary: #a78bfa;
+  --theme-svg-secondary: #d8b4fe;
+  --theme-card-glow: rgba(139, 92, 246, 0.15);
+}
+
+:root[data-pastel-theme="rose"] {
+  --color-emerald-50: #fff1f2;
+  --color-emerald-100: #ffe4e6;
+  --color-emerald-200: #fecdd3;
+  --color-emerald-300: #fda4af;
+  --color-emerald-400: #fb7185;
+  --color-emerald-500: #f43f5e;
+  --color-emerald-600: #e11d48;
+  --color-emerald-700: #be123c;
+  --color-emerald-800: #9f1239;
+  --color-emerald-900: #881337;
+  --color-emerald-950: #4c0519;
+
+  --color-teal-50: #fdf2f8;
+  --color-teal-100: #fce7f3;
+  --color-teal-200: #fbcfe8;
+  --color-teal-300: #f9a8d4;
+  --color-teal-400: #f472b6;
+  --color-teal-500: #ec4899;
+  --color-teal-600: #db2777;
+  --color-teal-700: #be185d;
+  --color-teal-800: #9d174d;
+  --color-teal-900: #831843;
+  --color-teal-950: #500724;
+
+  --theme-canvas-light: #f1f5f9;
+  --theme-canvas-dark: #0f172a;
+  --theme-glow-1: rgba(148, 163, 184, 0.10);
+  --theme-glow-2: rgba(148, 163, 184, 0.06);
+  --theme-glow-dark-1: rgba(30, 41, 59, 0.32);
+  --theme-glow-dark-2: rgba(30, 41, 59, 0.18);
+  --theme-surface-soft: #fcf0f3;
+  --theme-surface-dark: #162032;
+  --theme-surface-dark-elevated: #111928;
+  --theme-hero-bg: #2f0c1a;
+  --theme-hero-from: rgba(41, 10, 22, 0.92);
+  --theme-hero-via: rgba(74, 19, 41, 0.80);
+  --theme-hero-to: rgba(105, 29, 59, 0.62);
+  --theme-focus-ring: #e11d48;
+  --theme-scrollbar-thumb: rgba(251, 113, 133, 0.42);
+  --theme-scrollbar-thumb-hover: rgba(190, 18, 60, 0.72);
+  --theme-svg-primary: #fb7185;
+  --theme-svg-secondary: #f9a8d4;
+  --theme-card-glow: rgba(244, 63, 94, 0.15);
+}
+
+:root[data-pastel-theme="peach"] {
+  --color-emerald-50: #fff7ed;
+  --color-emerald-100: #ffedd5;
+  --color-emerald-200: #fed7aa;
+  --color-emerald-300: #fdba74;
+  --color-emerald-400: #fb923c;
+  --color-emerald-500: #f97316;
+  --color-emerald-600: #ea580c;
+  --color-emerald-700: #c2410c;
+  --color-emerald-800: #9a3412;
+  --color-emerald-900: #7c2d12;
+  --color-emerald-950: #431407;
+
+  --color-teal-50: #fffbeb;
+  --color-teal-100: #fef3c7;
+  --color-teal-200: #fde68a;
+  --color-teal-300: #fcd34d;
+  --color-teal-400: #fbbf24;
+  --color-teal-500: #f59e0b;
+  --color-teal-600: #d97706;
+  --color-teal-700: #b45309;
+  --color-teal-800: #92400e;
+  --color-teal-900: #78350f;
+  --color-teal-950: #451a03;
+
+  --theme-canvas-light: #f1f5f9;
+  --theme-canvas-dark: #0f172a;
+  --theme-glow-1: rgba(148, 163, 184, 0.10);
+  --theme-glow-2: rgba(148, 163, 184, 0.06);
+  --theme-glow-dark-1: rgba(30, 41, 59, 0.32);
+  --theme-glow-dark-2: rgba(30, 41, 59, 0.18);
+  --theme-surface-soft: #fcf2e6;
+  --theme-surface-dark: #162032;
+  --theme-surface-dark-elevated: #111928;
+  --theme-hero-bg: #2d1709;
+  --theme-hero-from: rgba(42, 20, 7, 0.92);
+  --theme-hero-via: rgba(71, 36, 13, 0.80);
+  --theme-hero-to: rgba(105, 53, 20, 0.62);
+  --theme-focus-ring: #ea580c;
+  --theme-scrollbar-thumb: rgba(251, 146, 60, 0.44);
+  --theme-scrollbar-thumb-hover: rgba(194, 65, 12, 0.72);
+  --theme-svg-primary: #fb923c;
+  --theme-svg-secondary: #fcd34d;
+  --theme-card-glow: rgba(249, 115, 22, 0.15);
+}
+
+:root[data-pastel-theme="turquoise"] {
+  --color-emerald-50: #f0fdfa;
+  --color-emerald-100: #ccfbf1;
+  --color-emerald-200: #99f6e4;
+  --color-emerald-300: #5eead4;
+  --color-emerald-400: #2dd4bf;
+  --color-emerald-500: #14b8a6;
+  --color-emerald-600: #0d9488;
+  --color-emerald-700: #0f766e;
+  --color-emerald-800: #115e59;
+  --color-emerald-900: #134e4a;
+  --color-emerald-950: #042f2e;
+
+  --color-teal-50: #ecfeff;
+  --color-teal-100: #cffafe;
+  --color-teal-200: #a5f3fc;
+  --color-teal-300: #67e8f9;
+  --color-teal-400: #22d3ee;
+  --color-teal-500: #06b6d4;
+  --color-teal-600: #0891b2;
+  --color-teal-700: #0e7490;
+  --color-teal-800: #155e75;
+  --color-teal-900: #164e63;
+  --color-teal-950: #083344;
+
+  --theme-canvas-light: #f1f5f9;
+  --theme-canvas-dark: #0f172a;
+  --theme-glow-1: rgba(148, 163, 184, 0.10);
+  --theme-glow-2: rgba(148, 163, 184, 0.06);
+  --theme-glow-dark-1: rgba(30, 41, 59, 0.32);
+  --theme-glow-dark-2: rgba(30, 41, 59, 0.18);
+  --theme-surface-soft: #ebf8f8;
+  --theme-surface-dark: #162032;
+  --theme-surface-dark-elevated: #111928;
+  --theme-hero-bg: #072024;
+  --theme-hero-from: rgba(6, 28, 31, 0.92);
+  --theme-hero-via: rgba(12, 51, 57, 0.80);
+  --theme-hero-to: rgba(16, 76, 84, 0.62);
+  --theme-focus-ring: #0d9488;
+  --theme-scrollbar-thumb: rgba(45, 212, 191, 0.42);
+  --theme-scrollbar-thumb-hover: rgba(15, 118, 110, 0.72);
+  --theme-svg-primary: #2dd4bf;
+  --theme-svg-secondary: #67e8f9;
+  --theme-card-glow: rgba(20, 184, 166, 0.15);
 }
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    transition: background-color 320ms cubic-bezier(0.22, 1, 0.36, 1), color 220ms ease;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -20,30 +307,159 @@
   }
 
   :focus-visible {
-    outline: 2px solid #059669;
+    outline: 2px solid var(--theme-focus-ring);
     outline-offset: 2px;
   }
 }
 
+/* Clean neutral gray background canvas */
 .bg-school-canvas {
-  background-color: #f6f8f6;
-  background-image:
-    radial-gradient(ellipse 85% 42% at 50% -8%, rgba(16, 185, 129, 0.085), transparent 70%),
-    radial-gradient(circle at 90% 18%, rgba(13, 148, 136, 0.045), transparent 45%);
+  background-color: var(--theme-canvas-light);
+  transition: background-color 320ms cubic-bezier(0.22, 1, 0.36, 1), color 220ms ease;
 }
 
 .dark .bg-school-canvas {
-  background-color: #09110e;
-  background-image:
-    radial-gradient(ellipse 85% 42% at 50% -8%, rgba(16, 185, 129, 0.11), transparent 70%),
-    radial-gradient(circle at 85% 15%, rgba(20, 184, 166, 0.06), transparent 45%);
+  background-color: var(--theme-canvas-dark);
+}
+
+.theme-soft-surface {
+  background-color: var(--theme-surface-soft);
+  transition: background-color 280ms ease, border-color 280ms ease;
+}
+
+.dark .theme-dark-surface {
+  background-color: var(--theme-surface-dark);
+}
+
+.dark .theme-dark-elevated {
+  background-color: var(--theme-surface-dark-elevated);
+}
+
+.theme-hero-surface {
+  background-color: var(--theme-hero-bg);
+  transition: background-color 360ms ease, border-color 360ms ease;
+}
+
+.theme-hero-scrim {
+  background-image: linear-gradient(
+    90deg,
+    var(--theme-hero-from) 0%,
+    var(--theme-hero-via) 52%,
+    var(--theme-hero-to) 100%
+  );
+  transition: opacity 320ms ease;
 }
 
 .edu-hero-grid {
   background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+    linear-gradient(to right, rgba(255, 255, 255, 0.065) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.065) 1px, transparent 1px);
   background-size: 36px 36px;
+}
+
+/* Graphic Micro-Animations (Compositor-only: transform & opacity) */
+@keyframes floatSlow {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0) rotate(2deg);
+  }
+}
+
+@keyframes floatGentleReverse {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(6px, 8px, 0) rotate(-2.5deg);
+  }
+}
+
+@keyframes shimmerSweep {
+  0% {
+    transform: translate3d(-120%, 0, 0) skewX(-18deg);
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.45;
+  }
+  100% {
+    transform: translate3d(220%, 0, 0) skewX(-18deg);
+    opacity: 0;
+  }
+}
+
+@keyframes softOrbitSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-float-slow {
+  animation: floatSlow 10s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-float-reverse {
+  animation: floatGentleReverse 13s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-orbit-slow {
+  animation: softOrbitSpin 48s linear infinite;
+  will-change: transform;
+}
+
+/* Interactive Card Depth & Shine Effects */
+.theme-card-interactive {
+  position: relative;
+  transition:
+    transform 240ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 240ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 280ms ease,
+    background-color 280ms ease;
+}
+
+.theme-card-interactive:hover {
+  box-shadow: 0 14px 30px -12px var(--theme-card-glow), 0 4px 10px -4px rgba(15, 23, 42, 0.06);
+}
+
+/* Button hover sheen overlay */
+.theme-btn-sheen {
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 240ms ease,
+    border-color 240ms ease,
+    box-shadow 240ms ease;
+}
+
+.theme-btn-sheen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 42%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+  transform: translate3d(-140%, 0, 0) skewX(-18deg);
+  pointer-events: none;
+}
+
+.theme-btn-sheen:hover::after {
+  animation: shimmerSweep 750ms ease-out forwards;
+}
+
+/* Smooth theme transition helper for panels, headers, nav items */
+.theme-transition {
+  transition:
+    background-color 300ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 300ms ease,
+    color 200ms ease,
+    box-shadow 300ms ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -55,10 +471,15 @@
   }
 }
 
-/* Custom scrollbar styling */
+/* Custom scrollbar styling synced with active pastel theme */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--theme-scrollbar-thumb) transparent;
+}
+
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
 }
 
 ::-webkit-scrollbar-track {
@@ -66,10 +487,11 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(16, 185, 129, 0.25);
+  background: var(--theme-scrollbar-thumb);
   border-radius: 9999px;
+  transition: background-color 250ms ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(4, 120, 87, 0.55);
+  background: var(--theme-scrollbar-thumb-hover);
 }

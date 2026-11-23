@@ -38,7 +38,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   const activeSubjectsPills = subjects.slice(0, 6);
 
   return (
-    <div className="bg-white dark:bg-[#111c18] rounded-2xl p-4 border border-slate-200/90 dark:border-emerald-950/70 shadow-2xs mb-6">
+    <div className="bg-white dark:bg-[var(--theme-surface-dark)] rounded-2xl p-4 border border-emerald-200/75 dark:border-emerald-950/70 shadow-2xs mb-6 theme-transition">
       <div className="flex flex-col gap-4">
         {/* Top Header Row of Filter Bar */}
         <div className="flex items-center justify-between flex-wrap gap-2">
@@ -93,7 +93,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             <select
               value={filters.gradeLevel}
               onChange={(e) => setFilters((prev) => ({ ...prev, gradeLevel: e.target.value }))}
-              className="w-full px-3 py-1.5 bg-[#f7f9f7] dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
+              className="w-full px-3 py-1.5 theme-soft-surface dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
             >
               {gradeLevels.map((g) => {
                 const isStudentGrade = role === 'student' && g === studentGradeLevel;
@@ -120,7 +120,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             <select
               value={filters.subject}
               onChange={(e) => setFilters((prev) => ({ ...prev, subject: e.target.value }))}
-              className="w-full px-3 py-1.5 bg-[#f7f9f7] dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
+              className="w-full px-3 py-1.5 theme-soft-surface dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
             >
               {subjects.map((s) => (
                 <option key={s} value={s}>
@@ -138,7 +138,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             <select
               value={filters.status}
               onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
-              className="w-full px-3 py-1.5 bg-[#f7f9f7] dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
+              className="w-full px-3 py-1.5 theme-soft-surface dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
             >
               {STATUS_LIST.map((st) => (
                 <option key={st.id} value={st.id}>
@@ -156,7 +156,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             <select
               value={filters.category}
               onChange={(e) => setFilters((prev) => ({ ...prev, category: e.target.value }))}
-              className="w-full px-3 py-1.5 bg-[#f7f9f7] dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
+              className="w-full px-3 py-1.5 theme-soft-surface dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
             >
               {CATEGORY_LIST.map((c) => (
                 <option key={c} value={c}>
@@ -179,7 +179,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                   dateSort: e.target.value as FilterState['dateSort'],
                 }))
               }
-              className="w-full px-3 py-1.5 bg-[#f7f9f7] dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
+              className="w-full px-3 py-1.5 theme-soft-surface dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
             >
               <option value="due_soon">ใกล้กำหนดส่งที่สุด</option>
               <option value="newest">ใบงานล่าสุด</option>
@@ -198,7 +198,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors shrink-0 cursor-pointer ${
                 filters.subject === subj
                   ? 'bg-emerald-700 text-white font-semibold shadow-2xs'
-                  : 'bg-[#f1f5f1] dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 hover:text-emerald-800'
+                  : 'theme-soft-surface dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 hover:text-emerald-800'
               }`}
             >
               {subj}

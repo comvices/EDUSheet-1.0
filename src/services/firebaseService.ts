@@ -18,7 +18,9 @@ import {
   AttendanceSession,
   PeriodConfig,
   SubjectClassroom,
+  PastelThemeId,
 } from '../types';
+import { isValidPastelTheme } from '../utils/themes';
 
 const ASSIGNMENTS_COLLECTION = 'assignments';
 const SUBMISSIONS_COLLECTION = 'submissions';
@@ -139,6 +141,7 @@ export function subscribeSettings(
     schoolCoverUrl?: string;
     schoolName?: string;
     schoolSubtitle?: string;
+    themeColor?: PastelThemeId;
   }) => void
 ) {
   try {
@@ -160,6 +163,7 @@ export function subscribeSettings(
             schoolCoverUrl: typeof data.schoolCoverUrl === 'string' ? data.schoolCoverUrl : '',
             schoolName: typeof data.schoolName === 'string' ? data.schoolName : '',
             schoolSubtitle: typeof data.schoolSubtitle === 'string' ? data.schoolSubtitle : '',
+            themeColor: isValidPastelTheme(data.themeColor) ? data.themeColor : undefined,
           });
         } else {
           onData({
@@ -170,6 +174,7 @@ export function subscribeSettings(
             schoolCoverUrl: '',
             schoolName: '',
             schoolSubtitle: '',
+            themeColor: undefined,
           });
         }
       },
@@ -344,6 +349,22 @@ export async function saveTeacherToFirestore(teacher: TeacherProfile): Promise<v
   }
 }
 
+export async function updateTeacherThemeInFirestore(
+  teacherId: string,
+  themeColor: PastelThemeId
+): Promise<void> {
+  const path = `${TEACHERS_COLLECTION}/${teacherId}`;
+  try {
+    await setDoc(
+      doc(db, TEACHERS_COLLECTION, teacherId),
+      sanitizeForFirestore({ themeColor }),
+      { merge: true }
+    );
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
 export async function deleteTeacherFromFirestore(teacherId: string): Promise<void> {
   const path = `${TEACHERS_COLLECTION}/${teacherId}`;
   try {
@@ -425,6 +446,24 @@ export async function saveSchoolBrandingToFirestore(branding: {
         schoolCoverUrl: branding.schoolCoverUrl,
         schoolName: branding.schoolName,
         schoolSubtitle: branding.schoolSubtitle,
+      }),
+      { merge: true }
+    );
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function saveSystemThemeToFirestore(
+  themeColor: PastelThemeId
+): Promise<void> {
+  const path = `${SETTINGS_COLLECTION}/${MAIN_SETTINGS_DOC}`;
+  try {
+    await setDoc(
+      doc(db, SETTINGS_COLLECTION, MAIN_SETTINGS_DOC),
+      sanitizeForFirestore({
+        id: MAIN_SETTINGS_DOC,
+        themeColor,
       }),
       { merge: true }
     );
@@ -519,6 +558,7 @@ export async function resetDataKeepUsers(): Promise<void> {
             password: data.password || 'admin123',
             subject: data.subject || 'ทั่วไป',
             avatar: data.avatar || '',
+            ...(data.themeColor ? { themeColor: data.themeColor } : {}),
           })
         );
       });

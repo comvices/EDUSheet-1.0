@@ -44,6 +44,7 @@ import { DAYS_OF_WEEK_LIST, DEFAULT_PERIOD_CONFIGS } from '../data/mockData';
 import { ScheduleFormModal } from './ScheduleFormModal';
 import { PeriodSettingsModal } from './PeriodSettingsModal';
 import { SaveConfirmModal } from './SaveConfirmModal';
+import { HeroSvgOrnaments } from './ThemeGraphics';
 
 interface AttendanceViewProps {
   role: UserRole;
@@ -81,9 +82,9 @@ const STATUS_META: Record<
     label: 'มาเรียน',
     shortLabel: 'มา',
     activeClass:
-      'bg-emerald-600 text-white border-emerald-600 shadow-xs ring-2 ring-emerald-500/20',
+      'bg-green-600 text-white border-green-600 shadow-xs ring-2 ring-green-500/20',
     badgeClass:
-      'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800',
+      'bg-green-50 text-green-700 border-green-200 dark:bg-green-950/50 dark:text-green-300 dark:border-green-800',
   },
   late: {
     label: 'มาสาย',
@@ -1098,8 +1099,10 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     return (
       <div className="space-y-6 animate-in fade-in duration-300">
         {/* Student Hero Header */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-[#0d261d] via-[#133b2e] to-[#0f362c] rounded-2xl p-6 text-white shadow-lg border border-emerald-400/20">
-          <div className="edu-hero-grid absolute inset-0 opacity-20 pointer-events-none" />
+        <div className="relative overflow-hidden theme-hero-surface rounded-2xl p-6 text-white shadow-lg border border-emerald-400/25 dark:border-emerald-800/45 theme-transition">
+          <div className="absolute inset-0 theme-hero-scrim" />
+          <div className="edu-hero-grid absolute inset-0 opacity-25 pointer-events-none" />
+          <HeroSvgOrnaments variant="classroom" />
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1.5">
               <div className="inline-flex items-center gap-1.5 text-xs font-bold bg-white/12 px-3 py-1 rounded-lg border border-white/15 backdrop-blur-xs">
@@ -1148,7 +1151,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
         </div>
 
         {/* Student Timetable */}
-        <div className="bg-white dark:bg-[#111c18] rounded-2xl border border-slate-200 dark:border-emerald-950/60 p-5 shadow-xs space-y-4">
+        <div className="bg-white dark:bg-[var(--theme-surface-dark)] rounded-2xl border border-slate-200 dark:border-emerald-950/60 p-5 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-bold font-prompt text-slate-900 dark:text-white flex items-center gap-2">
               <CalendarClock className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
@@ -1189,7 +1192,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                         {dayItems.map((item) => (
                           <div
                             key={item.id}
-                            className="bg-white dark:bg-[#111c18] rounded-lg border border-slate-200 dark:border-emerald-950/60 p-2.5 text-xs space-y-1 shadow-2xs"
+                            className="bg-white dark:bg-[var(--theme-surface-dark)] rounded-lg border border-slate-200 dark:border-emerald-950/60 p-2.5 text-xs space-y-1 shadow-2xs"
                           >
                             <div className="flex items-center justify-between text-[11px]">
                               <span
@@ -1229,7 +1232,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
         </div>
 
         {/* Student Attendance History */}
-        <div className="bg-white dark:bg-[#111c18] rounded-2xl border border-slate-200 dark:border-emerald-950/60 p-5 shadow-xs space-y-4">
+        <div className="bg-white dark:bg-[var(--theme-surface-dark)] rounded-2xl border border-slate-200 dark:border-emerald-950/60 p-5 shadow-xs space-y-4">
           <h2 className="text-base font-bold font-prompt text-slate-900 dark:text-white flex items-center gap-2">
             <ClipboardCheck className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
             <span>ประวัติการเช็คชื่อเข้าเรียนของฉัน ({studentAttendanceHistory.length} ครั้ง)</span>
@@ -1293,8 +1296,10 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Top Header Banner & KPI Summary */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-[#0d261d] via-[#133b2e] to-[#0f362c] rounded-2xl p-5 sm:p-6 text-white shadow-lg border border-emerald-400/20">
-        <div className="edu-hero-grid absolute inset-0 opacity-20 pointer-events-none" />
+      <div className="relative overflow-hidden theme-hero-surface rounded-2xl p-5 sm:p-6 text-white shadow-lg border border-emerald-400/25 dark:border-emerald-800/45 theme-transition">
+        <div className="absolute inset-0 theme-hero-scrim" />
+        <div className="edu-hero-grid absolute inset-0 opacity-25 pointer-events-none" />
+        <HeroSvgOrnaments variant="home" />
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 text-xs font-bold bg-emerald-500/20 text-emerald-100 px-3 py-1 rounded-lg border border-emerald-400/25">
@@ -1390,7 +1395,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
       {subTab === 'checkin' && (
         <div className="space-y-6">
           {/* Date & Teacher Control Bar */}
-          <div className="bg-white dark:bg-[#111c18] rounded-2xl border border-slate-200 dark:border-emerald-950/60 p-4 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="bg-white dark:bg-[var(--theme-surface-dark)] rounded-2xl border border-slate-200 dark:border-emerald-950/60 p-4 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-3">
               <div>
                 <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
@@ -1515,7 +1520,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
             </div>
 
             {!currentDayOfWeek ? (
-              <div className="bg-white dark:bg-[#111c18] rounded-2xl border border-slate-200 dark:border-emerald-950/60 p-8 text-center space-y-3">
+              <div className="bg-white dark:bg-[var(--theme-surface-dark)] rounded-2xl border border-slate-200 dark:border-emerald-950/60 p-8 text-center space-y-3">
                 <Calendar className="w-10 h-10 text-slate-400 mx-auto" />
                 <div>
                   <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
@@ -1527,7 +1532,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 </div>
               </div>
             ) : dailyScheduleBlocks.length === 0 ? (
-              <div className="bg-white dark:bg-[#111c18] rounded-2xl border border-slate-200 dark:border-emerald-950/60 p-8 text-center space-y-3">
+              <div className="bg-white dark:bg-[var(--theme-surface-dark)] rounded-2xl border border-slate-200 dark:border-emerald-950/60 p-8 text-center space-y-3">
                 <CalendarClock className="w-10 h-10 text-slate-400 mx-auto" />
                 <div>
                   <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
@@ -1593,7 +1598,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                   return (
                     <div
                       key={block.id}
-                      className={`rounded-2xl border p-4 transition-all hover:-translate-y-0.5 hover:shadow-md bg-white dark:bg-[#111c18] shadow-xs flex flex-col justify-between gap-3 ${
+                      className={`theme-card-interactive rounded-2xl border p-4 hover:-translate-y-0.5 bg-white dark:bg-[var(--theme-surface-dark)] shadow-xs flex flex-col justify-between gap-3 ${
                         isActive
                           ? 'border-emerald-600 ring-2 ring-emerald-500/25'
                           : savedSession
@@ -1662,7 +1667,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
 
                         {savedSession ? (
                           <div className="p-2 bg-slate-50 dark:bg-slate-800/70 rounded-xl text-[11px] flex items-center justify-between gap-2">
-                            <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                            <span className="text-green-600 dark:text-green-400 font-bold">
                               มา {presentCnt}
                             </span>
                             <span className="text-amber-600 dark:text-amber-400 font-bold">
@@ -1710,7 +1715,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
 
           {/* Active Check-in Sheet Panel */}
           {activeSheet && (
-            <div className="bg-white dark:bg-[#111c18] rounded-2xl border-2 border-emerald-600/60 shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+            <div className="bg-white dark:bg-[var(--theme-surface-dark)] rounded-2xl border-2 border-emerald-600/60 shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
               {/* Sheet Header */}
               <div className="p-4 sm:p-5 bg-emerald-50/80 dark:bg-emerald-950/40 border-b border-emerald-100 dark:border-emerald-900/50 flex flex-col md:flex-row md:items-center justify-between gap-3">
                 <div className="space-y-1">
@@ -1813,11 +1818,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                       {sheetCounts.total} คน
                     </span>
                   </div>
-                  <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-center">
-                    <span className="text-[11px] text-emerald-700 dark:text-emerald-300 block">
+                  <div className="p-2.5 rounded-xl bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800/60 text-center">
+                    <span className="text-[11px] text-green-700 dark:text-green-300 block">
                       มาเรียน
                     </span>
-                    <span className="text-base font-bold font-prompt text-emerald-700 dark:text-emerald-300">
+                    <span className="text-base font-bold font-prompt text-green-700 dark:text-green-300">
                       {sheetCounts.present} คน
                     </span>
                   </div>
@@ -1858,7 +1863,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                     <select
                       value=""
                       onChange={(e) => handleAddExtraStudentToSheet(e.target.value)}
-                      className="px-3 py-1.5 bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-900/60 rounded-lg text-xs text-slate-800 dark:text-slate-200"
+                      className="px-3 py-1.5 bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-900/60 rounded-lg text-xs text-slate-800 dark:text-slate-200"
                     >
                       <option value="">+ เลือกรายชื่อนักเรียนเพิ่ม...</option>
                       {studentsRoster
@@ -1897,7 +1902,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                     {filteredSheetRecords.map((rec, index) => (
                       <div
                         key={rec.studentCode}
-                        className="p-3 bg-white dark:bg-[#111c18] hover:bg-emerald-50/40 dark:hover:bg-emerald-950/20 flex flex-col lg:flex-row lg:items-center justify-between gap-3"
+                        className="p-3 bg-white dark:bg-[var(--theme-surface-dark)] hover:bg-emerald-50/40 dark:hover:bg-emerald-950/20 flex flex-col lg:flex-row lg:items-center justify-between gap-3"
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <span className="w-6 text-center text-xs font-bold text-slate-400 shrink-0">
@@ -1989,7 +1994,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsSaveSheetConfirmOpen(true)}
-                    className="px-6 py-2.5 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    className="theme-btn-sheen px-6 py-2.5 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Save className="w-4 h-4" />
                     <span>บันทึกการเช็คชื่อลงระบบ</span>
@@ -2007,7 +2012,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
       {subTab === 'schedule' && (
         <div className="space-y-5">
           {/* Schedule Filters & Actions */}
-          <div className="bg-white dark:bg-[#111c18] rounded-2xl border border-slate-200 dark:border-emerald-950/60 p-4 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="bg-white dark:bg-[var(--theme-surface-dark)] rounded-2xl border border-slate-200 dark:border-emerald-950/60 p-4 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2.5">
               <select
                 value={scheduleTeacherFilter}
@@ -2061,7 +2066,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                   onClick={() => setScheduleViewMode('by_day')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors ${
                     scheduleViewMode === 'by_day'
-                      ? 'bg-white dark:bg-[#111c18] text-emerald-700 dark:text-emerald-400 shadow-2xs'
+                      ? 'bg-white dark:bg-[var(--theme-surface-dark)] text-emerald-700 dark:text-emerald-400 shadow-2xs'
                       : 'text-slate-500'
                   }`}
                 >
@@ -2073,7 +2078,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                   onClick={() => setScheduleViewMode('weekly_grid')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors ${
                     scheduleViewMode === 'weekly_grid'
-                      ? 'bg-white dark:bg-[#111c18] text-emerald-700 dark:text-emerald-400 shadow-2xs'
+                      ? 'bg-white dark:bg-[var(--theme-surface-dark)] text-emerald-700 dark:text-emerald-400 shadow-2xs'
                       : 'text-slate-500'
                   }`}
                 >
@@ -2108,7 +2113,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
           </div>
 
           {filteredSchedules.length === 0 ? (
-            <div className="bg-white dark:bg-[#111c18] rounded-2xl border border-slate-200 dark:border-emerald-950/60 p-10 text-center space-y-3">
+            <div className="bg-white dark:bg-[var(--theme-surface-dark)] rounded-2xl border border-slate-200 dark:border-emerald-950/60 p-10 text-center space-y-3">
               <CalendarClock className="w-10 h-10 text-slate-400 mx-auto" />
               <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
                 ไม่พบข้อมูลตารางสอนตามเงื่อนไขที่เลือก
@@ -2134,7 +2139,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 return (
                   <div
                     key={day.id}
-                    className="bg-white dark:bg-[#111c18] rounded-2xl border border-slate-200 dark:border-emerald-950/60 p-3.5 space-y-3 shadow-xs flex flex-col"
+                    className="bg-white dark:bg-[var(--theme-surface-dark)] rounded-2xl border border-slate-200 dark:border-emerald-950/60 p-3.5 space-y-3 shadow-xs flex flex-col"
                   >
                     <div
                       className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center justify-between ${day.badgeClass}`}
@@ -2233,7 +2238,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
             </div>
           ) : (
             /* Weekly Timetable Grid */
-            <div className="bg-white dark:bg-[#111c18] rounded-2xl border border-slate-200 dark:border-emerald-950/60 shadow-xs overflow-x-auto">
+            <div className="bg-white dark:bg-[var(--theme-surface-dark)] rounded-2xl border border-slate-200 dark:border-emerald-950/60 shadow-xs overflow-x-auto">
               <table className="w-full min-w-[960px] text-xs border-collapse">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
@@ -2410,7 +2415,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
       {subTab === 'history' && (
         <div className="space-y-5">
           {/* History Filter Bar */}
-          <div className="bg-white dark:bg-[#111c18] rounded-2xl border border-slate-200 dark:border-emerald-950/60 p-4 shadow-xs space-y-3">
+          <div className="bg-white dark:bg-[var(--theme-surface-dark)] rounded-2xl border border-slate-200 dark:border-emerald-950/60 p-4 shadow-xs space-y-3">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2.5">
                 <div className="relative">
@@ -2471,7 +2476,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                     onClick={() => setHistoryInnerTab('sessions')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors ${
                       historyInnerTab === 'sessions'
-                        ? 'bg-white dark:bg-[#111c18] text-emerald-700 dark:text-emerald-400 shadow-2xs'
+                        ? 'bg-white dark:bg-[var(--theme-surface-dark)] text-emerald-700 dark:text-emerald-400 shadow-2xs'
                         : 'text-slate-500'
                     }`}
                   >
@@ -2482,7 +2487,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                     onClick={() => setHistoryInnerTab('student_stats')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors ${
                       historyInnerTab === 'student_stats'
-                        ? 'bg-white dark:bg-[#111c18] text-emerald-700 dark:text-emerald-400 shadow-2xs'
+                        ? 'bg-white dark:bg-[var(--theme-surface-dark)] text-emerald-700 dark:text-emerald-400 shadow-2xs'
                         : 'text-slate-500'
                     }`}
                   >
@@ -2505,7 +2510,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
           </div>
 
           {filteredHistorySessions.length === 0 ? (
-            <div className="bg-white dark:bg-[#111c18] rounded-2xl border border-slate-200 dark:border-emerald-950/60 p-12 text-center space-y-2">
+            <div className="bg-white dark:bg-[var(--theme-surface-dark)] rounded-2xl border border-slate-200 dark:border-emerald-950/60 p-12 text-center space-y-2">
               <FileText className="w-10 h-10 text-slate-400 mx-auto" />
               <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
                 ยังไม่มีประวัติการเช็คชื่อที่ตรงกับเงื่อนไข
@@ -2525,7 +2530,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 return (
                   <div
                     key={sess.id}
-                    className="bg-white dark:bg-[#111c18] rounded-2xl border border-slate-200 dark:border-emerald-950/60 p-4 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+                    className="bg-white dark:bg-[var(--theme-surface-dark)] rounded-2xl border border-slate-200 dark:border-emerald-950/60 p-4 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4"
                   >
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -2544,7 +2549,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                         {sess.topicTaught ? ` · หัวข้อ: ${sess.topicTaught}` : ''}
                       </p>
                       <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold pt-0.5">
-                        <span className="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300">
+                        <span className="px-2 py-0.5 rounded bg-green-50 dark:bg-green-950/50 text-green-700 dark:text-green-300">
                           มา {pCnt}
                         </span>
                         <span className="px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300">
@@ -2596,7 +2601,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
             </div>
           ) : (
             /* Per-Student Aggregated Attendance Stats Table */
-            <div className="bg-white dark:bg-[#111c18] rounded-2xl border border-slate-200 dark:border-emerald-950/60 shadow-xs overflow-x-auto">
+            <div className="bg-white dark:bg-[var(--theme-surface-dark)] rounded-2xl border border-slate-200 dark:border-emerald-950/60 shadow-xs overflow-x-auto">
               <table className="w-full text-xs text-left">
                 <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold">
                   <tr>
@@ -2604,7 +2609,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                     <th className="p-3.5">ชื่อ-นามสกุล</th>
                     <th className="p-3.5">ชั้น</th>
                     <th className="p-3.5 text-center">รวมคาบ</th>
-                    <th className="p-3.5 text-center text-emerald-600">มาเรียน</th>
+                    <th className="p-3.5 text-center text-green-600">มาเรียน</th>
                     <th className="p-3.5 text-center text-amber-600">มาสาย</th>
                     <th className="p-3.5 text-center text-sky-600">ลา</th>
                     <th className="p-3.5 text-center text-rose-600">ขาดเรียน</th>
@@ -2631,7 +2636,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                           {st.gradeLevel}
                         </td>
                         <td className="p-3.5 text-center font-bold">{st.total}</td>
-                        <td className="p-3.5 text-center font-bold text-emerald-600">
+                        <td className="p-3.5 text-center font-bold text-green-600">
                           {st.present}
                         </td>
                         <td className="p-3.5 text-center font-bold text-amber-600">{st.late}</td>
@@ -2644,7 +2649,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                             className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg font-bold border ${
                               isLow
                                 ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800'
-                                : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800'
+                                : 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950/50 dark:text-green-300 dark:border-green-800'
                             }`}
                           >
                             {rate}%
@@ -2721,7 +2726,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
       {/* Ad-hoc / Substitute Period Modal */}
       {isAdhocModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-2xl w-full max-w-md shadow-2xl p-5 space-y-4 animate-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-950/60 rounded-2xl w-full max-w-md shadow-2xl p-5 space-y-4 animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center">
@@ -2877,7 +2882,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
       {/* Custom Delete Schedule Confirmation Modal */}
       {deleteScheduleConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center space-y-4 animate-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-950/60 rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center space-y-4 animate-in zoom-in-95 duration-200">
             <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto">
               <Trash2 className="w-6 h-6" />
             </div>
@@ -2918,7 +2923,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
       {/* Custom Delete Attendance Session Confirmation Modal */}
       {deleteSessionConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center space-y-4 animate-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-950/60 rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center space-y-4 animate-in zoom-in-95 duration-200">
             <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto">
               <Trash2 className="w-6 h-6" />
             </div>

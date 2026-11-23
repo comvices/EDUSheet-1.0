@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { Assignment, StudentProfile, Submission, UserRole } from '../types';
 import { SaveConfirmModal, SaveConfirmDetail } from './SaveConfirmModal';
+import { CardCornerOrnament } from './ThemeGraphics';
 
 interface GradebookViewProps {
   role: UserRole;
@@ -613,7 +614,8 @@ export const GradebookView: React.FC<GradebookViewProps> = ({
   return (
     <div className="space-y-6 animate-in fade-in duration-200 print:space-y-4">
       {/* Top Header Bar */}
-      <div className="bg-white dark:bg-[#111c18] border border-slate-200/80 dark:border-emerald-950/70 rounded-2xl p-5 sm:p-6 shadow-xs">
+      <div className="relative overflow-hidden bg-white dark:bg-[var(--theme-surface-dark)] border border-emerald-200/75 dark:border-emerald-950/70 rounded-2xl p-5 sm:p-6 shadow-xs theme-transition">
+        <CardCornerOrnament className="absolute -top-3 -right-3 w-28 h-28 opacity-65" />
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-start gap-3.5">
             <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-700 to-teal-700 text-white flex items-center justify-center shrink-0 shadow-xs">
@@ -734,7 +736,7 @@ export const GradebookView: React.FC<GradebookViewProps> = ({
                   type="button"
                   onClick={handleExportExcel}
                   disabled={computedRows.length === 0}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                  className="theme-btn-sheen inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
                   <span>ส่งออก Excel (.xlsx)</span>
@@ -803,7 +805,7 @@ export const GradebookView: React.FC<GradebookViewProps> = ({
                         className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
                           isActive
                             ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
-                            : 'bg-[#f7f9f7] dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-slate-700'
+                            : 'theme-soft-surface dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-slate-700'
                         }`}
                       >
                         <span>ห้อง {room}</span>
@@ -833,7 +835,7 @@ export const GradebookView: React.FC<GradebookViewProps> = ({
                 <select
                   value={selectedSubject}
                   onChange={(e) => setSelectedSubject(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-[#f7f9f7] dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
+                  className="w-full pl-9 pr-3 py-2 theme-soft-surface dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
                 >
                   {subjectOptions.map((subj) => (
                     <option key={subj} value={subj}>
@@ -857,7 +859,7 @@ export const GradebookView: React.FC<GradebookViewProps> = ({
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     placeholder="พิมพ์เลขประจำตัว หรือ ชื่อนักเรียน..."
-                    className="w-full pl-9 pr-8 py-2 bg-[#f7f9f7] dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
+                    className="w-full pl-9 pr-8 py-2 theme-soft-surface dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-emerald-600"
                   />
                   {searchTerm && (
                     <button
@@ -878,7 +880,7 @@ export const GradebookView: React.FC<GradebookViewProps> = ({
 
       {/* KPI Metrics Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-white dark:bg-[#111c18] border border-slate-200/80 dark:border-emerald-950/70 rounded-2xl p-4">
+        <div className="theme-card-interactive bg-white dark:bg-[var(--theme-surface-dark)] border border-emerald-200/75 dark:border-emerald-950/70 rounded-2xl p-4">
           <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
             <span>{role === 'student' ? 'ห้องเรียนของฉัน' : 'นักเรียนในห้อง'}</span>
             <Users className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
@@ -891,7 +893,7 @@ export const GradebookView: React.FC<GradebookViewProps> = ({
           </p>
         </div>
 
-        <div className="bg-white dark:bg-[#111c18] border border-slate-200/80 dark:border-emerald-950/70 rounded-2xl p-4">
+        <div className="theme-card-interactive bg-white dark:bg-[var(--theme-surface-dark)] border border-emerald-200/75 dark:border-emerald-950/70 rounded-2xl p-4">
           <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
             <span>จำนวนใบงานทั้งหมด</span>
             <ListOrdered className="w-4 h-4 text-teal-700 dark:text-teal-400" />
@@ -904,7 +906,7 @@ export const GradebookView: React.FC<GradebookViewProps> = ({
           </p>
         </div>
 
-        <div className="bg-white dark:bg-[#111c18] border border-slate-200/80 dark:border-emerald-950/70 rounded-2xl p-4">
+        <div className="theme-card-interactive bg-white dark:bg-[var(--theme-surface-dark)] border border-emerald-200/75 dark:border-emerald-950/70 rounded-2xl p-4">
           <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
             <span>{role === 'student' ? 'คะแนนรวมที่ได้' : 'ค่าเฉลี่ยคะแนนทั้งห้อง'}</span>
             <Award className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
@@ -919,7 +921,7 @@ export const GradebookView: React.FC<GradebookViewProps> = ({
           </p>
         </div>
 
-        <div className="bg-white dark:bg-[#111c18] border border-slate-200/80 dark:border-emerald-950/70 rounded-2xl p-4">
+        <div className="theme-card-interactive bg-white dark:bg-[var(--theme-surface-dark)] border border-emerald-200/75 dark:border-emerald-950/70 rounded-2xl p-4">
           <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
             <span>สถานะการตรวจคะแนน</span>
             <CheckCircle2 className="w-4 h-4 text-sky-600 dark:text-sky-400" />
@@ -936,11 +938,11 @@ export const GradebookView: React.FC<GradebookViewProps> = ({
 
       {/* Worksheet Topic Directory */}
       {roomWorksheets.length > 0 && (
-        <div className="bg-white dark:bg-[#111c18] border border-slate-200/80 dark:border-emerald-950/70 rounded-2xl overflow-hidden">
+        <div className="bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200/80 dark:border-emerald-950/70 rounded-2xl overflow-hidden">
           <button
             type="button"
             onClick={() => setShowTopicIndex(!showTopicIndex)}
-            className="w-full px-5 py-3.5 flex items-center justify-between text-left hover:bg-[#f7f9f7] dark:hover:bg-emerald-950/30 transition-colors cursor-pointer"
+            className="w-full px-5 py-3.5 flex items-center justify-between text-left hover:bg-emerald-50/40 dark:hover:bg-emerald-950/30 transition-colors cursor-pointer"
           >
             <div className="flex items-center gap-2">
               <ListOrdered className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
@@ -959,7 +961,7 @@ export const GradebookView: React.FC<GradebookViewProps> = ({
               {columnStats.map((stat) => (
                 <div
                   key={stat.assignment.id}
-                  className="px-5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs hover:bg-[#f7f9f7] dark:hover:bg-emerald-950/20 transition-colors"
+                  className="px-5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs hover:bg-emerald-50/40 dark:hover:bg-emerald-950/20 transition-colors"
                 >
                   <div className="flex items-start sm:items-center gap-3 min-w-0">
                     <span className="font-mono font-bold text-emerald-700 dark:text-emerald-300 whitespace-nowrap shrink-0 tabular-nums">
@@ -1003,7 +1005,7 @@ export const GradebookView: React.FC<GradebookViewProps> = ({
       )}
 
       {/* Main Gradebook Matrix Table */}
-      <div className="bg-white dark:bg-[#111c18] border border-slate-200/80 dark:border-emerald-950/70 rounded-2xl overflow-hidden">
+      <div className="bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200/80 dark:border-emerald-950/70 rounded-2xl overflow-hidden">
         <div className="px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <h2 className="text-sm sm:text-base font-bold font-prompt text-slate-900 dark:text-white">
@@ -1085,7 +1087,7 @@ export const GradebookView: React.FC<GradebookViewProps> = ({
             return (
               <div className="divide-y divide-slate-200 dark:divide-slate-800">
                 {/* Student Summary Bar */}
-                <div className="px-5 py-3 bg-[#f7f9f7] dark:bg-slate-800/50 flex flex-wrap items-center justify-between gap-3 text-xs">
+                <div className="px-5 py-3 theme-soft-surface dark:bg-slate-800/50 flex flex-wrap items-center justify-between gap-3 text-xs">
                   <div className="flex flex-wrap items-center gap-3 text-slate-700 dark:text-slate-200">
                     <span className="font-bold text-slate-900 dark:text-white">
                       {studentRow.student.name}
@@ -1139,7 +1141,7 @@ export const GradebookView: React.FC<GradebookViewProps> = ({
                         return (
                           <tr
                             key={cell.assignment.id}
-                            className="hover:bg-[#f7f9f7] dark:hover:bg-emerald-950/20 transition-colors"
+                            className="hover:bg-emerald-50/40 dark:hover:bg-emerald-950/20 transition-colors"
                           >
                             <td className="px-4 py-3 font-mono font-bold text-emerald-700 dark:text-emerald-300 tabular-nums align-top">
                               ใบงานที่ {cell.wsNumber}
@@ -1224,14 +1226,14 @@ export const GradebookView: React.FC<GradebookViewProps> = ({
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-xs">
               <thead>
-                <tr className="bg-[#f7f9f7] dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200">
-                  <th className="sticky left-0 z-20 bg-[#f7f9f7] dark:bg-slate-800 px-3 py-3 text-center font-semibold border-r border-slate-200 dark:border-slate-700 w-10">
+                <tr className="theme-soft-surface dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200">
+                  <th className="sticky left-0 z-20 theme-soft-surface dark:bg-slate-800 px-3 py-3 text-center font-semibold border-r border-slate-200 dark:border-slate-700 w-10">
                     ที่
                   </th>
-                  <th className="sticky left-10 z-20 bg-[#f7f9f7] dark:bg-slate-800 px-3 py-3 text-left font-semibold border-r border-slate-200 dark:border-slate-700 min-w-[92px]">
+                  <th className="sticky left-10 z-20 theme-soft-surface dark:bg-slate-800 px-3 py-3 text-left font-semibold border-r border-slate-200 dark:border-slate-700 min-w-[92px]">
                     รหัส
                   </th>
-                  <th className="sticky left-[132px] z-20 bg-[#f7f9f7] dark:bg-slate-800 px-3 py-3 text-left font-semibold border-r border-slate-200 dark:border-slate-700 min-w-[170px]">
+                  <th className="sticky left-[132px] z-20 theme-soft-surface dark:bg-slate-800 px-3 py-3 text-left font-semibold border-r border-slate-200 dark:border-slate-700 min-w-[170px]">
                     ชื่อ-นามสกุล
                   </th>
 
@@ -1282,13 +1284,13 @@ export const GradebookView: React.FC<GradebookViewProps> = ({
                     key={row.student.id || row.student.code}
                     className="hover:bg-slate-50/90 dark:hover:bg-slate-800/40 transition-colors"
                   >
-                    <td className="sticky left-0 z-10 bg-white dark:bg-[#111c18] px-3 py-2.5 text-center text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-emerald-950/60 tabular-nums">
+                    <td className="sticky left-0 z-10 bg-white dark:bg-[var(--theme-surface-dark)] px-3 py-2.5 text-center text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-emerald-950/60 tabular-nums">
                       {rowIdx + 1}
                     </td>
-                    <td className="sticky left-10 z-10 bg-white dark:bg-[#111c18] px-3 py-2.5 font-mono text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-emerald-950/60 tabular-nums">
+                    <td className="sticky left-10 z-10 bg-white dark:bg-[var(--theme-surface-dark)] px-3 py-2.5 font-mono text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-emerald-950/60 tabular-nums">
                       {row.student.code || '-'}
                     </td>
-                    <td className="sticky left-[132px] z-10 bg-white dark:bg-[#111c18] px-3 py-2.5 font-medium text-slate-900 dark:text-slate-100 border-r border-slate-200 dark:border-emerald-950/60">
+                    <td className="sticky left-[132px] z-10 bg-white dark:bg-[var(--theme-surface-dark)] px-3 py-2.5 font-medium text-slate-900 dark:text-slate-100 border-r border-slate-200 dark:border-emerald-950/60">
                       <span className="block truncate max-w-[200px]" title={row.student.name}>
                         {row.student.name}
                       </span>
@@ -1468,7 +1470,7 @@ export const GradebookView: React.FC<GradebookViewProps> = ({
         >
           <form
             onSubmit={handleRequestSaveInlineScore}
-            className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-2xl w-full max-w-md shadow-2xl p-5 space-y-4 animate-in zoom-in-95 duration-150"
+            className="bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-950/60 rounded-2xl w-full max-w-md shadow-2xl p-5 space-y-4 animate-in zoom-in-95 duration-150"
           >
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -1489,7 +1491,7 @@ export const GradebookView: React.FC<GradebookViewProps> = ({
               </button>
             </div>
 
-            <div className="bg-[#f7f9f7] dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-xs space-y-1">
+            <div className="theme-soft-surface dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-xs space-y-1">
               <div className="font-bold text-emerald-700 dark:text-emerald-300">
                 ใบงานที่ {roomWorksheets.findIndex((w) => w.id === editingCell.assignment.id) + 1}:{' '}
                 {editingCell.assignment.title}
@@ -1601,7 +1603,7 @@ export const GradebookView: React.FC<GradebookViewProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                  className="theme-btn-sheen px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                 >
                   <Check className="w-3.5 h-3.5" />
                   <span>บันทึกคะแนน</span>

@@ -12,6 +12,7 @@ import {
   AttendanceSession,
   PeriodConfig,
   SubjectClassroom,
+  PastelThemeId,
 } from './types';
 import {
   DEFAULT_PERIOD_CONFIGS,
@@ -38,6 +39,7 @@ import {
   savePeriodConfigsToFirestore,
   saveGradebookVisibilityToFirestore,
   saveSchoolBrandingToFirestore,
+  saveSystemThemeToFirestore,
   subscribeResources,
   saveResourceToFirestore,
   deleteResourceFromFirestore,
@@ -87,6 +89,14 @@ import {
 } from './components/SplitWorksheetsModal';
 import { CheckCircle2, KeyRound, AlertTriangle, FolderGit2, ShieldAlert } from 'lucide-react';
 import { LogoutIcon } from './components/LogoutIcon';
+import { AmbientThemeBackdrop } from './components/ThemeGraphics';
+import {
+  DEFAULT_PASTEL_THEME,
+  applyPastelThemeToDom,
+  getCachedActiveTheme,
+  isAdminTeacherAccount,
+  setCachedActiveTheme,
+} from './utils/themes';
 import { setApiSessionToken, clearApiSessionToken } from './utils/security';
 
 const DEFAULT_GUEST_STUDENT: StudentProfile = {
@@ -167,6 +177,20 @@ export default function App() {
   const [currentTeacherUser, setCurrentTeacherUser] = useState<TeacherProfile>(DEFAULT_ADMIN_TEACHER);
   const [role, setRole] = useState<UserRole>('student');
   const [showDefaultAdminWarning, setShowDefaultAdminWarning] = useState<boolean>(false);
+  const [activeTheme, setActiveTheme] = useState<PastelThemeId>(() => {
+    const cached = getCachedActiveTheme();
+    applyPastelThemeToDom(cached);
+    return cached;
+  });
+
+  const isAdminUser =
+    isLoggedIn &&
+    role === 'teacher' &&
+    isAdminTeacherAccount(currentTeacherUser);
+
+  React.useEffect(() => {
+    applyPastelThemeToDom(activeTheme);
+  }, [activeTheme]);
 
   // Tab State
   const [activeTab, setActiveTab] = useState<string>('home');
@@ -257,6 +281,11 @@ export default function App() {
       }
       if (typeof remoteSettings.schoolSubtitle === 'string') {
         setSchoolSubtitle(remoteSettings.schoolSubtitle);
+      }
+      if (remoteSettings.themeColor) {
+        setActiveTheme(remoteSettings.themeColor);
+        applyPastelThemeToDom(remoteSettings.themeColor);
+        setCachedActiveTheme(remoteSettings.themeColor);
       }
     });
 
@@ -355,6 +384,17 @@ export default function App() {
       setToastMessage(null);
     }, 4000);
   };
+
+  const handleChangeTheme = React.useCallback(
+    (nextTheme: PastelThemeId) => {
+      if (!isAdminUser) return;
+      setActiveTheme(nextTheme);
+      applyPastelThemeToDom(nextTheme);
+      setCachedActiveTheme(nextTheme);
+      saveSystemThemeToFirestore(nextTheme);
+    },
+    [isAdminUser]
+  );
 
   // Login Success Handler
   const handleLoginSuccess = async (
@@ -1002,6 +1042,9 @@ export default function App() {
     setPeriodConfigs(DEFAULT_PERIOD_CONFIGS);
     setStudentGradebookEnabled(true);
     setGradebookDisabledRooms([]);
+    setActiveTheme(DEFAULT_PASTEL_THEME);
+    applyPastelThemeToDom(DEFAULT_PASTEL_THEME);
+    setCachedActiveTheme(DEFAULT_PASTEL_THEME);
     setNotifications([]);
     try {
       localStorage.removeItem('edusheet_grade_levels');
@@ -1025,6 +1068,9 @@ export default function App() {
     setPeriodConfigs(DEFAULT_PERIOD_CONFIGS);
     setStudentGradebookEnabled(true);
     setGradebookDisabledRooms([]);
+    setActiveTheme(DEFAULT_PASTEL_THEME);
+    applyPastelThemeToDom(DEFAULT_PASTEL_THEME);
+    setCachedActiveTheme(DEFAULT_PASTEL_THEME);
     try {
       localStorage.removeItem('edusheet_grade_levels');
       localStorage.removeItem('edusheet_subjects');
@@ -1360,7 +1406,9 @@ export default function App() {
   }, [role, isGradebookVisibleToCurrentUser, activeTab]);
 
   return (
-    <div className="min-h-screen bg-school-canvas text-slate-900 dark:text-slate-100 flex flex-col font-sarabun">
+    <div className="relative min-h-screen bg-school-canvas text-slate-900 dark:text-slate-100 flex flex-col font-sarabun">
+      <AmbientThemeBackdrop />
+
       {/* 3-Zone Header Contract */}
       <Header
         activeTab={activeTab}
@@ -1378,10 +1426,11 @@ export default function App() {
         teacher={currentTeacherUser}
         isLoggedIn={isLoggedIn}
         showGradebookTab={isGradebookVisibleToCurrentUser}
+        isAdmin={isAdminUser}
       />
 
       {/* Main Container (Responsive padding with mobile bottom nav safe-area) */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 pb-24 md:pb-10">
+      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 pb-24 md:pb-10">
 
 
         {/* Tab 1: Home Dashboard */}
@@ -1533,7 +1582,7 @@ export default function App() {
                   </div>
 
                   {filteredHomeAssignments.length === 0 ? (
-                    <div className="text-center py-16 bg-white dark:bg-[#111c18] rounded-2xl border border-slate-200/80 dark:border-emerald-950/70 text-slate-400 text-sm space-y-2">
+                    <div className="text-center py-16 bg-white dark:bg-[var(--theme-surface-dark)] rounded-2xl border border-slate-200/80 dark:border-emerald-950/70 text-slate-400 text-sm space-y-2 theme-transition">
                       <p>ไม่พบใบงานที่ตรงกับเงื่อนไขการค้นหาของคุณ</p>
                       <button
                         onClick={() =>
@@ -1744,7 +1793,7 @@ export default function App() {
               onOpenSettings={role === 'teacher' ? handleOpenSettings : undefined}
             />
           ) : (
-            <div className="bg-white dark:bg-[#111c18] border border-slate-200/80 dark:border-emerald-950/70 rounded-2xl p-10 text-center space-y-3">
+            <div className="bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200/80 dark:border-emerald-950/70 rounded-2xl p-10 text-center space-y-3 theme-transition">
               <p className="text-base font-bold font-prompt text-slate-900 dark:text-white">
                 สมุดเก็บคะแนนถูกปิดการเข้าชมชั่วคราว
               </p>
@@ -1760,7 +1809,7 @@ export default function App() {
       {/* Logout Confirmation Modal */}
       {isLogoutConfirmOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center space-y-4 animate-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-950/60 rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center space-y-4 animate-in zoom-in-95 duration-200">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-rose-500 to-pink-500 text-white flex items-center justify-center mx-auto shadow-lg shadow-rose-500/25 ring-4 ring-rose-50 dark:ring-rose-950/50">
               <LogoutIcon className="w-7 h-7" />
             </div>
@@ -1954,6 +2003,9 @@ export default function App() {
           onDeleteTeacher={handleDeleteTeacher}
           onResetSystem={handleResetFactoryData}
           onResetKeepUsers={handleResetKeepUsers}
+          activeTheme={activeTheme}
+          onChangeTheme={handleChangeTheme}
+          isAdmin={isAdminUser}
         />
       )}
 
@@ -2023,7 +2075,7 @@ export default function App() {
       )}
 
       {/* Clean Footer with fully functional interactive links */}
-      <footer className="bg-white/90 dark:bg-[#0e1714]/90 backdrop-blur-md border-t border-emerald-100/80 dark:border-emerald-950/70 py-6 text-xs text-slate-500 dark:text-slate-400 mt-auto pb-20 md:pb-6">
+      <footer className="relative z-10 bg-white/90 dark:bg-[var(--theme-surface-dark-elevated)]/92 backdrop-blur-md border-t border-emerald-100/80 dark:border-emerald-950/70 py-6 text-xs text-slate-500 dark:text-slate-400 mt-auto pb-20 md:pb-6 theme-transition">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row items-center justify-between gap-3">
           <div className="flex flex-col sm:flex-row items-center gap-1.5 sm:gap-2.5 text-center sm:text-left">
             <div className="flex items-center gap-2">

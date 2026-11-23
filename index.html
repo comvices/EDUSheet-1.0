@@ -12,8 +12,22 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Prompt:wght@400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      (function () {
+        try {
+          var validThemes = ['sky', 'mint', 'lavender', 'rose', 'peach', 'turquoise'];
+          var savedTheme = localStorage.getItem('edusheet_active_theme');
+          var theme = validThemes.indexOf(savedTheme) !== -1 ? savedTheme : 'mint';
+          document.documentElement.setAttribute('data-pastel-theme', theme);
+          var darkSaved = localStorage.getItem('theme');
+          if (darkSaved === 'dark') {
+            document.documentElement.classList.add('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
-  <body class="bg-[#f6f8f6] text-slate-900 font-sarabun antialiased selection:bg-emerald-700 selection:text-white">
+  <body class="bg-school-canvas text-slate-900 font-sarabun antialiased selection:bg-emerald-700 selection:text-white">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

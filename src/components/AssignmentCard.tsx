@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Calendar, Clock, FileText, CheckCircle2, AlertCircle, Edit3, HelpCircle, Eye, ChevronRight, Award, Trash2 } from 'lucide-react';
 import { Assignment, Submission, UserRole } from '../types';
+import { CardCornerOrnament } from './ThemeGraphics';
 
 interface AssignmentCardProps {
   assignment: Assignment;
@@ -47,8 +48,9 @@ export const AssignmentCard: React.FC<AssignmentCardProps> = ({
   });
 
   return (
-    <div className="bg-white dark:bg-[#111c18] rounded-2xl border border-slate-200/90 dark:border-emerald-950/70 p-5 shadow-2xs hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-700/70 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between h-full group relative">
-      <div>
+    <div className="theme-card-interactive overflow-hidden bg-white dark:bg-[var(--theme-surface-dark)] rounded-2xl border border-emerald-200/75 dark:border-emerald-950/75 p-5 shadow-2xs hover:border-emerald-400 dark:hover:border-emerald-700/80 hover:-translate-y-0.5 flex flex-col justify-between h-full group relative">
+      <CardCornerOrnament className="absolute -top-2 -right-2 w-24 h-24 opacity-60 group-hover:opacity-100 transition-opacity duration-300" />
+      <div className="relative z-10">
         {/* Unboxed Metadata Line (Zero-Pill Discipline) */}
         <div className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400 mb-2">
           <div className="flex items-center gap-1.5 font-medium">
@@ -117,7 +119,7 @@ export const AssignmentCard: React.FC<AssignmentCardProps> = ({
         )}
 
         {/* Due Date Indicator & Status Ribbon */}
-        <div className="flex items-center justify-between text-xs py-2 px-3 bg-[#f5f8f5] dark:bg-slate-800/60 rounded-xl mb-4 border border-emerald-900/10 dark:border-emerald-900/40">
+        <div className="flex items-center justify-between text-xs py-2 px-3 theme-soft-surface dark:bg-slate-800/60 rounded-xl mb-4 border border-emerald-900/10 dark:border-emerald-900/40">
           <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
             <Calendar className="w-3.5 h-3.5 text-emerald-700/60 dark:text-emerald-400/70" />
             <span>กำหนดส่ง: {formattedDueDate}</span>
@@ -222,7 +224,7 @@ export const AssignmentCard: React.FC<AssignmentCardProps> = ({
                   onOpenGradingModal(assignment, submission);
                 }
               }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 active:scale-[0.98] text-white rounded-lg text-xs font-semibold shadow-xs transition-all cursor-pointer"
+              className="theme-btn-sheen inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 active:scale-[0.98] text-white rounded-lg text-xs font-semibold shadow-xs transition-all cursor-pointer"
             >
               <span>{submissionCount > 1 || assignment.id === 'asg_101' ? `ดูรายชื่อส่งงาน (${submissionCount || 20} คน)` : 'ตรวจใบงานนี้'}</span>
               <ChevronRight className="w-3.5 h-3.5" />
@@ -234,7 +236,7 @@ export const AssignmentCard: React.FC<AssignmentCardProps> = ({
       {/* Delete Confirmation Modal Overlay */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
-          <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-950/60 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
               <div className="p-3 bg-rose-100 dark:bg-rose-950 rounded-xl">
                 <Trash2 className="w-6 h-6" />

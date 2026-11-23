@@ -32,9 +32,9 @@ export const InfoModal: React.FC<InfoModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-950/60 rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
         {/* Modal Header */}
-        <div className="px-6 py-4 border-b border-slate-200 dark:border-emerald-950/60 flex items-center justify-between bg-slate-50/90 dark:bg-[#0d1613]">
+        <div className="px-6 py-4 border-b border-slate-200 dark:border-emerald-950/60 flex items-center justify-between bg-slate-50/90 dark:bg-[var(--theme-surface-dark-elevated)]">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-700 to-teal-700 text-white flex items-center justify-center shadow-xs">
               {activeTab === 'guide' && <BookOpen className="w-5 h-5" />}
@@ -62,12 +62,12 @@ export const InfoModal: React.FC<InfoModalProps> = ({
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex border-b border-slate-200 dark:border-emerald-950/60 bg-slate-100/70 dark:bg-[#0d1613]/70 p-1.5 gap-1">
+        <div className="flex border-b border-slate-200 dark:border-emerald-950/60 bg-slate-100/70 dark:bg-[var(--theme-surface-dark-elevated)]/70 p-1.5 gap-1">
           <button
             onClick={() => setActiveTab('guide')}
             className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'guide'
-                ? 'bg-white dark:bg-[#111c18] text-emerald-700 dark:text-emerald-400 shadow-xs'
+                ? 'bg-white dark:bg-[var(--theme-surface-dark)] text-emerald-700 dark:text-emerald-400 shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
             }`}
           >
@@ -79,7 +79,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({
             onClick={() => setActiveTab('security')}
             className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'security'
-                ? 'bg-white dark:bg-[#111c18] text-emerald-700 dark:text-emerald-400 shadow-xs'
+                ? 'bg-white dark:bg-[var(--theme-surface-dark)] text-emerald-700 dark:text-emerald-400 shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
             }`}
           >
@@ -91,7 +91,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({
             onClick={() => setActiveTab('support')}
             className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'support'
-                ? 'bg-white dark:bg-[#111c18] text-emerald-700 dark:text-emerald-400 shadow-xs'
+                ? 'bg-white dark:bg-[var(--theme-surface-dark)] text-emerald-700 dark:text-emerald-400 shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
             }`}
           >
@@ -139,7 +139,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({
                       onClose();
                       onOpenSettings();
                     }}
-                    className="px-4 py-2 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
+                    className="theme-btn-sheen px-4 py-2 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
                   >
                     <span>ไปที่ "เมนูตั้งค่าระบบ" (สำหรับครู)</span>
                     <ExternalLink className="w-3.5 h-3.5" />
@@ -220,10 +220,10 @@ export const InfoModal: React.FC<InfoModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="px-6 py-4 border-t border-slate-200 dark:border-emerald-950/60 bg-slate-50/90 dark:bg-[#0d1613] flex justify-end">
+        <div className="px-6 py-4 border-t border-slate-200 dark:border-emerald-950/60 bg-slate-50/90 dark:bg-[var(--theme-surface-dark-elevated)] flex justify-end">
           <button
             onClick={onClose}
-            className="px-5 py-2 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-xs"
+            className="theme-btn-sheen px-5 py-2 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-xs"
           >
             ปิดหน้าต่าง
           </button>

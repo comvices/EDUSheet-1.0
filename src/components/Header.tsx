@@ -20,9 +20,12 @@ import {
   FolderOpen,
   ClipboardCheck,
   FileSpreadsheet,
+  Palette,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { UserRole, StudentProfile, TeacherProfile } from '../types';
 import { LogoutIcon } from './LogoutIcon';
+import { SettingsTab } from './SettingsModal';
 
 interface HeaderProps {
   activeTab: string;
@@ -33,13 +36,14 @@ interface HeaderProps {
   onOpenNotifs: () => void;
   onOpenManageCategories?: () => void;
   onOpenManageStudents?: () => void;
-  onOpenSettings?: (tab?: 'grades' | 'subjects' | 'students' | 'teachers') => void;
+  onOpenSettings?: (tab?: SettingsTab) => void;
   onOpenLoginModal: () => void;
   onLogOut: () => void;
   student: StudentProfile;
   teacher: TeacherProfile;
   isLoggedIn: boolean;
   showGradebookTab?: boolean;
+  isAdmin?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -58,6 +62,7 @@ export const Header: React.FC<HeaderProps> = ({
   teacher,
   isLoggedIn,
   showGradebookTab = true,
+  isAdmin = false,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [settingsDropdownOpen, setSettingsDropdownOpen] = useState(false);
@@ -105,7 +110,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-white/90 dark:bg-[#0e1714]/90 backdrop-blur-md border-b border-emerald-900/10 dark:border-emerald-800/30 shadow-2xs">
+      <header className="sticky top-0 z-40 bg-white/90 dark:bg-[var(--theme-surface-dark-elevated)]/92 backdrop-blur-md border-b border-emerald-900/10 dark:border-emerald-800/35 shadow-2xs theme-transition">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-2 sm:gap-6 h-16">
             {/* Zone 1: Logo & Wordmark */}
@@ -205,7 +210,7 @@ export const Header: React.FC<HeaderProps> = ({
               {role === 'teacher' && (
                 <div className="hidden xl:flex items-center gap-2">
                   {/* Unified Settings Menu with Split Button & Dropdown */}
-                  <div ref={settingsDropdownRef} className="relative inline-flex items-center rounded-lg border border-emerald-900/15 dark:border-emerald-800/50 bg-[#f3f6f3] dark:bg-slate-800/90 shadow-2xs">
+                  <div ref={settingsDropdownRef} className="relative inline-flex items-center rounded-lg border border-emerald-900/15 dark:border-emerald-800/50 theme-soft-surface dark:bg-slate-800/90 shadow-2xs">
                     <button
                       onClick={() => {
                         setSettingsDropdownOpen(false);
@@ -232,7 +237,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                     {/* Quick Settings Dropdown */}
                     {settingsDropdownOpen && (
-                      <div className="absolute right-0 top-full mt-1.5 w-60 bg-white dark:bg-[#111c18] border border-emerald-900/15 dark:border-emerald-800/60 rounded-2xl shadow-xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
+                      <div className="absolute right-0 top-full mt-1.5 w-64 bg-white dark:bg-[var(--theme-surface-dark)] border border-emerald-900/15 dark:border-emerald-800/60 rounded-2xl shadow-xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
                         <div className="px-3.5 py-1.5 border-b border-slate-100 dark:border-emerald-950/70 text-[11px] font-bold text-slate-400 font-prompt flex items-center justify-between">
                           <span>เมนูตั้งค่าระบบ</span>
                           <span className="text-[10px] text-emerald-700 dark:text-emerald-400">Settings</span>
@@ -290,6 +295,27 @@ export const Header: React.FC<HeaderProps> = ({
                           <div>
                             <span className="block font-semibold">4. จัดการครูผู้สอน</span>
                             <span className="block text-[10px] text-slate-400">เพิ่ม / ลบ / แก้ไขครู</span>
+                          </div>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSettingsDropdownOpen(false);
+                            if (onOpenSettings) onOpenSettings('school');
+                          }}
+                          className="w-full px-3.5 py-2 text-left text-xs font-medium hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-slate-700 dark:text-slate-200 flex items-center gap-2.5 cursor-pointer border-t border-slate-100 dark:border-emerald-950/70"
+                        >
+                          {isAdmin ? (
+                            <Palette className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+                          ) : (
+                            <ImageIcon className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+                          )}
+                          <div>
+                            <span className="block font-semibold">
+                              {isAdmin ? '5. ธีมสีและภาพโรงเรียน' : '5. ภาพหน้าปกโรงเรียน'}
+                            </span>
+                            <span className="block text-[10px] text-slate-400">
+                              {isAdmin ? 'ธีมพาสเทล (Admin) / หน้าปก' : 'หน้าปก / ชื่อโรงเรียน'}
+                            </span>
                           </div>
                         </button>
                       </div>
@@ -387,10 +413,10 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Mobile Slide-down Drawer */}
         {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-emerald-900/10 dark:border-emerald-800/40 bg-white dark:bg-[#0e1714] px-4 pt-3 pb-6 shadow-xl space-y-4 animate-in slide-in-from-top-2 duration-150">
+          <div className="lg:hidden border-t border-emerald-900/10 dark:border-emerald-800/40 bg-white dark:bg-[var(--theme-surface-dark-elevated)] px-4 pt-3 pb-6 shadow-xl space-y-4 animate-in slide-in-from-top-2 duration-150 theme-transition">
             {/* User Profile Card Mobile */}
             {isLoggedIn ? (
-              <div className="flex items-center justify-between p-3 bg-[#f5f8f5] dark:bg-slate-800/80 rounded-2xl border border-emerald-900/10 dark:border-emerald-800/40">
+              <div className="flex items-center justify-between p-3 theme-soft-surface dark:bg-slate-800/80 rounded-2xl border border-emerald-900/10 dark:border-emerald-800/40">
                 <div className="flex items-center gap-3">
                   {(role === 'student' ? student.avatar : teacher.avatar) ? (
                     <img
@@ -531,7 +557,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="text-[11px] font-semibold text-slate-400 block px-1">เมนูสำหรับครูผู้สอน:</span>
                 <div className="space-y-2">
                   {/* Unified Settings Section in Mobile Drawer */}
-                  <div className="bg-[#f5f8f5] dark:bg-slate-800/80 border border-emerald-900/10 dark:border-slate-700 rounded-2xl p-2.5 space-y-2">
+                  <div className="theme-soft-surface dark:bg-slate-800/80 border border-emerald-900/10 dark:border-slate-700 rounded-2xl p-2.5 space-y-2">
                     <div className="flex items-center justify-between px-1">
                       <div className="flex items-center gap-1.5 text-xs font-bold font-prompt text-slate-800 dark:text-slate-200">
                         <Settings className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
@@ -549,14 +575,14 @@ export const Header: React.FC<HeaderProps> = ({
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-4 gap-1.5 pt-1">
+                    <div className="grid grid-cols-5 gap-1.5 pt-1">
                       <button
                         onClick={() => {
                           setMobileMenuOpen(false);
                           if (onOpenSettings) onOpenSettings('grades');
                           else if (onOpenManageCategories) onOpenManageCategories();
                         }}
-                        className="p-2 bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-xl text-center hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-colors cursor-pointer"
+                        className="p-2 bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-950/60 rounded-xl text-center hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-colors cursor-pointer"
                       >
                         <GraduationCap className="w-4 h-4 text-emerald-700 dark:text-emerald-400 mx-auto mb-1" />
                         <span className="text-[10px] font-bold block text-slate-700 dark:text-slate-300">
@@ -570,7 +596,7 @@ export const Header: React.FC<HeaderProps> = ({
                           if (onOpenSettings) onOpenSettings('subjects');
                           else if (onOpenManageCategories) onOpenManageCategories();
                         }}
-                        className="p-2 bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-xl text-center hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-colors cursor-pointer"
+                        className="p-2 bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-950/60 rounded-xl text-center hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-colors cursor-pointer"
                       >
                         <BookOpen className="w-4 h-4 text-emerald-700 dark:text-emerald-400 mx-auto mb-1" />
                         <span className="text-[10px] font-bold block text-slate-700 dark:text-slate-300">
@@ -584,7 +610,7 @@ export const Header: React.FC<HeaderProps> = ({
                           if (onOpenSettings) onOpenSettings('students');
                           else if (onOpenManageStudents) onOpenManageStudents();
                         }}
-                        className="p-2 bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-xl text-center hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-colors cursor-pointer"
+                        className="p-2 bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-950/60 rounded-xl text-center hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-colors cursor-pointer"
                       >
                         <Users className="w-4 h-4 text-emerald-700 dark:text-emerald-400 mx-auto mb-1" />
                         <span className="text-[10px] font-bold block text-slate-700 dark:text-slate-300">
@@ -597,11 +623,28 @@ export const Header: React.FC<HeaderProps> = ({
                           setMobileMenuOpen(false);
                           if (onOpenSettings) onOpenSettings('teachers');
                         }}
-                        className="p-2 bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-xl text-center hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-colors cursor-pointer"
+                        className="p-2 bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-950/60 rounded-xl text-center hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-colors cursor-pointer"
                       >
                         <UserCheck className="w-4 h-4 text-emerald-700 dark:text-emerald-400 mx-auto mb-1" />
                         <span className="text-[10px] font-bold block text-slate-700 dark:text-slate-300">
                           ครูผู้สอน
+                        </span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          if (onOpenSettings) onOpenSettings('school');
+                        }}
+                        className="p-2 bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-950/60 rounded-xl text-center hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-colors cursor-pointer"
+                      >
+                        {isAdmin ? (
+                          <Palette className="w-4 h-4 text-emerald-700 dark:text-emerald-400 mx-auto mb-1" />
+                        ) : (
+                          <ImageIcon className="w-4 h-4 text-emerald-700 dark:text-emerald-400 mx-auto mb-1" />
+                        )}
+                        <span className="text-[10px] font-bold block text-slate-700 dark:text-slate-300">
+                          {isAdmin ? 'ธีม/หน้าปก' : 'หน้าปก'}
                         </span>
                       </button>
                     </div>
@@ -614,7 +657,7 @@ export const Header: React.FC<HeaderProps> = ({
       </header>
 
       {/* Floating Bottom Navigation Bar for Mobile Phones (< md) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#0e1714]/95 backdrop-blur-md border-t border-emerald-900/10 dark:border-emerald-800/40 px-2 py-1.5 flex items-center justify-around shadow-lg">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[var(--theme-surface-dark-elevated)]/95 backdrop-blur-md border-t border-emerald-900/10 dark:border-emerald-800/40 px-2 py-1.5 flex items-center justify-around shadow-lg theme-transition">
         <button
           onClick={() => handleTabClick('home')}
           className={`flex flex-col items-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${

@@ -24,6 +24,7 @@ import * as XLSX from 'xlsx';
 import { Assignment, Submission, StudentProfile } from '../types';
 import { SaveConfirmModal } from './SaveConfirmModal';
 import { getAuthHeaders } from '../utils/security';
+import { HeroSvgOrnaments } from './ThemeGraphics';
 
 export interface BatchGradeSaveItem {
   submissionId: string;
@@ -380,9 +381,9 @@ export const SubmissionRosterModal: React.FC<SubmissionRosterModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-3xl w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-950/60 rounded-3xl w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
         {/* Modal Header */}
-        <div className="px-6 py-4 border-b border-slate-200 dark:border-emerald-950/60 flex items-center justify-between bg-slate-50/90 dark:bg-[#0d1613]">
+        <div className="px-6 py-4 border-b border-slate-200 dark:border-emerald-950/60 flex items-center justify-between bg-slate-50/90 dark:bg-[var(--theme-surface-dark-elevated)]">
           <div>
             <div className="flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-400 font-medium mb-0.5">
               <span>รายชื่อการส่งงานของนักเรียน ({totalCount} คน)</span>
@@ -405,8 +406,9 @@ export const SubmissionRosterModal: React.FC<SubmissionRosterModalProps> = ({
         </div>
 
         {/* Top Summary Banner */}
-        <div className="p-6 bg-gradient-to-br from-[#0d261d] via-[#133b2e] to-[#0f362c] text-white relative overflow-hidden">
+        <div className="p-6 theme-hero-surface theme-hero-scrim text-white relative overflow-hidden">
           <div className="edu-hero-grid absolute inset-0 opacity-20 pointer-events-none" />
+          <HeroSvgOrnaments variant="classroom" />
           <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 text-xs text-emerald-200 font-medium mb-1">
@@ -455,13 +457,13 @@ export const SubmissionRosterModal: React.FC<SubmissionRosterModalProps> = ({
         </div>
 
         {/* Tab Selector: Submitted vs Missing */}
-        <div className="flex items-center justify-between border-b border-slate-200 dark:border-emerald-950/60 bg-slate-100/70 dark:bg-[#0d1613] px-4 py-2 gap-2 flex-wrap">
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-emerald-950/60 bg-slate-100/70 dark:bg-[var(--theme-surface-dark-elevated)] px-4 py-2 gap-2 flex-wrap">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setActiveTab('submitted')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                 activeTab === 'submitted'
-                  ? 'bg-white dark:bg-[#111c18] text-emerald-800 dark:text-emerald-400 shadow-xs border border-emerald-200/70 dark:border-emerald-800/60'
+                  ? 'bg-white dark:bg-[var(--theme-surface-dark)] text-emerald-800 dark:text-emerald-400 shadow-xs border border-emerald-200/70 dark:border-emerald-800/60'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
               }`}
             >
@@ -473,7 +475,7 @@ export const SubmissionRosterModal: React.FC<SubmissionRosterModalProps> = ({
               onClick={() => setActiveTab('missing')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                 activeTab === 'missing'
-                  ? 'bg-white dark:bg-[#111c18] text-rose-600 dark:text-rose-400 shadow-xs border border-slate-200 dark:border-slate-700'
+                  ? 'bg-white dark:bg-[var(--theme-surface-dark)] text-rose-600 dark:text-rose-400 shadow-xs border border-slate-200 dark:border-slate-700'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
               }`}
             >
@@ -492,7 +494,7 @@ export const SubmissionRosterModal: React.FC<SubmissionRosterModalProps> = ({
                     setSelectedIds(pendingSubmissions.map((s) => s.id));
                     runBatchAiGrading(pendingSubmissions);
                   }}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white text-xs font-bold shadow-md shadow-emerald-900/15 transition-all cursor-pointer disabled:opacity-50"
+                  className="theme-btn-sheen inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white text-xs font-bold shadow-md shadow-emerald-900/15 transition-all cursor-pointer disabled:opacity-50"
                 >
                   {isBatchGrading ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -597,13 +599,13 @@ export const SubmissionRosterModal: React.FC<SubmissionRosterModalProps> = ({
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="ค้นหาชื่อ หรือเลขประจำตัวนักเรียน..."
-                  className="w-full pl-9 pr-3 py-1.5 bg-white dark:bg-[#111c18] border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-600 focus:outline-hidden"
+                  className="w-full pl-9 pr-3 py-1.5 bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-600 focus:outline-hidden"
                 />
               </div>
 
               {/* Segmented Filter (only in submitted tab) */}
               {activeTab === 'submitted' && (
-                <div className="flex items-center gap-1 p-1 bg-white dark:bg-[#111c18] rounded-xl border border-slate-200 dark:border-slate-700 text-xs w-full sm:w-auto overflow-x-auto">
+                <div className="flex items-center gap-1 p-1 bg-white dark:bg-[var(--theme-surface-dark)] rounded-xl border border-slate-200 dark:border-slate-700 text-xs w-full sm:w-auto overflow-x-auto">
                   <button
                     onClick={() => setStatusFilter('all')}
                     className={`px-3 py-1.5 rounded-lg font-medium transition-colors whitespace-nowrap cursor-pointer ${
@@ -662,7 +664,7 @@ export const SubmissionRosterModal: React.FC<SubmissionRosterModalProps> = ({
                       className={`px-2.5 py-1 rounded-lg font-semibold border transition-colors cursor-pointer ${
                         roomFilter === rm
                           ? 'bg-emerald-700 text-white border-emerald-700'
-                          : 'bg-white dark:bg-[#111c18] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-emerald-500'
+                          : 'bg-white dark:bg-[var(--theme-surface-dark)] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-emerald-500'
                       }`}
                     >
                       {rm === 'ทั้งหมด' ? 'ทุกห้อง' : `ห้อง ${rm}`}
@@ -692,7 +694,7 @@ export const SubmissionRosterModal: React.FC<SubmissionRosterModalProps> = ({
                   <button
                     type="button"
                     onClick={handleSelectAllFiltered}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-[#111c18] border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:border-emerald-500 font-semibold cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:border-emerald-500 font-semibold cursor-pointer"
                   >
                     {allFilteredSelected ? (
                       <CheckSquare className="w-3.5 h-3.5 text-emerald-700" />
@@ -757,7 +759,7 @@ export const SubmissionRosterModal: React.FC<SubmissionRosterModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setBatchResults(null)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-[#111c18] border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 cursor-pointer shrink-0"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 cursor-pointer shrink-0"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   <span>กลับไปหน้ารายชื่อ</span>
@@ -772,7 +774,7 @@ export const SubmissionRosterModal: React.FC<SubmissionRosterModalProps> = ({
                       !item.success
                         ? 'bg-rose-50/40 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900'
                         : item.include
-                        ? 'bg-white dark:bg-[#111c18] border-emerald-200 dark:border-emerald-800 shadow-2xs'
+                        ? 'bg-white dark:bg-[var(--theme-surface-dark)] border-emerald-200 dark:border-emerald-800 shadow-2xs'
                         : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 opacity-70'
                     }`}
                   >
@@ -837,7 +839,7 @@ export const SubmissionRosterModal: React.FC<SubmissionRosterModalProps> = ({
                                     : prev
                                 );
                               }}
-                              className="w-16 px-1.5 py-0.5 bg-white dark:bg-[#111c18] border border-slate-300 dark:border-slate-600 rounded-lg text-xs font-bold font-mono text-center text-emerald-700 dark:text-emerald-400"
+                              className="w-16 px-1.5 py-0.5 bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-300 dark:border-slate-600 rounded-lg text-xs font-bold font-mono text-center text-emerald-700 dark:text-emerald-400"
                             />
                             <span className="text-[11px] text-slate-500 font-mono">
                               / {item.maxPoints}
@@ -956,7 +958,7 @@ export const SubmissionRosterModal: React.FC<SubmissionRosterModalProps> = ({
                   <div
                     key={sub.id}
                     onClick={() => onSelectStudentSubmission(sub)}
-                    className={`p-4 bg-white dark:bg-[#111c18] border rounded-xl hover:border-emerald-500 dark:hover:border-emerald-500 transition-all flex items-center justify-between gap-4 cursor-pointer group shadow-2xs hover:shadow-md ${
+                    className={`p-4 bg-white dark:bg-[var(--theme-surface-dark)] border rounded-xl hover:border-emerald-500 dark:hover:border-emerald-500 transition-all flex items-center justify-between gap-4 cursor-pointer group shadow-2xs hover:shadow-md ${
                       isSelected
                         ? 'border-emerald-600 ring-1 ring-emerald-500/30 bg-emerald-50/30 dark:bg-emerald-950/20'
                         : 'border-slate-200 dark:border-emerald-950/60'
@@ -1046,7 +1048,7 @@ export const SubmissionRosterModal: React.FC<SubmissionRosterModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-200 dark:border-emerald-950/60 bg-slate-50/90 dark:bg-[#0d1613] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+        <div className="px-6 py-4 border-t border-slate-200 dark:border-emerald-950/60 bg-slate-50/90 dark:bg-[var(--theme-surface-dark-elevated)] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
           {batchResults ? (
             <>
               <span>
@@ -1064,7 +1066,7 @@ export const SubmissionRosterModal: React.FC<SubmissionRosterModalProps> = ({
                   type="button"
                   disabled={includedBatchItems.length === 0}
                   onClick={() => setIsBatchSaveConfirmOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition-colors cursor-pointer disabled:opacity-50"
+                  className="theme-btn-sheen inline-flex items-center gap-1.5 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition-colors cursor-pointer disabled:opacity-50"
                 >
                   <Save className="w-4 h-4" />
                   <span>ยืนยันและบันทึกผลการตรวจ ({includedBatchItems.length} คน)</span>

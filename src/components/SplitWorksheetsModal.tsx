@@ -484,9 +484,9 @@ export const SplitWorksheetsModal: React.FC<SplitWorksheetsModalProps> = ({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className="bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-950/60 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 dark:border-emerald-950/60 flex items-center justify-between bg-slate-50/90 dark:bg-[#0d1613]">
+        <div className="px-6 py-4 border-b border-slate-200 dark:border-emerald-950/60 flex items-center justify-between bg-slate-50/90 dark:bg-[var(--theme-surface-dark-elevated)]">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-700 to-teal-700 text-white flex items-center justify-center shrink-0">
               <FolderGit2 className="w-5 h-5" />
@@ -541,7 +541,7 @@ export const SplitWorksheetsModal: React.FC<SplitWorksheetsModalProps> = ({
           )}
 
           {/* Discovered Target Rooms for Selected Grade */}
-          <div className="bg-slate-50 dark:bg-[#0d1613]/70 border border-slate-200 dark:border-emerald-950/60 rounded-2xl p-4 space-y-2">
+          <div className="bg-slate-50 dark:bg-[var(--theme-surface-dark-elevated)]/70 border border-slate-200 dark:border-emerald-950/60 rounded-2xl p-4 space-y-2">
             <div className="flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200">
               <span className="flex items-center gap-1.5">
                 <Users className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
@@ -564,7 +564,7 @@ export const SplitWorksheetsModal: React.FC<SplitWorksheetsModalProps> = ({
                 {plan.availableTargetRooms.map((room) => (
                   <div
                     key={room}
-                    className="px-3 py-1.5 bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-xl text-xs flex items-center gap-2 tabular-nums"
+                    className="px-3 py-1.5 bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-950/60 rounded-xl text-xs flex items-center gap-2 tabular-nums"
                   >
                     <span className="font-bold text-slate-800 dark:text-slate-100">{room}</span>
                     <span className="text-slate-500 dark:text-slate-400">
@@ -604,7 +604,7 @@ export const SplitWorksheetsModal: React.FC<SplitWorksheetsModalProps> = ({
                   {plan.items.map((item) => (
                     <div
                       key={item.sourceAssignment.id}
-                      className="p-3.5 bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-xl space-y-2"
+                      className="p-3.5 bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-950/60 rounded-xl space-y-2"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
@@ -642,7 +642,7 @@ export const SplitWorksheetsModal: React.FC<SplitWorksheetsModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-200 dark:border-emerald-950/60 bg-slate-50/90 dark:bg-[#0d1613] flex items-center justify-end gap-2.5">
+        <div className="px-6 py-4 border-t border-slate-200 dark:border-emerald-950/60 bg-slate-50/90 dark:bg-[var(--theme-surface-dark-elevated)] flex items-center justify-end gap-2.5">
           <button
             type="button"
             onClick={onClose}
@@ -654,7 +654,7 @@ export const SplitWorksheetsModal: React.FC<SplitWorksheetsModalProps> = ({
             <button
               type="button"
               onClick={() => setIsConfirmOpen(true)}
-              className="px-5 py-2 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer"
+              className="theme-btn-sheen px-5 py-2 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer"
             >
               <FolderGit2 className="w-4 h-4" />
               <span>

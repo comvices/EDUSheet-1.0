@@ -212,6 +212,12 @@
           "type": "string",
           "description": "Avatar image URL",
           "maxLength": 1000
+        },
+        "themeColor": {
+          "type": "string",
+          "description": "Personal pastel UI theme preference for the teacher",
+          "enum": ["sky", "mint", "lavender", "rose", "peach", "turquoise"],
+          "maxLength": 32
         }
       },
       "required": ["id", "code", "name", "password", "subject"]
@@ -260,6 +266,12 @@
           "type": "string",
           "description": "Optional school tagline or subtitle displayed on the login cover",
           "maxLength": 250
+        },
+        "themeColor": {
+          "type": "string",
+          "description": "System-wide pastel UI theme configured exclusively by admin",
+          "enum": ["sky", "mint", "lavender", "rose", "peach", "turquoise"],
+          "maxLength": 32
         }
       },
       "required": ["id"]

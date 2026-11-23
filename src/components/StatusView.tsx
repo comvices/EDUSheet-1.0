@@ -2,6 +2,7 @@ import React from 'react';
 import { Clock, CheckCircle2, AlertCircle, Award, RotateCcw, Filter } from 'lucide-react';
 import { Assignment, Submission, UserRole } from '../types';
 import { AssignmentCard } from './AssignmentCard';
+import { CardCornerOrnament } from './ThemeGraphics';
 
 interface StatusViewProps {
   assignments: Assignment[];
@@ -60,7 +61,8 @@ export const StatusView: React.FC<StatusViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Title Header */}
-      <div className="bg-white dark:bg-[#111c18] p-6 rounded-2xl border border-slate-200/80 dark:border-emerald-950/70 shadow-xs">
+      <div className="relative overflow-hidden bg-white dark:bg-[var(--theme-surface-dark)] p-6 rounded-2xl border border-emerald-200/75 dark:border-emerald-950/70 shadow-xs theme-transition">
+        <CardCornerOrnament className="absolute -top-3 -right-3 w-28 h-28 opacity-65" />
         <div className="flex items-center gap-3 mb-2">
           <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-100 dark:border-emerald-900/50 text-emerald-700 dark:text-emerald-400 rounded-xl">
             <Clock className="w-6 h-6" />
@@ -98,10 +100,10 @@ export const StatusView: React.FC<StatusViewProps> = ({
               <button
                 key={st.id}
                 onClick={() => setSelectedStatus(st.id)}
-                className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between h-20 cursor-pointer ${
+                className={`theme-card-interactive p-3 rounded-xl border text-left flex flex-col justify-between h-20 cursor-pointer ${
                   isSelected
                     ? 'bg-gradient-to-br from-emerald-700 to-teal-700 text-white border-emerald-700 shadow-md shadow-emerald-900/15 font-bold -translate-y-0.5'
-                    : 'bg-[#f7f9f7] dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-emerald-400 hover:-translate-y-0.5'
+                    : 'theme-soft-surface dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-emerald-400 hover:-translate-y-0.5'
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -124,7 +126,7 @@ export const StatusView: React.FC<StatusViewProps> = ({
         </h3>
 
         {filteredAssignments.length === 0 ? (
-          <div className="text-center py-12 bg-white dark:bg-[#111c18] rounded-xl border border-slate-200 dark:border-emerald-950/60 text-slate-400 text-xs">
+          <div className="text-center py-12 bg-white dark:bg-[var(--theme-surface-dark)] rounded-xl border border-slate-200 dark:border-emerald-950/60 text-slate-400 text-xs theme-transition">
             ไม่พบรายการใบงานในสถานะนี้
           </div>
         ) : (

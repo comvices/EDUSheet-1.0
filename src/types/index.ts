@@ -80,6 +80,14 @@ export interface StudentProfile {
   email?: string;
 }
 
+export type PastelThemeId =
+  | 'sky'
+  | 'mint'
+  | 'lavender'
+  | 'rose'
+  | 'peach'
+  | 'turquoise';
+
 export interface TeacherProfile {
   id: string;
   name: string;
@@ -87,6 +95,7 @@ export interface TeacherProfile {
   password: string;
   subject: string;
   avatar: string;
+  themeColor?: PastelThemeId;
 }
 
 export type ResourceType = 'video' | 'document' | 'link' | 'slide';

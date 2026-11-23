@@ -27,11 +27,14 @@ import {
   Image as ImageIcon,
   Save,
   RotateCcw,
+  Palette,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { StudentProfile, TeacherProfile, Assignment } from '../types';
+import { StudentProfile, TeacherProfile, Assignment, PastelThemeId } from '../types';
 import { SaveConfirmModal, SaveConfirmDetail } from './SaveConfirmModal';
 import { isSafeImageSrc, sanitizeImageSrc } from '../utils/security';
+import { ThemePalettePicker } from './ThemeGraphics';
+import { getPastelThemeMeta } from '../utils/themes';
 import defaultSchoolCover from '../assets/images/school_campus_cover_1795065722838.jpg';
 
 export type SettingsTab = 'grades' | 'subjects' | 'students' | 'teachers' | 'school';
@@ -114,6 +117,9 @@ interface SettingsModalProps {
   onDeleteTeacher?: (teacherId: string) => void;
   onResetSystem: () => void;
   onResetKeepUsers: () => void;
+  activeTheme: PastelThemeId;
+  onChangeTheme: (themeId: PastelThemeId) => void;
+  isAdmin?: boolean;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -141,6 +147,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onDeleteTeacher,
   onResetSystem,
   onResetKeepUsers,
+  activeTheme,
+  onChangeTheme,
+  isAdmin = false,
 }) => {
   // Main Settings Tab State
   const [activeMainTab, setActiveMainTab] = useState<SettingsTab>(initialTab);
@@ -743,9 +752,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-950/60 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200 theme-transition">
         {/* Main Modal Header */}
-        <div className="px-5 sm:px-6 py-4 border-b border-slate-200 dark:border-emerald-950/60 flex items-center justify-between bg-slate-50/90 dark:bg-[#0d1613]">
+        <div className="px-5 sm:px-6 py-4 border-b border-slate-200 dark:border-emerald-950/60 flex items-center justify-between bg-slate-50/90 dark:bg-[var(--theme-surface-dark-elevated)]">
           <div className="flex items-center gap-3 text-slate-900 dark:text-white">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-700 to-teal-700 text-white flex items-center justify-center shadow-md shadow-emerald-900/20 shrink-0">
               <Settings className="w-5 h-5 animate-spin-slow" />
@@ -790,13 +799,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
         )}
 
-        {/* 4 Main Settings Tabs */}
-        <div className="flex border-b border-slate-200 dark:border-emerald-950/60 bg-slate-100/80 dark:bg-[#0d1613] p-1.5 gap-1.5 flex-wrap sm:flex-nowrap">
+        {/* 5 Main Settings Tabs */}
+        <div className="flex border-b border-slate-200 dark:border-emerald-950/60 bg-slate-100/80 dark:bg-[var(--theme-surface-dark-elevated)] p-1.5 gap-1.5 flex-wrap sm:flex-nowrap">
           <button
             onClick={() => setActiveMainTab('grades')}
             className={`flex-1 py-2.5 px-3 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
               activeMainTab === 'grades'
-                ? 'bg-white dark:bg-[#111c18] text-emerald-700 dark:text-emerald-400 shadow-sm border border-slate-200/80 dark:border-emerald-900/60'
+                ? 'bg-white dark:bg-[var(--theme-surface-dark)] text-emerald-700 dark:text-emerald-400 shadow-sm border border-slate-200/80 dark:border-emerald-900/60'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800/40'
             }`}
           >
@@ -811,7 +820,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             onClick={() => setActiveMainTab('subjects')}
             className={`flex-1 py-2.5 px-3 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
               activeMainTab === 'subjects'
-                ? 'bg-white dark:bg-[#111c18] text-emerald-700 dark:text-emerald-400 shadow-sm border border-slate-200/80 dark:border-emerald-900/60'
+                ? 'bg-white dark:bg-[var(--theme-surface-dark)] text-emerald-700 dark:text-emerald-400 shadow-sm border border-slate-200/80 dark:border-emerald-900/60'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800/40'
             }`}
           >
@@ -826,7 +835,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             onClick={() => setActiveMainTab('students')}
             className={`flex-1 py-2.5 px-3 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
               activeMainTab === 'students'
-                ? 'bg-white dark:bg-[#111c18] text-emerald-700 dark:text-emerald-400 shadow-sm border border-slate-200/80 dark:border-emerald-900/60'
+                ? 'bg-white dark:bg-[var(--theme-surface-dark)] text-emerald-700 dark:text-emerald-400 shadow-sm border border-slate-200/80 dark:border-emerald-900/60'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800/40'
             }`}
           >
@@ -841,7 +850,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             onClick={() => setActiveMainTab('teachers')}
             className={`flex-1 py-2.5 px-3 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
               activeMainTab === 'teachers'
-                ? 'bg-white dark:bg-[#111c18] text-emerald-700 dark:text-emerald-400 shadow-sm border border-slate-200/80 dark:border-emerald-900/60'
+                ? 'bg-white dark:bg-[var(--theme-surface-dark)] text-emerald-700 dark:text-emerald-400 shadow-sm border border-slate-200/80 dark:border-emerald-900/60'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800/40'
             }`}
           >
@@ -854,14 +863,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           <button
             onClick={() => setActiveMainTab('school')}
-            className={`flex-1 py-2.5 px-3 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            className={`flex-1 py-2.5 px-3 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap ${
               activeMainTab === 'school'
-                ? 'bg-white dark:bg-[#111c18] text-emerald-700 dark:text-emerald-400 shadow-sm border border-slate-200/80 dark:border-emerald-900/60'
+                ? 'bg-white dark:bg-[var(--theme-surface-dark)] text-emerald-700 dark:text-emerald-400 shadow-sm border border-slate-200/80 dark:border-emerald-900/60'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800/40'
             }`}
           >
-            <ImageIcon className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-            <span className="font-prompt">5. หน้าปกโรงเรียน</span>
+            {isAdmin ? (
+              <Palette className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+            ) : (
+              <ImageIcon className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+            )}
+            <span className="font-prompt">
+              {isAdmin ? '5. ธีมสีและภาพโรงเรียน' : '5. ภาพหน้าปกโรงเรียน'}
+            </span>
           </button>
         </div>
 
@@ -1018,7 +1033,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     return (
                       <div
                         key={grade}
-                        className="p-3.5 bg-slate-50 dark:bg-[#0d1613] border border-slate-200 dark:border-emerald-950/60 rounded-2xl flex items-center justify-between group hover:border-emerald-400 dark:hover:border-emerald-700 transition-colors shadow-2xs"
+                        className="p-3.5 bg-slate-50 dark:bg-[var(--theme-surface-dark-elevated)] border border-slate-200 dark:border-emerald-950/60 rounded-2xl flex items-center justify-between group hover:border-emerald-400 dark:hover:border-emerald-700 transition-colors shadow-2xs"
                       >
                         <div className="flex items-center gap-2.5">
                           <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 flex items-center justify-center font-bold text-xs">
@@ -1146,7 +1161,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     return (
                       <div
                         key={subj}
-                        className="p-3.5 bg-slate-50 dark:bg-[#0d1613] border border-slate-200 dark:border-emerald-950/60 rounded-2xl flex items-center justify-between group hover:border-emerald-400 dark:hover:border-emerald-700 transition-colors shadow-2xs"
+                        className="p-3.5 bg-slate-50 dark:bg-[var(--theme-surface-dark-elevated)] border border-slate-200 dark:border-emerald-950/60 rounded-2xl flex items-center justify-between group hover:border-emerald-400 dark:hover:border-emerald-700 transition-colors shadow-2xs"
                       >
                         <div className="flex items-center gap-2.5">
                           <div className="w-8 h-8 rounded-xl bg-teal-100 dark:bg-teal-950/80 text-teal-700 dark:text-teal-400 flex items-center justify-center font-bold text-xs">
@@ -1192,12 +1207,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="space-y-5 animate-in fade-in duration-150">
               {/* Sub-nav inside Students Tab */}
               <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2 flex-wrap gap-2">
-                <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-[#0d1613] rounded-xl border border-transparent dark:border-emerald-950/60">
+                <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-[var(--theme-surface-dark-elevated)] rounded-xl border border-transparent dark:border-emerald-950/60">
                   <button
                     onClick={() => setStudentSubTab('roster')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                       studentSubTab === 'roster'
-                        ? 'bg-white dark:bg-[#111c18] text-emerald-700 dark:text-emerald-400 shadow-xs'
+                        ? 'bg-white dark:bg-[var(--theme-surface-dark)] text-emerald-700 dark:text-emerald-400 shadow-xs'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
@@ -1221,7 +1236,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     onClick={() => setStudentSubTab('manual')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                       studentSubTab === 'manual'
-                        ? 'bg-white dark:bg-[#111c18] text-emerald-700 dark:text-emerald-400 shadow-xs'
+                        ? 'bg-white dark:bg-[var(--theme-surface-dark)] text-emerald-700 dark:text-emerald-400 shadow-xs'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
@@ -1416,7 +1431,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                       <button
                         onClick={handleDownloadSampleTemplate}
-                        className="px-3.5 py-2 bg-white dark:bg-[#111c18] border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-950/60 font-bold text-xs rounded-xl transition-colors shrink-0 flex items-center gap-1.5 shadow-xs cursor-pointer"
+                        className="px-3.5 py-2 bg-white dark:bg-[var(--theme-surface-dark)] border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-950/60 font-bold text-xs rounded-xl transition-colors shrink-0 flex items-center gap-1.5 shadow-xs cursor-pointer"
                       >
                         <Download className="w-4 h-4 text-emerald-600" />
                         <span>ดาวน์โหลดไฟล์แม่แบบ Excel</span>
@@ -1625,7 +1640,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               {/* Add New Teacher Form Card */}
-              <div className="p-4 bg-slate-50 dark:bg-[#0d1613] border border-slate-200 dark:border-emerald-950/60 rounded-2xl space-y-3">
+              <div className="p-4 bg-slate-50 dark:bg-[var(--theme-surface-dark-elevated)] border border-slate-200 dark:border-emerald-950/60 rounded-2xl space-y-3">
                 <h4 className="text-xs font-bold font-prompt text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                   <UserPlus className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
                   <span>เพิ่มครูผู้สอนรายบุคคล</span>
@@ -1761,7 +1776,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         return (
                           <div
                             key={tch.id}
-                            className="p-3.5 bg-white dark:bg-[#0d1613] border border-slate-200 dark:border-emerald-950/60 rounded-2xl flex items-center justify-between gap-3 hover:border-emerald-400 dark:hover:border-emerald-700 transition-colors shadow-2xs"
+                            className="p-3.5 bg-white dark:bg-[var(--theme-surface-dark-elevated)] border border-slate-200 dark:border-emerald-950/60 rounded-2xl flex items-center justify-between gap-3 hover:border-emerald-400 dark:hover:border-emerald-700 transition-colors shadow-2xs"
                           >
                             <div className="flex items-center gap-3 shrink min-w-0">
                               <img
@@ -1839,23 +1854,90 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           )}
 
           {/* ========================================================== */}
-          {/* TAB 5: รูปภาพโรงเรียนหน้าปก & ข้อมูลสถานศึกษา */}
+          {/* TAB 5: ธีมสีระบบ (เฉพาะ Admin) และภาพหน้าปกโรงเรียน */}
           {/* ========================================================== */}
           {activeMainTab === 'school' && (
-            <div className="space-y-6 animate-in fade-in duration-150">
-              <div className="p-4 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-900/60 rounded-2xl flex items-start gap-3">
-                <div className="p-2 bg-emerald-700 text-white rounded-xl shrink-0 mt-0.5">
-                  <ImageIcon className="w-5 h-5" />
+            <div className="space-y-8 animate-in fade-in duration-150">
+              {/* Section 1: 6-Pastel Theme Selector (Admin Only) */}
+              {isAdmin ? (
+                <>
+                  <div className="space-y-4">
+                    <div className="p-4 bg-gradient-to-r from-emerald-50/85 to-teal-50/70 dark:from-emerald-950/40 dark:to-teal-950/25 border border-emerald-200/80 dark:border-emerald-900/60 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2.5 bg-emerald-700 text-white rounded-xl shrink-0 mt-0.5 shadow-xs">
+                          <Palette className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-sm font-bold font-prompt text-slate-900 dark:text-white">
+                              ธีมสีพาสเทลของระบบ (6 โทนสี)
+                            </h3>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-700 text-white text-[10px] font-bold">
+                              <ShieldCheck className="w-3 h-3" /> เฉพาะผู้ดูแลระบบ (Admin)
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed">
+                            เปลี่ยนโทนสีแถบเมนู ปุ่มหลัก กรอบการ์ด กราฟิก SVG และแถบเลื่อนทั้งระบบทันทีอย่างนุ่มนวล โดยคงพื้นหลังสีเทาสบายตา พร้อมบันทึกลงฐานข้อมูลกลางใน Firestore ให้ทุกบัญชีใช้งานตรงกัน
+                          </p>
+                        </div>
+                      </div>
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-[var(--theme-surface-dark-elevated)] border border-emerald-200 dark:border-emerald-800 text-xs font-bold text-emerald-700 dark:text-emerald-300 shrink-0 font-prompt self-start sm:self-center">
+                        <span
+                          className="w-3 h-3 rounded-full ring-1 ring-black/10"
+                          style={{ background: getPastelThemeMeta(activeTheme).swatchGradient }}
+                        />
+                        <span>ใช้งานอยู่: {getPastelThemeMeta(activeTheme).name}</span>
+                      </span>
+                    </div>
+
+                    <ThemePalettePicker
+                      activeTheme={activeTheme}
+                      onSelectTheme={(id) => {
+                        onChangeTheme(id);
+                        const meta = getPastelThemeMeta(id);
+                        triggerLocalToast(`เปลี่ยนธีมสีระบบเป็น "${meta.name}" เรียบร้อยแล้ว`);
+                      }}
+                      variant="grid"
+                      isTeacherAccount={true}
+                    />
+                  </div>
+
+                  <hr className="border-slate-200/80 dark:border-emerald-950/60" />
+                </>
+              ) : (
+                <div className="p-3.5 bg-slate-50 dark:bg-[var(--theme-surface-dark-elevated)] border border-slate-200/80 dark:border-emerald-950/60 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <span
+                      className="w-7 h-7 rounded-xl ring-1 ring-black/10 shrink-0"
+                      style={{ background: getPastelThemeMeta(activeTheme).swatchGradient }}
+                    />
+                    <div className="text-xs">
+                      <p className="font-bold font-prompt text-slate-800 dark:text-slate-200">
+                        ธีมสีระบบปัจจุบัน: {getPastelThemeMeta(activeTheme).name}
+                      </p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        การเปลี่ยนธีมสีพาสเทลของระบบสงวนสิทธิ์ให้ตั้งค่าได้เฉพาะผู้ดูแลระบบ (Admin) เท่านั้น
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-sm font-bold font-prompt text-slate-900 dark:text-white">
-                    ตั้งค่ารูปภาพโรงเรียนหน้าปก (หน้าเข้าสู่ระบบ)
-                  </h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
-                    สามารถอัปโหลดภาพอาคารเรียน บรรยากาศโรงเรียน หรือใส่ชื่อโรงเรียนของคุณเพื่อแสดงบนหน้า Login สำหรับนักเรียนและครูทุกคน
-                  </p>
+              )}
+
+              {/* Section 2: School Cover & Branding */}
+              <div className="space-y-5">
+                <div className="p-4 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-900/60 rounded-2xl flex items-start gap-3">
+                  <div className="p-2 bg-emerald-700 text-white rounded-xl shrink-0 mt-0.5">
+                    <ImageIcon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold font-prompt text-slate-900 dark:text-white">
+                      ตั้งค่ารูปภาพโรงเรียนหน้าปก (หน้าเข้าสู่ระบบ)
+                    </h3>
+                    <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+                      สามารถอัปโหลดภาพอาคารเรียน บรรยากาศโรงเรียน หรือใส่ชื่อโรงเรียนของคุณเพื่อแสดงบนหน้า Login สำหรับนักเรียนและครูทุกคน
+                    </p>
+                  </div>
                 </div>
-              </div>
 
               {/* Live Preview Box */}
               <div className="space-y-2">
@@ -1879,7 +1961,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   )}
                 </div>
 
-                <div className="relative aspect-video max-h-60 w-full rounded-2xl overflow-hidden border border-slate-200 dark:border-emerald-950/60 bg-[#0d1613]">
+                <div className="relative aspect-video max-h-60 w-full rounded-2xl overflow-hidden border border-slate-200 dark:border-emerald-950/60 bg-[var(--theme-surface-dark-elevated)]">
                   {!coverPreviewBroken ? (
                     <img
                       src={sanitizeImageSrc(coverUrlDraft) || defaultSchoolCover}
@@ -1889,7 +1971,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-[#0d261d] via-[#133b2e] to-[#0f362c] flex items-center justify-center">
+                    <div className="w-full h-full theme-hero-scrim flex items-center justify-center">
                       <GraduationCap className="w-16 h-16 text-emerald-400/30" />
                     </div>
                   )}
@@ -1984,19 +2066,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="pt-2 flex justify-end">
                   <button
                     type="submit"
-                    className="px-6 py-2.5 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white font-bold text-xs rounded-xl shadow-md transition-colors flex items-center gap-2 cursor-pointer"
+                    className="theme-btn-sheen px-6 py-2.5 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white font-bold text-xs rounded-xl shadow-md transition-colors flex items-center gap-2 cursor-pointer"
                   >
                     <Save className="w-4 h-4" />
                     <span>บันทึกหน้าปกโรงเรียน</span>
                   </button>
                 </div>
               </form>
+              </div>
             </div>
           )}
         </div>
 
         {/* Modal Footer */}
-        <div className="px-5 sm:px-6 py-4 border-t border-slate-200 dark:border-emerald-950/60 bg-slate-50/90 dark:bg-[#0d1613] flex items-center justify-between">
+        <div className="px-5 sm:px-6 py-4 border-t border-slate-200 dark:border-emerald-950/60 bg-slate-50/90 dark:bg-[var(--theme-surface-dark-elevated)] flex items-center justify-between">
           <span className="text-[11px] text-slate-400 hidden sm:inline">
             ข้อมูลการตั้งค่าจะซิงก์ตรงกับ Google Firebase Firestore แบบเรียลไทม์
           </span>
@@ -2012,7 +2095,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       {/* In-App Confirmation Modal (for Deleting Grade, Subject, or Student) */}
       {itemToDelete && (
         <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs">
-          <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-950/60 rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto">
               <AlertTriangle className="w-6 h-6" />
             </div>
@@ -2054,7 +2137,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       {/* Student Edit Modal Overlay */}
       {editingStudent && (
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs">
-          <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-950/60 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="text-base font-bold font-prompt text-slate-900 dark:text-white">
                 แก้ไขข้อมูลนักเรียน
@@ -2147,7 +2230,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       {/* Teacher Edit Modal Overlay */}
       {editingTeacher && (
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs">
-          <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-950/60 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="text-base font-bold font-prompt text-slate-900 dark:text-white">
                 แก้ไขข้อมูลครูผู้สอน
@@ -2235,7 +2318,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       {/* Reset Confirmation Modal Overlay */}
       {pendingResetAction && (
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs">
-          <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-950/60 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto">
               <AlertTriangle className="w-6 h-6" />
             </div>

@@ -309,9 +309,9 @@ export const ManageStudentsModal: React.FC<ManageStudentsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-950/60 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
         {/* Modal Header */}
-        <div className="px-6 py-4 border-b border-slate-200 dark:border-emerald-950/60 flex items-center justify-between bg-slate-50/90 dark:bg-[#0d1613]">
+        <div className="px-6 py-4 border-b border-slate-200 dark:border-emerald-950/60 flex items-center justify-between bg-slate-50/90 dark:bg-[var(--theme-surface-dark-elevated)]">
           <div className="flex items-center gap-2 text-slate-900 dark:text-white">
             <div className="p-2 bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 rounded-xl">
               <Users className="w-5 h-5" />
@@ -335,12 +335,12 @@ export const ManageStudentsModal: React.FC<ManageStudentsModalProps> = ({
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex border-b border-slate-200 dark:border-emerald-950/60 bg-slate-100/70 dark:bg-[#0d1613]/70 p-1">
+        <div className="flex border-b border-slate-200 dark:border-emerald-950/60 bg-slate-100/70 dark:bg-[var(--theme-surface-dark-elevated)]/70 p-1">
           <button
             onClick={() => setActiveTab('roster')}
             className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'roster'
-                ? 'bg-white dark:bg-[#111c18] text-emerald-700 dark:text-emerald-400 shadow-xs'
+                ? 'bg-white dark:bg-[var(--theme-surface-dark)] text-emerald-700 dark:text-emerald-400 shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
             }`}
           >
@@ -364,7 +364,7 @@ export const ManageStudentsModal: React.FC<ManageStudentsModalProps> = ({
             onClick={() => setActiveTab('manual')}
             className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'manual'
-                ? 'bg-white dark:bg-[#111c18] text-emerald-700 dark:text-emerald-400 shadow-xs'
+                ? 'bg-white dark:bg-[var(--theme-surface-dark)] text-emerald-700 dark:text-emerald-400 shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
             }`}
           >
@@ -530,7 +530,7 @@ export const ManageStudentsModal: React.FC<ManageStudentsModalProps> = ({
 
                 <button
                   onClick={handleDownloadSampleTemplate}
-                  className="px-4 py-2 bg-white dark:bg-[#111c18] border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 font-bold text-xs rounded-xl transition-colors shrink-0 flex items-center gap-1.5 shadow-xs cursor-pointer"
+                  className="px-4 py-2 bg-white dark:bg-[var(--theme-surface-dark)] border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 font-bold text-xs rounded-xl transition-colors shrink-0 flex items-center gap-1.5 shadow-xs cursor-pointer"
                 >
                   <Download className="w-4 h-4 text-emerald-600" />
                   <span>ดาวน์โหลดไฟล์ตัวอย่าง Excel</span>
@@ -703,7 +703,7 @@ export const ManageStudentsModal: React.FC<ManageStudentsModalProps> = ({
 
               <button
                 type="submit"
-                className="w-full py-2.5 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-4"
+                className="theme-btn-sheen w-full py-2.5 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-4"
               >
                 <UserPlus className="w-4 h-4" />
                 <span>+ เพิ่มนักเรียนเข้าสู่ระบบ</span>
@@ -713,10 +713,10 @@ export const ManageStudentsModal: React.FC<ManageStudentsModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="px-6 py-4 border-t border-slate-200 dark:border-emerald-950/60 bg-slate-50/90 dark:bg-[#0d1613] flex justify-end">
+        <div className="px-6 py-4 border-t border-slate-200 dark:border-emerald-950/60 bg-slate-50/90 dark:bg-[var(--theme-surface-dark-elevated)] flex justify-end">
           <button
             onClick={onClose}
-            className="px-5 py-2 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-xs"
+            className="theme-btn-sheen px-5 py-2 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-xs"
           >
             เสร็จสิ้น
           </button>
@@ -726,7 +726,7 @@ export const ManageStudentsModal: React.FC<ManageStudentsModalProps> = ({
       {/* Student Edit Modal Overlay */}
       {editingStudent && (
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs">
-          <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-950/60 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="text-base font-bold font-prompt text-slate-900 dark:text-white">
                 แก้ไขข้อมูลนักเรียน

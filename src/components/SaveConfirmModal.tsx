@@ -62,7 +62,7 @@ export const SaveConfirmModal: React.FC<SaveConfirmModalProps> = ({
         }
       }}
     >
-      <div className="bg-white dark:bg-[#111c18] border border-slate-200 dark:border-emerald-950/60 rounded-2xl w-full max-w-md shadow-2xl p-5 sm:p-6 space-y-4 animate-in zoom-in-95 duration-200">
+      <div className="bg-white dark:bg-[var(--theme-surface-dark)] border border-slate-200 dark:border-emerald-950/60 rounded-2xl w-full max-w-md shadow-2xl p-5 sm:p-6 space-y-4 animate-in zoom-in-95 duration-200">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
             <div
@@ -91,7 +91,7 @@ export const SaveConfirmModal: React.FC<SaveConfirmModalProps> = ({
         </div>
 
         {details.length > 0 && (
-          <div className="bg-slate-50 dark:bg-[#0d1613]/80 border border-slate-200 dark:border-emerald-950/60 rounded-xl p-3.5 space-y-2 text-xs">
+          <div className="bg-slate-50 dark:bg-[var(--theme-surface-dark-elevated)]/80 border border-slate-200 dark:border-emerald-950/60 rounded-xl p-3.5 space-y-2 text-xs">
             {details.map((item, idx) => (
               <div
                 key={`${item.label}_${idx}`}
@@ -119,7 +119,7 @@ export const SaveConfirmModal: React.FC<SaveConfirmModalProps> = ({
           <button
             type="button"
             onClick={onConfirm}
-            className={`flex-1 py-2.5 px-4 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${confirmBtnClasses}`}
+            className={`theme-btn-sheen flex-1 py-2.5 px-4 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${confirmBtnClasses}`}
           >
             <CheckCircle2 className="w-4 h-4" />
             <span>{confirmLabel}</span>

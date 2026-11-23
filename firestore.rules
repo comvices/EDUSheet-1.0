@@ -76,7 +76,8 @@ service cloud.firestore {
         isValidString(data.name, 1, 200) &&
         isValidString(data.password, 1, 128) &&
         isValidString(data.subject, 0, 100) &&
-        (!('avatar' in data) || isValidString(data.avatar, 0, 1000));
+        (!('avatar' in data) || isValidString(data.avatar, 0, 1000)) &&
+        (!('themeColor' in data) || data.themeColor in ['sky', 'mint', 'lavender', 'rose', 'peach', 'turquoise']);
     }
 
     function isSafeImageSrc(val) {
@@ -96,7 +97,8 @@ service cloud.firestore {
         (!('gradebookDisabledRooms' in data) || (data.gradebookDisabledRooms is list && data.gradebookDisabledRooms.size() <= 200)) &&
         (!('schoolCoverUrl' in data) || isSafeImageSrc(data.schoolCoverUrl)) &&
         (!('schoolName' in data) || isValidString(data.schoolName, 0, 150)) &&
-        (!('schoolSubtitle' in data) || isValidString(data.schoolSubtitle, 0, 250));
+        (!('schoolSubtitle' in data) || isValidString(data.schoolSubtitle, 0, 250)) &&
+        (!('themeColor' in data) || data.themeColor in ['sky', 'mint', 'lavender', 'rose', 'peach', 'turquoise']);
     }
 
     function isValidResource(docId, data) {
