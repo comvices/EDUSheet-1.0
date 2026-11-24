@@ -13,34 +13,26 @@ import {
   Loader2,
 } from 'lucide-react';
 import { StudentProfile, TeacherProfile, UserRole } from '../types';
-import { constantTimeEqual, sanitizeImageSrc } from '../utils/security';
+import { sanitizeImageSrc } from '../utils/security';
 import { HeroSvgOrnaments, CardCornerOrnament } from './ThemeGraphics';
 import defaultSchoolCover from '../assets/images/login_green_campus_1795146589835.jpg';
+import {
+  loginWithCredentials,
+  loginWithGooglePopup,
+} from '../services/databaseService';
 
 interface LoginModalProps {
   onLoginSuccess: (
     user: StudentProfile | TeacherProfile,
     role: UserRole,
-    meta?: { isDefaultAdminFallback?: boolean }
+    meta?: { isDefaultAdminFallback?: boolean; apiToken?: string }
   ) => void;
   onClose?: () => void;
   isDismissable?: boolean;
-  studentsList?: StudentProfile[];
-  teachersList?: TeacherProfile[];
-  onRefreshRosters?: () => Promise<{ students: StudentProfile[]; teachers: TeacherProfile[] }>;
   schoolCoverUrl?: string;
   schoolName?: string;
   schoolSubtitle?: string;
 }
-
-const BUILTIN_ADMIN_TEACHER: TeacherProfile = {
-  id: 'tch_admin',
-  code: 'ADMIN',
-  name: 'ผู้ดูแลระบบ (Admin)',
-  password: '',
-  subject: 'ผู้ดูแลระบบ',
-  avatar: '',
-};
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_SECONDS = 30;
@@ -49,9 +41,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   onLoginSuccess,
   onClose,
   isDismissable = false,
-  studentsList = [],
-  teachersList = [],
-  onRefreshRosters,
   schoolCoverUrl = '',
   schoolName = '',
   schoolSubtitle = '',
@@ -64,7 +53,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [lockoutSecondsLeft, setLockoutSecondsLeft] = useState(0);
   const [isCheckingServer, setIsCheckingServer] = useState(false);
-  const lastRosterRefreshRef = React.useRef<number>(0);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [coverImageError, setCoverImageError] = useState(false);
 
   const sanitizedCustomCover = sanitizeImageSrc(schoolCoverUrl);
@@ -109,148 +98,59 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     setPassword('');
   };
 
-  const findTeacherAuthMatch = (
-    roster: TeacherProfile[],
-    rawCode: string,
-    rawPassword: string
-  ) => {
-    const inputTrimmed = rawCode.trim();
-    const inputUpper = inputTrimmed.toUpperCase();
-    const cleanNumeric = inputUpper.replace(/^TCH-/, '');
-
-    const matchingTeachers = roster.filter((t) => {
-      const tCode = (t.code || '').trim().toUpperCase();
-      const tName = (t.name || '').trim().toLowerCase();
-      const cleanTCode = tCode.replace(/^TCH-/, '');
-
-      if (tCode === inputUpper) return true;
-      if (cleanNumeric && tCode.startsWith('TCH-') && cleanTCode === cleanNumeric) return true;
-      if (cleanNumeric && inputUpper.startsWith('TCH-') && cleanTCode === cleanNumeric) return true;
-      if (tName && tName === inputTrimmed.toLowerCase()) return true;
-      return false;
-    });
-
-    const passwordMatchedTeacher = matchingTeachers.find((t) =>
-      constantTimeEqual(t.password, rawPassword)
-    );
-    const hasExplicitAdminInDb = roster.some(
-      (t) => (t.code || '').trim().toUpperCase() === 'ADMIN'
-    );
-
-    return {
-      inputUpper,
-      matchingTeachers,
-      passwordMatchedTeacher,
-      hasExplicitAdminInDb,
-    };
-  };
-
-  const maybeRefreshRosters = async (): Promise<{
-    students: StudentProfile[];
-    teachers: TeacherProfile[];
-  } | null> => {
-    if (!onRefreshRosters) return null;
-    if (Date.now() - lastRosterRefreshRef.current < 15_000) return null;
-    lastRosterRefreshRef.current = Date.now();
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (lockoutSecondsLeft > 0 || isCheckingServer || isGoogleLoading) return;
+    setErrorMsg(null);
     setIsCheckingServer(true);
+
     try {
-      return await onRefreshRosters();
+      const result = await loginWithCredentials(loginRole, code, password);
+      if (result.ok) {
+        setFailedAttempts(0);
+        onLoginSuccess(result.user, result.role, {
+          isDefaultAdminFallback: result.isDefaultAdminFallback,
+          apiToken: result.token,
+        });
+        return;
+      }
+
+      if (result.reason === 'INVALID_PASSWORD') {
+        registerFailedAttempt('รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง');
+      } else if (result.reason === 'DB_EMPTY') {
+        setErrorMsg(
+          'ยังไม่มีรายชื่อในฐานข้อมูล กรุณาให้ครูผู้สอนเข้าสู่ระบบด้วย ADMIN (หรือ Sign in with Google) เพื่อย้ายข้อมูลเข้า PostgreSQL'
+        );
+      } else if (result.reason === 'NETWORK_ERROR') {
+        setErrorMsg('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง');
+      } else if (loginRole === 'student' && code.trim().toUpperCase() !== 'ADMIN') {
+        registerFailedAttempt('ไม่พบเลขประจำตัวนักเรียนนี้ในระบบ กรุณาตรวจสอบอีกครั้ง');
+      } else {
+        registerFailedAttempt('ไม่พบรหัสประจำตัวครูผู้สอนนี้ในระบบ (ผู้ดูแลระบบใช้ชื่อผู้ใช้ admin)');
+      }
     } finally {
       setIsCheckingServer(false);
     }
   };
 
-  const authenticateTeacherOrAdmin = async (rawCode: string, rawPassword: string): Promise<boolean> => {
-    let activeTeachers = teachersList;
-    let match = findTeacherAuthMatch(activeTeachers, rawCode, rawPassword);
-
-    if (!match.passwordMatchedTeacher) {
-      const isDefaultAdmin =
-        match.inputUpper === 'ADMIN' &&
-        !match.hasExplicitAdminInDb &&
-        constantTimeEqual(rawPassword, 'admin123');
-
-      if (!isDefaultAdmin) {
-        const refreshed = await maybeRefreshRosters();
-        if (refreshed) {
-          activeTeachers = refreshed.teachers;
-          match = findTeacherAuthMatch(activeTeachers, rawCode, rawPassword);
-        }
-      }
-    }
-
-    if (match.passwordMatchedTeacher) {
-      setFailedAttempts(0);
-      onLoginSuccess(match.passwordMatchedTeacher, 'teacher');
-      return true;
-    }
-
-    // Built-in System Admin fallback only if no explicit ADMIN account exists in Firestore
-    if (
-      match.inputUpper === 'ADMIN' &&
-      !match.hasExplicitAdminInDb &&
-      constantTimeEqual(rawPassword, 'admin123')
-    ) {
-      setFailedAttempts(0);
-      onLoginSuccess(BUILTIN_ADMIN_TEACHER, 'teacher', {
-        isDefaultAdminFallback: true,
-      });
-      return true;
-    }
-
-    if (match.matchingTeachers.length > 0 || (match.inputUpper === 'ADMIN' && !match.hasExplicitAdminInDb)) {
-      registerFailedAttempt('รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง');
-      return false;
-    }
-
-    registerFailedAttempt('ไม่พบรหัสประจำตัวครูผู้สอนนี้ในระบบ (ผู้ดูแลระบบใช้ชื่อผู้ใช้ admin)');
-    return false;
-  };
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (lockoutSecondsLeft > 0 || isCheckingServer) return;
+  const handleGoogleSignIn = async () => {
+    if (isCheckingServer || isGoogleLoading) return;
     setErrorMsg(null);
-
-    const inputCodeClean = code.trim().toUpperCase();
-
-    if (loginRole === 'student') {
-      const findStd = (roster: StudentProfile[]) =>
-        roster.find(
-          (s) =>
-            s.code.trim().toUpperCase() === inputCodeClean ||
-            s.code.trim().toUpperCase().replace(/^ST-/, '') === inputCodeClean
-        );
-
-      let foundStudent = findStd(studentsList);
-
-      // Seamless Admin login even if user did not switch the Student/Teacher tab
-      if (!foundStudent && inputCodeClean === 'ADMIN') {
-        await authenticateTeacherOrAdmin(code, password);
+    setIsGoogleLoading(true);
+    try {
+      const result = await loginWithGooglePopup();
+      if (result.ok) {
+        setFailedAttempts(0);
+        onLoginSuccess(result.user, result.role, {
+          apiToken: result.token,
+        });
         return;
       }
-
-      if (!foundStudent || !constantTimeEqual(foundStudent.password, password)) {
-        const refreshed = await maybeRefreshRosters();
-        if (refreshed) {
-          foundStudent = findStd(refreshed.students);
-        }
+      if (!result.cancelled && result.message) {
+        setErrorMsg(result.message);
       }
-
-      if (!foundStudent) {
-        registerFailedAttempt('ไม่พบเลขประจำตัวนักเรียนนี้ในระบบ กรุณาตรวจสอบอีกครั้ง');
-        return;
-      }
-
-      if (!constantTimeEqual(foundStudent.password, password)) {
-        registerFailedAttempt('รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง');
-        return;
-      }
-
-      setFailedAttempts(0);
-      onLoginSuccess(foundStudent, 'student');
-    } else {
-      await authenticateTeacherOrAdmin(code, password);
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 
@@ -411,7 +311,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
             <button
               type="submit"
-              disabled={lockoutSecondsLeft > 0 || isCheckingServer}
+              disabled={lockoutSecondsLeft > 0 || isCheckingServer || isGoogleLoading}
               className="theme-btn-sheen w-full py-3 px-6 bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-600 hover:to-teal-600 active:scale-[0.99] disabled:from-slate-400 disabled:to-slate-400 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs shadow-md shadow-emerald-900/20 transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
             >
               {lockoutSecondsLeft > 0 ? (
@@ -433,8 +333,45 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             </button>
           </form>
 
+          <div className="relative flex items-center py-0.5">
+            <div className="flex-grow border-t border-slate-200 dark:border-slate-700/70" />
+            <span className="shrink mx-3 text-[11px] font-medium text-slate-400">หรือ</span>
+            <div className="flex-grow border-t border-slate-200 dark:border-slate-700/70" />
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={isCheckingServer || isGoogleLoading}
+            className="w-full py-2.5 px-4 bg-white dark:bg-slate-800/90 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-100 shadow-xs transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-60"
+          >
+            {isGoogleLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
+            ) : (
+              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  fill="#4285F4"
+                  d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24Z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14Z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96Z"
+                />
+              </svg>
+            )}
+            <span>เข้าสู่ระบบด้วย Google (Sign in with Google)</span>
+          </button>
+
           {/* Developer Credit */}
-          <div className="pt-3 border-t border-slate-100 dark:border-emerald-950/60 text-center">
+          <div className="pt-2 border-t border-slate-100 dark:border-emerald-950/60 text-center">
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
               ผู้พัฒนาระบบ:{' '}
               <span className="font-semibold text-emerald-700 dark:text-emerald-400 font-prompt">
@@ -447,4 +384,3 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     </div>
   );
 };
-

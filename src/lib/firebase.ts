@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import {
   getFirestore,
   initializeFirestore,
@@ -35,6 +35,8 @@ export const db = createFirestoreInstance();
 
 // Initialize Auth
 export const auth = getAuth(app);
+export const googleAuthProvider = new GoogleAuthProvider();
+googleAuthProvider.setCustomParameters({ prompt: 'select_account' });
 
 export const FIRESTORE_UPGRADE_URL = `https://console.firebase.google.com/project/${firebaseConfig.projectId}/firestore/databases/${firebaseConfig.firestoreDatabaseId}/data?openUpgradeDialog=true`;
 export const FIRESTORE_PRICING_URL = 'https://firebase.google.com/pricing#cloud-firestore';
@@ -124,7 +126,8 @@ export async function testConnection(force = false): Promise<boolean> {
   }
 }
 
-testConnection();
+// Startup connection check intentionally omitted after PostgreSQL migration
+// so loading the app consumes 0 Firestore read units.
 
 // Standard Error Handler conforming to Skill requirements
 export enum OperationType {

@@ -125,6 +125,7 @@ export interface TeacherProfile {
   password: string;
   subject: string;
   avatar: string;
+  email?: string;
   themeColor?: PastelThemeId;
 }
 

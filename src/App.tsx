@@ -27,47 +27,18 @@ import {
   INITIAL_SUBMISSIONS,
 } from './data/mockData';
 import {
-  loadAssignmentsCacheFirst,
-  loadSubmissionsCacheFirst,
-  loadStudentSubmissionsCacheFirst,
-  loadStudentsCacheFirst,
-  loadTeachersCacheFirst,
-  loadSettingsCacheFirst,
-  loadResourcesCacheFirst,
-  loadTeachingSchedulesCacheFirst,
-  loadAttendanceSessionsCacheFirst,
-  loadSubjectClassroomsCacheFirst,
-  subscribeSingleAssignment,
-  subscribeGroupSubmissions,
-  isCollectionSyncFresh,
+  exportAllFromFirestoreForMigration,
   type AppSettingsPayload,
-  saveAssignmentToFirestore,
-  deleteAssignmentFromFirestore,
-  saveSubmissionToFirestore,
-  saveMultipleSubmissionsToFirestore,
-  batchMigrateWorksheetsAndSubmissions,
-  saveStudentToFirestore,
-  saveMultipleStudentsToFirestore,
-  deleteStudentFromFirestore,
-  saveTeacherToFirestore,
-  deleteTeacherFromFirestore,
-  saveSettingsToFirestore,
-  savePeriodConfigsToFirestore,
-  saveGradebookVisibilityToFirestore,
-  saveSchoolBrandingToFirestore,
-  saveSystemThemeToFirestore,
-  saveResourceToFirestore,
-  deleteResourceFromFirestore,
-  saveTeachingScheduleToFirestore,
-  deleteTeachingScheduleFromFirestore,
-  saveAttendanceSessionToFirestore,
-  deleteAttendanceSessionFromFirestore,
-  saveSubjectClassroomToFirestore,
-  saveMultipleSubjectClassroomsToFirestore,
-  deleteSubjectClassroomFromFirestore,
-  clearDatabase,
-  resetDataKeepUsers,
 } from './services/firebaseService';
+import {
+  fetchDatabaseBootstrap,
+  fetchPublicSchoolConfig,
+  importDatasetToPostgres,
+  migrateRelayMirrorToPostgres,
+  mutateDatabaseApi,
+  signOutGoogleIfActive,
+  type DatabaseBootstrapPayload,
+} from './services/databaseService';
 
 // Components
 import { Header } from './components/Header';
@@ -101,13 +72,13 @@ import {
 } from './components/SplitWorksheetsModal';
 import {
   CheckCircle2,
-  KeyRound,
-  AlertTriangle,
   FolderGit2,
   ShieldAlert,
   Database,
-  ExternalLink,
   RefreshCw,
+  Download,
+  Upload,
+  ArrowRightLeft,
   X,
 } from 'lucide-react';
 import { LogoutIcon } from './components/LogoutIcon';
@@ -120,13 +91,6 @@ import {
   setCachedActiveTheme,
 } from './utils/themes';
 import { setApiSessionToken, clearApiSessionToken } from './utils/security';
-import {
-  clearQuotaStatus,
-  FIRESTORE_PRICING_URL,
-  FIRESTORE_UPGRADE_URL,
-  subscribeQuotaStatus,
-  type FirestoreQuotaState,
-} from './lib/firebase';
 
 const DEFAULT_GUEST_STUDENT: StudentProfile = {
   id: 'guest_student',
@@ -268,18 +232,12 @@ export default function App() {
     } catch (e) {}
   }, [periodConfigs]);
 
-  const [quotaStatus, setQuotaStatus] = useState<FirestoreQuotaState>({ exceeded: false });
-  const [isQuotaBannerDismissed, setIsQuotaBannerDismissed] = useState(false);
-
-  React.useEffect(() => {
-    const unsubQuota = subscribeQuotaStatus((state) => {
-      setQuotaStatus(state);
-      if (state.exceeded) {
-        setIsQuotaBannerDismissed(false);
-      }
-    });
-    return () => unsubQuota();
-  }, []);
+  const [apiSessionReady, setApiSessionReady] = useState<boolean>(false);
+  const [isMigratingFromFirestore, setIsMigratingFromFirestore] = useState<boolean>(false);
+  const [isMigrationBannerDismissed, setIsMigrationBannerDismissed] = useState<boolean>(false);
+  const [dbHasData, setDbHasData] = useState<boolean>(true);
+  const backupFileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const hasCheckedRelayMigrationRef = React.useRef<boolean>(false);
 
   const [isManualSyncing, setIsManualSyncing] = useState(false);
 
@@ -315,134 +273,100 @@ export default function App() {
     }
   }, []);
 
-  // Google Firebase Firestore Cache-First + TTL Sync:
-  // 1) Startup loads lightweight login rosters & school settings from IndexedDB cache first (0 reads if within TTL)
+  const applyPostgresBootstrap = React.useCallback(
+    (data: DatabaseBootstrapPayload) => {
+      setStudentsRoster(data.students || []);
+      setTeachersRoster(data.teachers || []);
+      setAssignments(data.assignments || []);
+      setSubmissions(data.submissions || []);
+      setResources(data.resources || []);
+      setTeachingSchedules(data.teachingSchedules || []);
+      setAttendanceSessions(data.attendanceSessions || []);
+      setSubjectClassrooms(data.subjectClassrooms || []);
+      if (data.settings) {
+        applyRemoteSettings(data.settings);
+      }
+      const hasRecords =
+        (data.students?.length || 0) > 0 ||
+        (data.teachers?.length || 0) > 0 ||
+        (data.assignments?.length || 0) > 0 ||
+        (data.subjectClassrooms?.length || 0) > 0 ||
+        (data.resources?.length || 0) > 0;
+      setDbHasData(hasRecords);
+    },
+    [applyRemoteSettings]
+  );
+
+  // 1) Startup loads ONLY non-PII school branding/theme from PostgreSQL (0 Firestore calls)
   React.useEffect(() => {
     let cancelled = false;
-    loadStudentsCacheFirst({
-      onEmit: (remoteStudents) => {
-        if (!cancelled) setStudentsRoster(remoteStudents || []);
-      },
-    });
-    loadTeachersCacheFirst({
-      onEmit: (remoteTeachers) => {
-        if (!cancelled) setTeachersRoster(remoteTeachers || []);
-      },
-    });
-    loadSettingsCacheFirst({
-      onEmit: (remoteSettings) => {
-        if (!cancelled) applyRemoteSettings(remoteSettings);
-      },
+    fetchPublicSchoolConfig().then((cfg) => {
+      if (cancelled || !cfg) return;
+      setSchoolCoverUrl(cfg.schoolCoverUrl || '');
+      setSchoolName(cfg.schoolName || '');
+      setSchoolSubtitle(cfg.schoolSubtitle || '');
+      setDbHasData(cfg.hasData);
+      if (cfg.themeColor) {
+        setActiveTheme(cfg.themeColor);
+        applyPastelThemeToDom(cfg.themeColor);
+        setCachedActiveTheme(cfg.themeColor);
+      }
     });
     return () => {
       cancelled = true;
     };
-  }, [applyRemoteSettings]);
-
-  // 2) Classroom, worksheet, submission & attendance data load cache-first AFTER login,
-  //    and students only query their own/group submissions instead of the entire school
-  React.useEffect(() => {
-    if (!isLoggedIn) return;
-    let cancelled = false;
-
-    loadAssignmentsCacheFirst({
-      onEmit: (remoteAssignments) => {
-        if (!cancelled) setAssignments(remoteAssignments || []);
-      },
-    });
-
-    if (role === 'student') {
-      loadStudentSubmissionsCacheFirst(currentStudentUser.code, {
-        onEmit: (remoteSubmissions) => {
-          if (!cancelled) setSubmissions(remoteSubmissions || []);
-        },
-      });
-    } else {
-      loadSubmissionsCacheFirst({
-        onEmit: (remoteSubmissions) => {
-          if (!cancelled) setSubmissions(remoteSubmissions || []);
-        },
-      });
-    }
-
-    loadResourcesCacheFirst({
-      onEmit: (remoteResources) => {
-        if (!cancelled) setResources(remoteResources || []);
-      },
-    });
-
-    loadTeachingSchedulesCacheFirst({
-      onEmit: (remoteSchedules) => {
-        if (!cancelled) setTeachingSchedules(remoteSchedules || []);
-      },
-    });
-
-    loadAttendanceSessionsCacheFirst({
-      onEmit: (remoteSessions) => {
-        if (!cancelled) setAttendanceSessions(remoteSessions || []);
-      },
-    });
-
-    loadSubjectClassroomsCacheFirst({
-      onEmit: (remoteClassrooms) => {
-        if (!cancelled) setSubjectClassrooms(remoteClassrooms || []);
-      },
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isLoggedIn, role, currentStudentUser.code]);
-
-  const handleRefreshAuthRosters = React.useCallback(async () => {
-    const [freshStudents, freshTeachers] = await Promise.all([
-      loadStudentsCacheFirst({
-        forceServer: true,
-        onEmit: (data) => setStudentsRoster(data || []),
-      }),
-      loadTeachersCacheFirst({
-        forceServer: true,
-        onEmit: (data) => setTeachersRoster(data || []),
-      }),
-    ]);
-    return { students: freshStudents, teachers: freshTeachers };
   }, []);
 
+  // 2) Hydrate all classroom data from PostgreSQL immediately after login
+  React.useEffect(() => {
+    if (!isLoggedIn || !apiSessionReady) return;
+    let cancelled = false;
+
+    const loadInitial = async () => {
+      const data = await fetchDatabaseBootstrap();
+      if (cancelled) return;
+      if (data) {
+        applyPostgresBootstrap(data);
+        const isEmpty =
+          (data.students?.length || 0) === 0 &&
+          (data.assignments?.length || 0) === 0 &&
+          (data.subjectClassrooms?.length || 0) === 0;
+        if (role === 'teacher' && isEmpty && !hasCheckedRelayMigrationRef.current) {
+          hasCheckedRelayMigrationRef.current = true;
+          const relayRes = await migrateRelayMirrorToPostgres();
+          if (!cancelled && relayRes.imported) {
+            const refreshed = await fetchDatabaseBootstrap();
+            if (!cancelled && refreshed) {
+              applyPostgresBootstrap(refreshed);
+            }
+          }
+        }
+      }
+    };
+
+    loadInitial();
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoggedIn, apiSessionReady, role, applyPostgresBootstrap]);
+
   const handleForceSyncFromCloud = React.useCallback(async () => {
-    if (!isLoggedIn || isManualSyncing) return;
+    if (!isLoggedIn || !apiSessionReady || isManualSyncing) return;
     setIsManualSyncing(true);
     try {
-      const tasks: Promise<unknown>[] = [
-        loadSettingsCacheFirst({ forceServer: true, onEmit: applyRemoteSettings }),
-        loadAssignmentsCacheFirst({ forceServer: true, onEmit: (d) => setAssignments(d || []) }),
-        loadResourcesCacheFirst({ forceServer: true, onEmit: (d) => setResources(d || []) }),
-        loadTeachingSchedulesCacheFirst({ forceServer: true, onEmit: (d) => setTeachingSchedules(d || []) }),
-        loadAttendanceSessionsCacheFirst({ forceServer: true, onEmit: (d) => setAttendanceSessions(d || []) }),
-        loadSubjectClassroomsCacheFirst({ forceServer: true, onEmit: (d) => setSubjectClassrooms(d || []) }),
-      ];
-
-      if (role === 'student') {
-        tasks.push(
-          loadStudentSubmissionsCacheFirst(currentStudentUser.code, {
-            forceServer: true,
-            onEmit: (d) => setSubmissions(d || []),
-          })
-        );
+      const data = await fetchDatabaseBootstrap();
+      if (data) {
+        applyPostgresBootstrap(data);
+        setToastMessage('ซิงค์ข้อมูลล่าสุดจากฐานข้อมูล PostgreSQL เรียบร้อยแล้ว 🔄');
+        setTimeout(() => setToastMessage(null), 4000);
       } else {
-        tasks.push(
-          loadSubmissionsCacheFirst({ forceServer: true, onEmit: (d) => setSubmissions(d || []) }),
-          loadStudentsCacheFirst({ forceServer: true, onEmit: (d) => setStudentsRoster(d || []) }),
-          loadTeachersCacheFirst({ forceServer: true, onEmit: (d) => setTeachersRoster(d || []) })
-        );
+        setToastMessage('ไม่สามารถซิงค์ข้อมูลได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง');
+        setTimeout(() => setToastMessage(null), 4000);
       }
-
-      await Promise.all(tasks);
-      setToastMessage('ซิงค์ข้อมูลล่าสุดจากเซิร์ฟเวอร์เรียบร้อยแล้ว 🔄');
-      setTimeout(() => setToastMessage(null), 4000);
     } finally {
       setIsManualSyncing(false);
     }
-  }, [isLoggedIn, isManualSyncing, role, currentStudentUser.code, applyRemoteSettings]);
+  }, [isLoggedIn, apiSessionReady, isManualSyncing, applyPostgresBootstrap]);
 
   // Filter State for Home View
   const [filters, setFilters] = useState<FilterState>({
@@ -495,57 +419,34 @@ export default function App() {
     focusAssignmentId?: string;
   }>({ isOpen: false });
 
-  // 3) Scoped live listeners ONLY when a student opens a collaborative group worksheet modal
-  const activeGroupModalAssignmentId =
-    isLoggedIn && activeSubmitModalAsg?.workMode === 'group' ? activeSubmitModalAsg.id : '';
-  const liveGroupModalAsg = activeGroupModalAssignmentId
-    ? assignments.find((a) => a.id === activeGroupModalAssignmentId) || activeSubmitModalAsg
-    : null;
-  const activeGroupModalGroupId =
-    role === 'student' && liveGroupModalAsg
-      ? findStudentGroup(liveGroupModalAsg, currentStudentUser.code)?.id || ''
-      : '';
-
+  // 3) Lightweight PostgreSQL live polling during collaborative group worksheet editing or teacher grading
   React.useEffect(() => {
-    if (!activeGroupModalAssignmentId) return;
-    return subscribeSingleAssignment(activeGroupModalAssignmentId, (freshAsg) => {
-      if (!freshAsg) return;
-      setAssignments((prev) => prev.map((a) => (a.id === freshAsg.id ? freshAsg : a)));
-    });
-  }, [activeGroupModalAssignmentId]);
+    if (!isLoggedIn || !apiSessionReady) return;
+    const needsLivePoll =
+      activeSubmitModalAsg?.workMode === 'group' ||
+      (role === 'teacher' &&
+        (activeTab === 'gradebook' ||
+          Boolean(activeRosterModalAsg) ||
+          Boolean(activeGradingModalAsg)));
+    if (!needsLivePoll) return;
 
-  React.useEffect(() => {
-    if (!activeGroupModalAssignmentId || !activeGroupModalGroupId) return;
-    return subscribeGroupSubmissions(
-      activeGroupModalAssignmentId,
-      activeGroupModalGroupId,
-      (groupSubs) => {
-        if (groupSubs.length === 0) return;
-        setSubmissions((prev) => {
-          const incomingMap = new Map(groupSubs.map((s) => [s.id, s]));
-          const updated = prev.map((s) => incomingMap.get(s.id) || s);
-          const existingIds = new Set(updated.map((s) => s.id));
-          const additions = groupSubs.filter((s) => !existingIds.has(s.id));
-          return [...additions, ...updated];
-        });
-      }
-    );
-  }, [activeGroupModalAssignmentId, activeGroupModalGroupId]);
+    const timer = setInterval(() => {
+      fetchDatabaseBootstrap().then((data) => {
+        if (data) applyPostgresBootstrap(data);
+      });
+    }, 12_000);
 
-  // 4) Silent teacher refresh when opening grading / roster / gradebook if submissions cache is > 60s old
-  React.useEffect(() => {
-    if (!isLoggedIn || role !== 'teacher') return;
-    const needsFreshSubs =
-      activeTab === 'gradebook' ||
-      Boolean(activeRosterModalAsg) ||
-      Boolean(activeGradingModalAsg);
-    if (!needsFreshSubs) return;
-    if (isCollectionSyncFresh('submissions', 60_000)) return;
-    loadSubmissionsCacheFirst({
-      forceServer: true,
-      onEmit: (data) => setSubmissions(data || []),
-    });
-  }, [isLoggedIn, role, activeTab, activeRosterModalAsg, activeGradingModalAsg]);
+    return () => clearInterval(timer);
+  }, [
+    isLoggedIn,
+    apiSessionReady,
+    role,
+    activeTab,
+    activeSubmitModalAsg?.workMode,
+    activeRosterModalAsg,
+    activeGradingModalAsg,
+    applyPostgresBootstrap,
+  ]);
 
   const handleOpenSettings = (tab: SettingsTab = 'grades') => {
     setSettingsInitialTab(tab);
@@ -573,7 +474,7 @@ export default function App() {
       setActiveTheme(nextTheme);
       applyPastelThemeToDom(nextTheme);
       setCachedActiveTheme(nextTheme);
-      saveSystemThemeToFirestore(nextTheme);
+      mutateDatabaseApi('updateSettings', { themeColor: nextTheme });
     },
     [isAdminUser]
   );
@@ -582,8 +483,9 @@ export default function App() {
   const handleLoginSuccess = async (
     user: StudentProfile | TeacherProfile,
     loginRole: UserRole,
-    meta?: { isDefaultAdminFallback?: boolean }
+    meta?: { isDefaultAdminFallback?: boolean; apiToken?: string }
   ) => {
+    hasCheckedRelayMigrationRef.current = false;
     if (loginRole === 'student') {
       const student = user as StudentProfile;
       setCurrentStudentUser({ ...student, password: '' });
@@ -599,30 +501,18 @@ export default function App() {
       showToast(`ยินดีต้อนรับ ${teacher.name} เข้าสู่ระบบครูผู้สอน 📚`);
     }
 
+    if (meta?.apiToken) {
+      setApiSessionToken(meta.apiToken);
+      setApiSessionReady(true);
+    } else {
+      setApiSessionReady(false);
+    }
+
     setIsLoggedIn(true);
     setIsLoginModalOpen(false);
     setActiveTab('home');
     setIsStudentInsideClassroom(false);
     setSelectedSubjectInView('ทั้งหมด');
-
-    // Request short-lived HMAC signed Bearer token for /api/ai/* protection
-    try {
-      const res = await fetch('/api/auth/session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          role: loginRole,
-          userId: user.id,
-          code: user.code,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok && data?.token) {
-        setApiSessionToken(data.token);
-      }
-    } catch (err) {
-      console.warn('Could not obtain signed API session token:', err);
-    }
   };
 
   // Logout Handler - opens confirm dialog first
@@ -631,7 +521,10 @@ export default function App() {
   };
 
   const handleConfirmLogOut = () => {
+    signOutGoogleIfActive();
     clearApiSessionToken();
+    setApiSessionReady(false);
+    hasCheckedRelayMigrationRef.current = false;
     setShowDefaultAdminWarning(false);
     setIsLogoutConfirmOpen(false);
     setIsLoggedIn(false);
@@ -755,7 +648,7 @@ export default function App() {
         return [...newlyAdded, ...updatedPrev];
       });
 
-      saveMultipleSubmissionsToFirestore(upsertedSubs);
+      mutateDatabaseApi('upsertSubmissions', upsertedSubs);
 
       if (!isDraft) {
         const newNotif: NotificationItem = {
@@ -817,8 +710,8 @@ export default function App() {
       return [newSub, ...prev];
     });
 
-    // Persist to Cloud Firestore
-    saveSubmissionToFirestore(newSub);
+    // Persist to PostgreSQL
+    mutateDatabaseApi('upsertSubmissions', [newSub]);
 
     if (!isDraft) {
       const newNotif: NotificationItem = {
@@ -898,7 +791,10 @@ export default function App() {
       };
 
       setAssignments((prev) => prev.map((a) => (a.id === assignmentId ? updatedAsg : a)));
-      await saveAssignmentToFirestore(updatedAsg);
+      await mutateDatabaseApi('updateAssignmentGroups', {
+        assignmentId,
+        groups: updatedAsg.groups,
+      });
 
       const existingOwnSub = pickBestSubmission(
         submissions.filter(
@@ -915,7 +811,7 @@ export default function App() {
           lastEditedByCode: studentCode,
         };
         setSubmissions((prev) => prev.map((s) => (s.id === updatedSub.id ? updatedSub : s)));
-        await saveSubmissionToFirestore(updatedSub);
+        await mutateDatabaseApi('upsertSubmissions', [updatedSub]);
       }
 
       showToast(`สร้างกลุ่ม "${cleanName}" เรียบร้อยแล้ว 👥`);
@@ -954,7 +850,10 @@ export default function App() {
         groups: nextGroups,
       };
       setAssignments((prev) => prev.map((a) => (a.id === assignmentId ? updatedAsg : a)));
-      await saveAssignmentToFirestore(updatedAsg);
+      await mutateDatabaseApi('updateAssignmentGroups', {
+        assignmentId,
+        groups: nextGroups,
+      });
 
       const latestGroupSub = pickLatestGroupSubmission(
         assignmentId,
@@ -1017,7 +916,7 @@ export default function App() {
             ? updated
             : [syncedOwnSub, ...updated];
         });
-        await saveMultipleSubmissionsToFirestore(batchSubs);
+        await mutateDatabaseApi('upsertSubmissions', batchSubs);
       }
 
       showToast(`เข้าร่วมกลุ่ม "${updatedTargetGroup.name}" เรียบร้อยแล้ว 👥`);
@@ -1031,7 +930,10 @@ export default function App() {
         groups: nextGroups,
       };
       setAssignments((prev) => prev.map((a) => (a.id === assignmentId ? updatedAsg : a)));
-      await saveAssignmentToFirestore(updatedAsg);
+      await mutateDatabaseApi('updateAssignmentGroups', {
+        assignmentId,
+        groups: nextGroups,
+      });
 
       const existingOwnSub = pickBestSubmission(
         submissions.filter(
@@ -1046,7 +948,7 @@ export default function App() {
           groupMemberCodes: [],
         };
         setSubmissions((prev) => prev.map((s) => (s.id === clearedSub.id ? clearedSub : s)));
-        await saveSubmissionToFirestore(clearedSub);
+        await mutateDatabaseApi('upsertSubmissions', [clearedSub]);
       }
 
       showToast('ออกจากกลุ่มเรียบร้อยแล้ว');
@@ -1166,9 +1068,9 @@ export default function App() {
       });
 
       if (updatedForFirestore.length > 0) {
-        saveMultipleSubmissionsToFirestore(updatedForFirestore);
+        mutateDatabaseApi('upsertSubmissions', updatedForFirestore);
       } else if (existingUpdated.length > 0) {
-        saveMultipleSubmissionsToFirestore(existingUpdated);
+        mutateDatabaseApi('upsertSubmissions', existingUpdated);
       }
 
       const newNotif: NotificationItem = {
@@ -1218,7 +1120,7 @@ export default function App() {
         gradedAt: nowIso,
         ...(aiGraded !== undefined ? { aiGraded } : {}),
       };
-      saveSubmissionToFirestore(updatedSub);
+      mutateDatabaseApi('upsertSubmissions', [updatedSub]);
     }
 
     if (targetAsg) {
@@ -1273,7 +1175,7 @@ export default function App() {
     );
 
     if (updatedForFirestore.length > 0) {
-      saveMultipleSubmissionsToFirestore(updatedForFirestore);
+      mutateDatabaseApi('upsertSubmissions', updatedForFirestore);
     }
 
     const firstAsg = assignments.find((a) => a.id === updatedForFirestore[0]?.assignmentId);
@@ -1352,7 +1254,7 @@ export default function App() {
       setSubmissions((prev) => [savedSubmission, ...prev]);
     }
 
-    saveSubmissionToFirestore(savedSubmission);
+    mutateDatabaseApi('upsertSubmissions', [savedSubmission]);
 
     const newNotif: NotificationItem = {
       id: `notif_${Date.now()}`,
@@ -1370,7 +1272,7 @@ export default function App() {
   // Create Assignment Handler
   const handleCreateAssignment = (newAsg: Assignment) => {
     setAssignments([newAsg, ...assignments]);
-    saveAssignmentToFirestore(newAsg);
+    mutateDatabaseApi('upsertAssignment', newAsg);
 
     const newNotif: NotificationItem = {
       id: `notif_${Date.now()}`,
@@ -1388,7 +1290,7 @@ export default function App() {
   // Update Assignment Handler for Teachers
   const handleUpdateAssignment = (updatedAsg: Assignment) => {
     setAssignments((prev) => prev.map((a) => (a.id === updatedAsg.id ? updatedAsg : a)));
-    saveAssignmentToFirestore(updatedAsg);
+    mutateDatabaseApi('upsertAssignment', updatedAsg);
     showToast(`แก้ไขและอัปเดตใบงาน "${updatedAsg.title}" เรียบร้อยแล้ว! ✏️`);
   };
 
@@ -1397,7 +1299,7 @@ export default function App() {
     const targetAsg = assignments.find((a) => a.id === assignmentId);
     setAssignments((prev) => prev.filter((a) => a.id !== assignmentId));
     setSubmissions((prev) => prev.filter((s) => s.assignmentId !== assignmentId));
-    deleteAssignmentFromFirestore(assignmentId);
+    mutateDatabaseApi('deleteAssignment', { id: assignmentId });
     showToast(`ลบใบงาน "${targetAsg?.title || ''}" ออกจากระบบเรียบร้อยแล้ว 🗑️`);
   };
 
@@ -1422,7 +1324,7 @@ export default function App() {
       prev.map((s) => upsertSubMap.get(s.id) || s)
     );
 
-    await batchMigrateWorksheetsAndSubmissions({
+    await mutateDatabaseApi('batchMigrate', {
       upsertAssignments: plan.upsertAssignments,
       deleteAssignmentIds: plan.deleteAssignmentIds,
       upsertSubmissions: plan.upsertSubmissions,
@@ -1445,13 +1347,13 @@ export default function App() {
       setResources([res, ...resources]);
       showToast(`เพิ่มสื่อการเรียนรู้ใหม่ "${res.title}" เรียบร้อยแล้ว! ✨`);
     }
-    saveResourceToFirestore(res);
+    mutateDatabaseApi('upsertResource', res);
   };
 
   const handleDeleteResource = (resId: string) => {
     const target = resources.find((r) => r.id === resId);
     setResources((prev) => prev.filter((r) => r.id !== resId));
-    deleteResourceFromFirestore(resId);
+    mutateDatabaseApi('deleteResource', { id: resId });
     showToast(`ลบสื่อการเรียนรู้ "${target?.title || ''}" เรียบร้อยแล้ว 🗑️`);
   };
 
@@ -1465,13 +1367,13 @@ export default function App() {
       setSubjectClassrooms((prev) => [cls, ...prev]);
       showToast(`สร้างห้องเรียนรายวิชา "${cls.courseCode} ${cls.title}" เรียบร้อยแล้ว ✨`);
     }
-    saveSubjectClassroomToFirestore(cls);
+    mutateDatabaseApi('upsertClassroom', cls);
   };
 
   const handleDeleteSubjectClassroom = (classroomId: string) => {
     const target = subjectClassrooms.find((c) => c.id === classroomId);
     setSubjectClassrooms((prev) => prev.filter((c) => c.id !== classroomId));
-    deleteSubjectClassroomFromFirestore(classroomId);
+    mutateDatabaseApi('deleteClassroom', { id: classroomId });
     showToast(`ลบห้องเรียน "${target ? `${target.courseCode} ${target.title}` : ''}" เรียบร้อยแล้ว 🗑️`);
   };
 
@@ -1482,7 +1384,7 @@ export default function App() {
       const newItems = classroomsList.filter((c) => !existingIds.has(c.id));
       return [...newItems, ...prev];
     });
-    await saveMultipleSubjectClassroomsToFirestore(classroomsList);
+    await mutateDatabaseApi('upsertClassroomsBatch', classroomsList);
     showToast(`บันทึกห้องเรียนรายวิชาทั้งหมด ${classroomsList.length} วิชาลงระบบเรียบร้อยแล้ว! 🏫`);
   };
 
@@ -1498,13 +1400,13 @@ export default function App() {
       setTeachingSchedules((prev) => [...prev, schedule]);
       showToast(`เพิ่มคาบสอนวิชา ${schedule.subject} (${schedule.gradeLevel}) ลงตารางสอนแล้ว ✨`);
     }
-    saveTeachingScheduleToFirestore(schedule);
+    mutateDatabaseApi('upsertSchedule', schedule);
   };
 
   const handleDeleteSchedule = (scheduleId: string) => {
     const target = teachingSchedules.find((s) => s.id === scheduleId);
     setTeachingSchedules((prev) => prev.filter((s) => s.id !== scheduleId));
-    deleteTeachingScheduleFromFirestore(scheduleId);
+    mutateDatabaseApi('deleteSchedule', { id: scheduleId });
     showToast(`ลบคาบสอน "${target?.subject || ''}" ออกจากตารางสอนแล้ว 🗑️`);
   };
 
@@ -1519,25 +1421,28 @@ export default function App() {
       setAttendanceSessions((prev) => [session, ...prev]);
       showToast(`บันทึกการเช็คชื่อวิชา ${session.subject} (${session.gradeLevel}) เรียบร้อยแล้ว 🎉`);
     }
-    saveAttendanceSessionToFirestore(session);
+    mutateDatabaseApi('upsertAttendance', session);
   };
 
   const handleDeleteAttendanceSession = (sessionId: string) => {
     setAttendanceSessions((prev) => prev.filter((s) => s.id !== sessionId));
-    deleteAttendanceSessionFromFirestore(sessionId);
+    mutateDatabaseApi('deleteAttendance', { id: sessionId });
     showToast('ลบบันทึกการเช็คชื่อเรียบร้อยแล้ว 🗑️');
   };
 
   const handleSavePeriodConfigs = (nextConfigs: PeriodConfig[]) => {
     setPeriodConfigs(nextConfigs);
-    savePeriodConfigsToFirestore(nextConfigs);
+    mutateDatabaseApi('updateSettings', { periodConfigs: nextConfigs });
     showToast('บันทึกการตั้งค่าคาบเรียนและคาบพักเที่ยงเรียบร้อยแล้ว ⏰');
   };
 
   const handleSaveGradebookVisibility = (nextEnabled: boolean, nextDisabledRooms: string[]) => {
     setStudentGradebookEnabled(nextEnabled);
     setGradebookDisabledRooms(nextDisabledRooms);
-    saveGradebookVisibilityToFirestore(nextEnabled, nextDisabledRooms);
+    mutateDatabaseApi('updateSettings', {
+      studentGradebookEnabled: nextEnabled,
+      gradebookDisabledRooms: nextDisabledRooms,
+    });
     showToast(
       nextEnabled
         ? 'อัปเดตสถานะ: เปิดสมุดคะแนนให้นักเรียนเข้าดูได้แล้ว 🔓'
@@ -1550,7 +1455,9 @@ export default function App() {
     if (!gradeLevelsList.includes(newGrade)) {
       const nextGrades = [...gradeLevelsList, newGrade];
       setGradeLevelsList(nextGrades);
-      saveSettingsToFirestore(nextGrades, subjectsList);
+      mutateDatabaseApi('updateSettings', {
+        gradeLevels: nextGrades.filter((g) => g && g !== 'ทั้งหมด'),
+      });
       showToast(`เพิ่มระดับชั้น "${newGrade}" สำเร็จ! 🎓`);
     }
   };
@@ -1558,7 +1465,9 @@ export default function App() {
   const handleRemoveGradeLevel = (gradeToRemove: string) => {
     const nextGrades = gradeLevelsList.filter((g) => g !== gradeToRemove);
     setGradeLevelsList(nextGrades);
-    saveSettingsToFirestore(nextGrades, subjectsList);
+    mutateDatabaseApi('updateSettings', {
+      gradeLevels: nextGrades.filter((g) => g && g !== 'ทั้งหมด'),
+    });
     showToast(`ลบระดับชั้น "${gradeToRemove}" เรียบร้อยแล้ว`);
   };
 
@@ -1566,7 +1475,9 @@ export default function App() {
     if (!subjectsList.includes(newSubject)) {
       const nextSubjects = [...subjectsList, newSubject];
       setSubjectsList(nextSubjects);
-      saveSettingsToFirestore(gradeLevelsList, nextSubjects);
+      mutateDatabaseApi('updateSettings', {
+        subjects: nextSubjects.filter((s) => s && s !== 'ทั้งหมด'),
+      });
       showToast(`เพิ่มรายวิชา "${newSubject}" สำเร็จ! 📚`);
     }
   };
@@ -1574,14 +1485,16 @@ export default function App() {
   const handleRemoveSubject = (subjectToRemove: string) => {
     const nextSubjects = subjectsList.filter((s) => s !== subjectToRemove);
     setSubjectsList(nextSubjects);
-    saveSettingsToFirestore(gradeLevelsList, nextSubjects);
+    mutateDatabaseApi('updateSettings', {
+      subjects: nextSubjects.filter((s) => s && s !== 'ทั้งหมด'),
+    });
     showToast(`ลบรายวิชา "${subjectToRemove}" เรียบร้อยแล้ว`);
   };
 
   // Student Management Handlers
   const handleAddStudent = (newStd: StudentProfile) => {
     setStudentsRoster((prev) => [newStd, ...prev]);
-    saveStudentToFirestore(newStd);
+    mutateDatabaseApi('upsertStudent', newStd);
     showToast(`เพิ่มบัญชีนักเรียน "${newStd.name}" (${newStd.code}) เรียบร้อยแล้ว! 👨‍🎓`);
   };
 
@@ -1590,11 +1503,9 @@ export default function App() {
 
     setStudentsRoster((prev) => {
       const rosterMap = new Map<string, StudentProfile>();
-      // Preserve existing order / data
       for (const std of prev) {
         rosterMap.set(std.code.toUpperCase(), std);
       }
-      // Insert or update from importedList
       for (const item of importedList) {
         const key = item.code.toUpperCase();
         const existing = rosterMap.get(key);
@@ -1611,27 +1522,27 @@ export default function App() {
       return Array.from(rosterMap.values());
     });
 
-    saveMultipleStudentsToFirestore(importedList);
+    mutateDatabaseApi('upsertStudentsBatch', importedList);
     showToast(`นำเข้าและอัปเดตผู้ใช้นักเรียนจาก Excel เรียบร้อยแล้ว ${importedList.length} รายการ! 📊`);
   };
 
   const handleUpdateStudent = (updatedStd: StudentProfile) => {
     setStudentsRoster((prev) => prev.map((s) => (s.id === updatedStd.id ? updatedStd : s)));
-    saveStudentToFirestore(updatedStd);
+    mutateDatabaseApi('upsertStudent', updatedStd);
     showToast(`อัปเดตข้อมูลนักเรียน "${updatedStd.name}" เรียบร้อยแล้ว`);
   };
 
   const handleDeleteStudent = (studentId: string) => {
     const target = studentsRoster.find((s) => s.id === studentId);
     setStudentsRoster((prev) => prev.filter((s) => s.id !== studentId));
-    deleteStudentFromFirestore(studentId);
+    mutateDatabaseApi('deleteStudent', { id: studentId });
     showToast(`ลบบัญชีนักเรียน "${target?.name || ''}" เรียบร้อยแล้ว`);
   };
 
   // Teacher CRUD Handlers
   const handleAddTeacher = (newTch: TeacherProfile) => {
     setTeachersRoster((prev) => [newTch, ...prev]);
-    saveTeacherToFirestore(newTch);
+    mutateDatabaseApi('upsertTeacher', newTch);
     showToast(`เพิ่มบัญชีครูผู้สอน "${newTch.name}" เรียบร้อยแล้ว 👨‍🏫`);
   };
 
@@ -1640,7 +1551,7 @@ export default function App() {
     if (currentTeacherUser.id === updatedTch.id) {
       setCurrentTeacherUser(updatedTch);
     }
-    saveTeacherToFirestore(updatedTch);
+    mutateDatabaseApi('upsertTeacher', updatedTch);
     showToast(`อัปเดตข้อมูลครูผู้สอน "${updatedTch.name}" เรียบร้อยแล้ว`);
   };
 
@@ -1652,45 +1563,183 @@ export default function App() {
     setSchoolCoverUrl(branding.schoolCoverUrl);
     setSchoolName(branding.schoolName);
     setSchoolSubtitle(branding.schoolSubtitle);
-    saveSchoolBrandingToFirestore(branding);
+    mutateDatabaseApi('updateSettings', branding);
     showToast('บันทึกรูปภาพโรงเรียนหน้าปกเรียบร้อยแล้ว');
   };
 
   const handleDeleteTeacher = (teacherId: string) => {
     const target = teachersRoster.find((t) => t.id === teacherId);
     setTeachersRoster((prev) => prev.filter((t) => t.id !== teacherId));
-    deleteTeacherFromFirestore(teacherId);
+    mutateDatabaseApi('deleteTeacher', { id: teacherId });
     showToast(`ลบบัญชีครูผู้สอน "${target?.name || ''}" เรียบร้อยแล้ว`);
   };
 
-  // Full Database Backup Import & Reset Handlers
-  const handleImportFullBackup = (data: {
-    assignments?: Assignment[];
-    submissions?: Submission[];
-    students?: StudentProfile[];
-    gradeLevels?: string[];
-    subjects?: string[];
-  }) => {
-    if (data.assignments && data.assignments.length > 0) {
-      setAssignments(data.assignments);
-    }
-    if (data.submissions && data.submissions.length > 0) {
-      setSubmissions(data.submissions);
-    }
-    if (data.students && data.students.length > 0) {
-      setStudentsRoster(data.students);
-    }
-    if (data.gradeLevels && data.gradeLevels.length > 0) {
-      setGradeLevelsList(data.gradeLevels);
-    }
-    if (data.subjects && data.subjects.length > 0) {
-      setSubjectsList(data.subjects);
-    }
-    showToast('กู้คืนข้อมูลสำรองของโรงเรียนเรียบร้อยแล้ว! 📦');
+  // PostgreSQL Backup Export, JSON Import & 1-Click Firestore/Cache Migration
+  const handleExportClassroomBackup = async () => {
+    const backupPayload = {
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      students: studentsRoster,
+      teachers: teachersRoster,
+      settings: {
+        gradeLevels: gradeLevelsList.filter((g) => g && g !== 'ทั้งหมด'),
+        subjects: subjectsList.filter((s) => s && s !== 'ทั้งหมด'),
+        periodConfigs,
+        studentGradebookEnabled,
+        gradebookDisabledRooms,
+        schoolCoverUrl,
+        schoolName,
+        schoolSubtitle,
+        themeColor: activeTheme,
+      },
+      assignments,
+      submissions,
+      resources,
+      teachingSchedules,
+      attendanceSessions,
+      subjectClassrooms,
+    };
+
+    const blob = new Blob([JSON.stringify(backupPayload, null, 2)], {
+      type: 'application/json;charset=utf-8',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const dateStamp = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.download = `edusheet-backup-${dateStamp}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showToast('ส่งออกไฟล์สำรองข้อมูลจาก PostgreSQL (.json) เรียบร้อยแล้ว 💾');
   };
 
+  const handleImportClassroomBackupFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setIsMigratingFromFirestore(true);
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      if (!parsed || typeof parsed !== 'object') {
+        showToast('ไฟล์สำรองข้อมูลไม่ถูกต้อง');
+        return;
+      }
+
+      const nextStudents = Array.isArray(parsed.students) ? parsed.students : studentsRoster;
+      const nextTeachers = Array.isArray(parsed.teachers) ? parsed.teachers : teachersRoster;
+      const nextAssignments = Array.isArray(parsed.assignments) ? parsed.assignments : assignments;
+      const nextSubmissions = Array.isArray(parsed.submissions) ? parsed.submissions : submissions;
+      const nextResources = Array.isArray(parsed.resources) ? parsed.resources : resources;
+      const nextSchedules = Array.isArray(parsed.teachingSchedules) ? parsed.teachingSchedules : teachingSchedules;
+      const nextAttendance = Array.isArray(parsed.attendanceSessions) ? parsed.attendanceSessions : attendanceSessions;
+      const nextClassrooms = Array.isArray(parsed.subjectClassrooms) ? parsed.subjectClassrooms : subjectClassrooms;
+
+      const importRes = await importDatasetToPostgres({
+        replaceAll: true,
+        students: nextStudents,
+        teachers: nextTeachers,
+        settings: parsed.settings,
+        assignments: nextAssignments,
+        submissions: nextSubmissions,
+        resources: nextResources,
+        teachingSchedules: nextSchedules,
+        attendanceSessions: nextAttendance,
+        subjectClassrooms: nextClassrooms,
+      });
+
+      if (!importRes.ok) {
+        showToast(importRes.error || 'ไม่สามารถนำเข้าข้อมูลลง PostgreSQL ได้');
+        return;
+      }
+
+      const refreshed = await fetchDatabaseBootstrap();
+      if (refreshed) {
+        applyPostgresBootstrap(refreshed);
+      }
+
+      showToast(
+        `นำเข้าไฟล์สำรองลง PostgreSQL สำเร็จ (นักเรียน ${nextStudents.length} คน · ใบงาน ${nextAssignments.length} เรื่อง) 📦`
+      );
+    } catch {
+      showToast('ไม่สามารถอ่านไฟล์สำรองข้อมูลได้ กรุณาตรวจสอบว่าเป็นไฟล์ .json ที่ถูกต้อง');
+    } finally {
+      setIsMigratingFromFirestore(false);
+    }
+  };
+
+  const handleMigrateFromFirestoreToPostgres = async () => {
+    if (role !== 'teacher' || isMigratingFromFirestore) return;
+    setIsMigratingFromFirestore(true);
+    try {
+      const exported = await exportAllFromFirestoreForMigration();
+      const totalFound =
+        exported.counts.students +
+        exported.counts.teachers +
+        exported.counts.assignments +
+        exported.counts.submissions +
+        exported.counts.resources +
+        exported.counts.teachingSchedules +
+        exported.counts.attendanceSessions +
+        exported.counts.subjectClassrooms;
+
+      let importedCount = 0;
+      if (totalFound > 0) {
+        const importRes = await importDatasetToPostgres({
+          replaceAll: false,
+          students: exported.data.students,
+          teachers: exported.data.teachers,
+          settings: exported.data.settings,
+          assignments: exported.data.assignments,
+          submissions: exported.data.submissions,
+          resources: exported.data.resources,
+          teachingSchedules: exported.data.teachingSchedules,
+          attendanceSessions: exported.data.attendanceSessions,
+          subjectClassrooms: exported.data.subjectClassrooms,
+        });
+        if (!importRes.ok) {
+          showToast(importRes.error || 'ย้ายข้อมูลเข้า PostgreSQL ไม่สำเร็จ');
+          return;
+        }
+        importedCount = totalFound;
+      }
+
+      const relayRes = await migrateRelayMirrorToPostgres();
+      const refreshed = await fetchDatabaseBootstrap();
+      if (refreshed) {
+        applyPostgresBootstrap(refreshed);
+      }
+
+      if (importedCount > 0) {
+        const sourceNote =
+          exported.source === 'server'
+            ? 'จาก Firestore และแคช'
+            : exported.source === 'partial'
+            ? 'บางส่วนจาก Firestore และแคชในเบราว์เซอร์'
+            : 'จากแคชในเบราว์เซอร์เครื่องนี้ (เนื่องจากโควต้า Firestore วันนี้เต็ม)';
+        showToast(
+          `ย้ายข้อมูล${sourceNote}เข้า PostgreSQL แล้ว (นักเรียน ${exported.counts.students} · ใบงาน ${exported.counts.assignments} · ส่งงาน ${exported.counts.submissions}) ✅`
+        );
+      } else if (relayRes.imported) {
+        showToast('กู้คืนข้อมูลจากแคชเซิร์ฟเวอร์เข้า PostgreSQL เรียบร้อยแล้ว ✅');
+      } else if (exported.quotaExceeded) {
+        showToast(
+          'Firestore ยังติดโควต้าประจำวัน (รีเซ็ต ~15:00 น.) และไม่พบแคชในเบราว์เซอร์นี้ — สามารถนำเข้าไฟล์ .json หรือกดย้ายใหม่หลัง 15:00 น. ได้เลย'
+        );
+      } else {
+        showToast('ไม่พบข้อมูลค้างอยู่ใน Firestore เดิมหรือแคชในเบราว์เซอร์นี้');
+      }
+    } finally {
+      setIsMigratingFromFirestore(false);
+    }
+  };
+
+  // Full Database Backup Import & Reset Handlers
   const handleResetFactoryData = async () => {
-    await clearDatabase();
+    await mutateDatabaseApi('clearAll');
     setAssignments([]);
     setSubmissions([]);
     setStudentsRoster([]);
@@ -1708,16 +1757,17 @@ export default function App() {
     applyPastelThemeToDom(DEFAULT_PASTEL_THEME);
     setCachedActiveTheme(DEFAULT_PASTEL_THEME);
     setNotifications([]);
+    setDbHasData(false);
     try {
       localStorage.removeItem('edusheet_grade_levels');
       localStorage.removeItem('edusheet_subjects');
       localStorage.removeItem('edusheet_period_configs');
     } catch (e) {}
-    showToast('ล้างข้อมูลทั้งหมดในฐานข้อมูลเรียบร้อยแล้ว 🔄');
+    showToast('ล้างข้อมูลทั้งหมดในฐานข้อมูล PostgreSQL เรียบร้อยแล้ว 🔄');
   };
 
   const handleResetKeepUsers = async () => {
-    await resetDataKeepUsers();
+    await mutateDatabaseApi('resetKeepUsers');
     setAssignments([]);
     setSubmissions([]);
     setResources([]);
@@ -1744,11 +1794,12 @@ export default function App() {
   const handleRestoreAllWorksheets = async () => {
     setAssignments(INITIAL_ASSIGNMENTS);
     setSubmissions(INITIAL_SUBMISSIONS);
-    for (const asg of INITIAL_ASSIGNMENTS) {
-      await saveAssignmentToFirestore(asg);
-    }
-    await saveMultipleSubmissionsToFirestore(INITIAL_SUBMISSIONS);
-    showToast('กู้คืนใบงานและข้อมูลทั้งหมดของโรงเรียนเรียบร้อยแล้ว! 📦✨');
+    await importDatasetToPostgres({
+      replaceAll: false,
+      assignments: INITIAL_ASSIGNMENTS,
+      submissions: INITIAL_SUBMISSIONS,
+    });
+    showToast('กู้คืนใบงานและข้อมูลตัวอย่างลง PostgreSQL เรียบร้อยแล้ว! 📦✨');
   };
 
   // Notifications read handler
@@ -2071,66 +2122,16 @@ export default function App() {
     <div className="relative min-h-screen bg-school-canvas text-slate-900 dark:text-slate-100 flex flex-col font-sarabun">
       <AmbientThemeBackdrop />
 
-      {/* Firestore Free Daily Quota Exceeded Banner */}
-      {quotaStatus.exceeded && !isQuotaBannerDismissed && (
-        <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-5 sm:max-w-lg z-[115] bg-amber-50 dark:bg-slate-900 border-2 border-amber-400 dark:border-amber-600 rounded-2xl p-4 shadow-2xl text-xs space-y-2.5 animate-in fade-in slide-in-from-bottom-4 duration-200">
-          <div className="flex items-start justify-between gap-2.5">
-            <div className="flex items-start gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5">
-                <Database className="w-4 h-4" />
-              </div>
-              <div>
-                <p className="font-bold font-prompt text-amber-950 dark:text-amber-200">
-                  โควต้าการอ่านฐานข้อมูล Firestore ฟรีรายวันเต็มแล้ว
-                </p>
-                <p className="text-amber-800 dark:text-amber-300/90 mt-0.5 leading-relaxed">
-                  ระบบกำลังแสดงข้อมูลจากแคชในเครื่องเท่าที่มีอยู่ โดยโควต้าจะรีเซ็ตใหม่ในวันถัดไป หรือสามารถอัปเกรดฐานข้อมูลได้ทันที
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsQuotaBannerDismissed(true)}
-              className="p-1 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer shrink-0"
-              aria-label="ปิดการแจ้งเตือนโควต้า"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+      {/* Hidden JSON Backup Restore File Input */}
+      <input
+        ref={backupFileInputRef}
+        type="file"
+        accept=".json,application/json"
+        className="hidden"
+        onChange={handleImportClassroomBackupFile}
+      />
 
-          <div className="flex flex-wrap items-center gap-2 pl-10">
-            <a
-              href={FIRESTORE_UPGRADE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold transition-colors"
-            >
-              <span>อัปเกรด / จัดการโควต้า</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-            <a
-              href={FIRESTORE_PRICING_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 hover:bg-amber-100/70 font-semibold transition-colors"
-            >
-              <span>ดูรายละเอียด Spark Plan</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-            <button
-              type="button"
-              onClick={() => {
-                clearQuotaStatus();
-                window.location.reload();
-              }}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-slate-800 font-semibold cursor-pointer"
-            >
-              <RefreshCw className="w-3 h-3" />
-              <span>ลองใหม่</span>
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Legacy Firestore quota banner removed — primary database is now unlimited PostgreSQL */}
 
       {/* 3-Zone Header Contract */}
       <Header
@@ -2269,6 +2270,73 @@ export default function App() {
                       >
                         ปิดแจ้งเตือน
                       </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Teacher Migration & Backup Bar (Firestore/Cache/JSON -> PostgreSQL) */}
+                {(!isMigrationBannerDismissed || !dbHasData) && (
+                  <div className="mb-5 p-4 bg-sky-50/90 dark:bg-sky-950/35 border border-sky-200 dark:border-sky-800/70 rounded-2xl flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-sky-600 text-white flex items-center justify-center shrink-0">
+                        <Database className="w-5 h-5" />
+                      </div>
+                      <div className="text-xs">
+                        <p className="font-bold text-sky-950 dark:text-sky-100">
+                          {dbHasData
+                            ? 'ระบบเชื่อมต่อฐานข้อมูลใหม่ (PostgreSQL ไม่จำกัดโควต้าอ่านรายวัน) แล้ว'
+                            : 'พร้อมนำเข้าข้อมูลจากระบบเดิมเข้า PostgreSQL'}
+                        </p>
+                        <p className="text-sky-800 dark:text-sky-300 mt-0.5 leading-relaxed">
+                          คุณสามารถกดย้ายรายชื่อนักเรียน ใบงาน งานที่ส่ง และข้อมูลทั้งหมดจาก Firestore เดิม (หรือแคชในเบราว์เซอร์เครื่องนี้ / ไฟล์ .json) เข้า PostgreSQL ได้ในคลิกเดียว
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={handleMigrateFromFirestoreToPostgres}
+                        disabled={isMigratingFromFirestore}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-sky-600 hover:bg-sky-700 disabled:opacity-60 text-white rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer transition-colors"
+                      >
+                        {isMigratingFromFirestore ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <ArrowRightLeft className="w-3.5 h-3.5" />
+                        )}
+                        <span>
+                          {isMigratingFromFirestore
+                            ? 'กำลังย้ายข้อมูล...'
+                            : 'ย้ายข้อมูลจาก Firestore เดิมเข้า PostgreSQL'}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => backupFileInputRef.current?.click()}
+                        disabled={isMigratingFromFirestore}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 border border-sky-300 dark:border-sky-700 text-sky-900 dark:text-sky-200 hover:bg-sky-100/70 rounded-xl text-xs font-semibold whitespace-nowrap cursor-pointer transition-colors"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>นำเข้าไฟล์ .json</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleExportClassroomBackup}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 rounded-xl text-xs font-semibold whitespace-nowrap cursor-pointer transition-colors"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>สำรองข้อมูล .json</span>
+                      </button>
+                      {dbHasData && (
+                        <button
+                          type="button"
+                          onClick={() => setIsMigrationBannerDismissed(true)}
+                          className="p-2 text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900/50 rounded-xl cursor-pointer"
+                          aria-label="ซ่อนแถบย้ายข้อมูล"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -2591,9 +2659,6 @@ export default function App() {
           onLoginSuccess={handleLoginSuccess}
           onClose={() => setIsLoginModalOpen(false)}
           isDismissable={isLoggedIn}
-          studentsList={studentsRoster}
-          teachersList={teachersRoster}
-          onRefreshRosters={handleRefreshAuthRosters}
           schoolCoverUrl={schoolCoverUrl}
           schoolName={schoolName}
           schoolSubtitle={schoolSubtitle}

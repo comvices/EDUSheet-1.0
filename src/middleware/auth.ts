@@ -1,0 +1,136 @@
+import crypto from 'crypto';
+import type { NextFunction, Request, Response } from 'express';
+import { adminAuth } from '../lib/firebase-admin.ts';
+import { getOrCreateUser } from '../db/users.ts';
+import {
+  findAccountByGoogleEmail,
+  type AuthenticatedSession,
+} from '../db/repository.ts';
+import type { UserRole } from '../types/index.ts';
+
+// Ephemeral CSPRNG fallback guarantees per-instance unpredictability if SESSION_SECRET is unset
+const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+
+export interface SessionTokenPayload extends AuthenticatedSession {
+  exp: number;
+}
+
+export function signSessionToken(payload: SessionTokenPayload): string {
+  const encoded = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+  const sig = crypto.createHmac('sha256', SESSION_SECRET).update(encoded).digest('base64url');
+  return `${encoded}.${sig}`;
+}
+
+export function verifySessionToken(token: string): SessionTokenPayload | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 2) return null;
+    const [encoded, sig] = parts;
+    const expectedSig = crypto.createHmac('sha256', SESSION_SECRET).update(encoded).digest('base64url');
+    const sigBuf = Buffer.from(sig, 'utf8');
+    const expBuf = Buffer.from(expectedSig, 'utf8');
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+      return null;
+    }
+    const decoded = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as SessionTokenPayload;
+    if (!decoded || typeof decoded.exp !== 'number' || Date.now() > decoded.exp) {
+      return null;
+    }
+    if (decoded.role !== 'teacher' && decoded.role !== 'student') {
+      return null;
+    }
+    return decoded;
+  } catch {
+    return null;
+  }
+}
+
+export async function authenticateGoogleIdToken(idToken: string) {
+  const decoded = await adminAuth.verifyIdToken(idToken);
+  const email = (decoded.email || '').trim();
+  const matched = await findAccountByGoogleEmail(email, decoded.name);
+  if (!matched) {
+    return {
+      ok: false as const,
+      status: 403,
+      message:
+        'อีเมล Google นี้ยังไม่ได้ลงทะเบียนในระบบครูหรือนักเรียน กรุณาติดต่อผู้ดูแลระบบเพื่อผูกอีเมล หรือเข้าสู่ระบบด้วยรหัสประจำตัว',
+    };
+  }
+
+  await getOrCreateUser(decoded.uid, email, matched.role, matched.linkedCode);
+
+  const token = signSessionToken({
+    role: matched.role,
+    userId: String(matched.user.id).slice(0, 128),
+    code: String(matched.linkedCode || matched.user.code || '').slice(0, 64),
+    uid: decoded.uid,
+    email,
+    exp: Date.now() + 12 * 60 * 60 * 1000,
+  });
+
+  return {
+    ok: true as const,
+    role: matched.role,
+    user: matched.user,
+    token,
+    session: {
+      role: matched.role,
+      userId: String(matched.user.id),
+      code: matched.linkedCode || matched.user.code,
+      uid: decoded.uid,
+      email,
+    },
+  };
+}
+
+export function requireAuth(allowedRoles: UserRole[] = ['teacher', 'student']) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+
+    if (!token) {
+      return res.status(401).json({
+        error: 'ไม่ได้รับอนุญาต',
+        message: 'เซสชันหมดอายุหรือยังไม่ได้เข้าสู่ระบบ กรุณาเข้าสู่ระบบใหม่อีกครั้ง',
+      });
+    }
+
+    const hmacSession = verifySessionToken(token);
+    if (hmacSession) {
+      if (!allowedRoles.includes(hmacSession.role)) {
+        return res.status(403).json({
+          error: 'ไม่มีสิทธิ์เข้าถึง',
+          message: 'เฉพาะครูผู้สอนเท่านั้นที่สามารถใช้งานฟีเจอร์นี้ได้',
+        });
+      }
+      (req as any).apiSession = hmacSession;
+      return next();
+    }
+
+    try {
+      const googleResult = await authenticateGoogleIdToken(token);
+      if (!googleResult.ok) {
+        return res.status(googleResult.status).json({
+          error: 'ไม่มีสิทธิ์เข้าถึง',
+          message: googleResult.message,
+        });
+      }
+
+      if (!allowedRoles.includes(googleResult.role)) {
+        return res.status(403).json({
+          error: 'ไม่มีสิทธิ์เข้าถึง',
+          message: 'เฉพาะครูผู้สอนเท่านั้นที่สามารถใช้งานฟีเจอร์นี้ได้',
+        });
+      }
+
+      (req as any).apiSession = googleResult.session;
+      return next();
+    } catch {
+      return res.status(401).json({
+        error: 'ไม่ได้รับอนุญาต',
+        message: 'เซสชันหมดอายุหรือยังไม่ได้เข้าสู่ระบบ กรุณาเข้าสู่ระบบใหม่อีกครั้ง',
+      });
+    }
+  };
+}

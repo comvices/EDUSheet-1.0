@@ -1334,3 +1334,234 @@ export async function deleteSubjectClassroomFromFirestore(classroomId: string): 
     handleFirestoreError(error, OperationType.DELETE, path);
   }
 }
+
+export async function pushAllClassroomDataToFirestore(payload: {
+  students?: StudentProfile[];
+  teachers?: TeacherProfile[];
+  settings?: AppSettingsPayload;
+  assignments?: Assignment[];
+  submissions?: Submission[];
+  resources?: LearningResource[];
+  teachingSchedules?: TeachingSchedule[];
+  attendanceSessions?: AttendanceSession[];
+  subjectClassrooms?: SubjectClassroom[];
+}): Promise<{ success: boolean; quotaExceeded: boolean; syncedCount: number }> {
+  let syncedCount = 0;
+
+  try {
+    type BatchWriteOp = { col: string; id: string; data: Record<string, unknown> };
+    const ops: BatchWriteOp[] = [];
+
+    if (payload.settings) {
+      ops.push({
+        col: SETTINGS_COLLECTION,
+        id: MAIN_SETTINGS_DOC,
+        data: {
+          id: MAIN_SETTINGS_DOC,
+          ...payload.settings,
+        },
+      });
+    }
+    (payload.teachers || []).forEach((t) => {
+      if (t?.id) ops.push({ col: TEACHERS_COLLECTION, id: t.id, data: t as unknown as Record<string, unknown> });
+    });
+    (payload.students || []).forEach((s) => {
+      if (s?.id) ops.push({ col: STUDENTS_COLLECTION, id: s.id, data: s as unknown as Record<string, unknown> });
+    });
+    (payload.assignments || []).forEach((a) => {
+      if (a?.id) ops.push({ col: ASSIGNMENTS_COLLECTION, id: a.id, data: a as unknown as Record<string, unknown> });
+    });
+    (payload.submissions || []).forEach((s) => {
+      if (s?.id) ops.push({ col: SUBMISSIONS_COLLECTION, id: s.id, data: s as unknown as Record<string, unknown> });
+    });
+    (payload.resources || []).forEach((r) => {
+      if (r?.id) ops.push({ col: RESOURCES_COLLECTION, id: r.id, data: r as unknown as Record<string, unknown> });
+    });
+    (payload.teachingSchedules || []).forEach((s) => {
+      if (s?.id) ops.push({ col: TEACHING_SCHEDULES_COLLECTION, id: s.id, data: s as unknown as Record<string, unknown> });
+    });
+    (payload.attendanceSessions || []).forEach((a) => {
+      if (a?.id) ops.push({ col: ATTENDANCE_SESSIONS_COLLECTION, id: a.id, data: a as unknown as Record<string, unknown> });
+    });
+    (payload.subjectClassrooms || []).forEach((c) => {
+      if (c?.id) ops.push({ col: SUBJECT_CLASSROOMS_COLLECTION, id: c.id, data: c as unknown as Record<string, unknown> });
+    });
+
+    const CHUNK_SIZE = 400;
+    for (let i = 0; i < ops.length; i += CHUNK_SIZE) {
+      const batch = writeBatch(db);
+      const chunk = ops.slice(i, i + CHUNK_SIZE);
+      for (const op of chunk) {
+        batch.set(doc(db, op.col, op.id), sanitizeForFirestore(op.data), { merge: true });
+      }
+      await batch.commit();
+      syncedCount += chunk.length;
+    }
+
+    clearQuotaStatus();
+    clearAllSyncTimestamps();
+    return { success: true, quotaExceeded: false, syncedCount };
+  } catch (error) {
+    const quotaHit = isQuotaExceededError(error);
+    handleFirestoreError(error, OperationType.WRITE, 'batch_restore_all');
+    return { success: false, quotaExceeded: quotaHit, syncedCount };
+  }
+}
+
+export interface FirestoreMigrationExportResult {
+  data: {
+    students: StudentProfile[];
+    teachers: TeacherProfile[];
+    settings: AppSettingsPayload;
+    assignments: Assignment[];
+    submissions: Submission[];
+    resources: LearningResource[];
+    teachingSchedules: TeachingSchedule[];
+    attendanceSessions: AttendanceSession[];
+    subjectClassrooms: SubjectClassroom[];
+  };
+  counts: {
+    students: number;
+    teachers: number;
+    assignments: number;
+    submissions: number;
+    resources: number;
+    teachingSchedules: number;
+    attendanceSessions: number;
+    subjectClassrooms: number;
+  };
+  source: 'server' | 'cache' | 'partial';
+  quotaExceeded: boolean;
+}
+
+export async function exportAllFromFirestoreForMigration(): Promise<FirestoreMigrationExportResult> {
+  const mergeById = <T extends { id?: string }>(cached: T[], server: T[]): T[] => {
+    const map = new Map<string, T>();
+    for (const item of cached) {
+      if (item?.id) map.set(String(item.id), item);
+    }
+    for (const item of server) {
+      if (item?.id) map.set(String(item.id), item);
+    }
+    return Array.from(map.values());
+  };
+
+  let quotaExceeded = false;
+  let anyServerSuccess = false;
+  let anyServerFailure = false;
+
+  const readCollectionForMigration = async <T extends { id?: string }>(
+    colName: string,
+    sorter?: (list: T[]) => T[]
+  ): Promise<T[]> => {
+    let cached: T[] = [];
+    try {
+      const cacheSnap = await getDocsFromCache(collection(db, colName));
+      cacheSnap.forEach((docSnap) => {
+        const d = docSnap.data() as T;
+        if (d) cached.push({ ...d, id: d.id || docSnap.id });
+      });
+    } catch {
+      // Ignore cache miss
+    }
+
+    let server: T[] = [];
+    if (!quotaExceeded) {
+      try {
+        const serverSnap = await getDocsFromServer(collection(db, colName));
+        serverSnap.forEach((docSnap) => {
+          const d = docSnap.data() as T;
+          if (d) server.push({ ...d, id: d.id || docSnap.id });
+        });
+        anyServerSuccess = true;
+      } catch (err) {
+        anyServerFailure = true;
+        if (isQuotaExceededError(err)) {
+          quotaExceeded = true;
+        }
+      }
+    } else {
+      anyServerFailure = true;
+    }
+
+    const combined = mergeById(cached, server);
+    return sorter ? sorter(combined) : combined;
+  };
+
+  let settings: AppSettingsPayload = parseSettingsPayload(null);
+  try {
+    const cachedSettings = await getDocFromCache(doc(db, SETTINGS_COLLECTION, MAIN_SETTINGS_DOC));
+    if (cachedSettings.exists()) {
+      settings = parseSettingsPayload(cachedSettings.data());
+    }
+  } catch {
+    // Ignore cache miss
+  }
+
+  try {
+    const serverSettings = await getDocFromServer(doc(db, SETTINGS_COLLECTION, MAIN_SETTINGS_DOC));
+    if (serverSettings.exists()) {
+      settings = parseSettingsPayload(serverSettings.data());
+    }
+    anyServerSuccess = true;
+  } catch (err) {
+    anyServerFailure = true;
+    if (isQuotaExceededError(err)) {
+      quotaExceeded = true;
+    }
+  }
+
+  const [
+    students,
+    teachers,
+    assignments,
+    submissions,
+    resources,
+    teachingSchedules,
+    attendanceSessions,
+    subjectClassrooms,
+  ] = await Promise.all([
+    readCollectionForMigration<StudentProfile>(STUDENTS_COLLECTION),
+    readCollectionForMigration<TeacherProfile>(TEACHERS_COLLECTION),
+    readCollectionForMigration<Assignment>(ASSIGNMENTS_COLLECTION, sortAssignments),
+    readCollectionForMigration<Submission>(SUBMISSIONS_COLLECTION, sortSubmissions),
+    readCollectionForMigration<LearningResource>(RESOURCES_COLLECTION, sortResources),
+    readCollectionForMigration<TeachingSchedule>(TEACHING_SCHEDULES_COLLECTION, sortTeachingSchedules),
+    readCollectionForMigration<AttendanceSession>(ATTENDANCE_SESSIONS_COLLECTION, sortAttendanceSessions),
+    readCollectionForMigration<SubjectClassroom>(SUBJECT_CLASSROOMS_COLLECTION, sortSubjectClassrooms),
+  ]);
+
+  const source: FirestoreMigrationExportResult['source'] = anyServerSuccess
+    ? anyServerFailure
+      ? 'partial'
+      : 'server'
+    : 'cache';
+
+  return {
+    data: {
+      students,
+      teachers,
+      settings,
+      assignments,
+      submissions,
+      resources,
+      teachingSchedules,
+      attendanceSessions,
+      subjectClassrooms,
+    },
+    counts: {
+      students: students.length,
+      teachers: teachers.length,
+      assignments: assignments.length,
+      submissions: submissions.length,
+      resources: resources.length,
+      teachingSchedules: teachingSchedules.length,
+      attendanceSessions: attendanceSessions.length,
+      subjectClassrooms: subjectClassrooms.length,
+    },
+    source,
+    quotaExceeded,
+  };
+}
+
+

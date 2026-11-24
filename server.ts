@@ -3,7 +3,21 @@ import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, ThinkingLevel, Type } from '@google/genai';
 import dotenv from 'dotenv';
 import path from 'path';
-import crypto from 'crypto';
+import fs from 'fs';
+import {
+  authenticateGoogleIdToken,
+  requireAuth,
+  signSessionToken,
+  type SessionTokenPayload,
+} from './src/middleware/auth.ts';
+import {
+  getPublicSchoolConfig,
+  getStudentDataset,
+  getTeacherDataset,
+  importFullDataset,
+  mutateDatabase,
+  verifyLoginCredentials,
+} from './src/db/repository.ts';
 
 dotenv.config();
 
@@ -11,6 +25,8 @@ const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 app.disable('x-powered-by');
+app.use('/api/db/import', express.json({ limit: '25mb' }));
+app.use('/api/db/mutate', express.json({ limit: '25mb' }));
 app.use(express.json({ limit: '5mb' }));
 
 // Security Headers Middleware (safe for AI Studio iframe preview)
@@ -22,46 +38,6 @@ app.use((_req, res, next) => {
   res.setHeader('X-XSS-Protection', '0');
   next();
 });
-
-// Ephemeral CSPRNG fallback guarantees per-instance unpredictability if SESSION_SECRET is unset
-const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
-
-interface SessionTokenPayload {
-  role: 'teacher' | 'student';
-  userId: string;
-  code: string;
-  exp: number;
-}
-
-function signSessionToken(payload: SessionTokenPayload): string {
-  const encoded = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
-  const sig = crypto.createHmac('sha256', SESSION_SECRET).update(encoded).digest('base64url');
-  return `${encoded}.${sig}`;
-}
-
-function verifySessionToken(token: string): SessionTokenPayload | null {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 2) return null;
-    const [encoded, sig] = parts;
-    const expectedSig = crypto.createHmac('sha256', SESSION_SECRET).update(encoded).digest('base64url');
-    const sigBuf = Buffer.from(sig, 'utf8');
-    const expBuf = Buffer.from(expectedSig, 'utf8');
-    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
-      return null;
-    }
-    const decoded = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as SessionTokenPayload;
-    if (!decoded || typeof decoded.exp !== 'number' || Date.now() > decoded.exp) {
-      return null;
-    }
-    if (decoded.role !== 'teacher' && decoded.role !== 'student') {
-      return null;
-    }
-    return decoded;
-  } catch {
-    return null;
-  }
-}
 
 // Sliding-Window In-Memory Rate Limiter
 function createRateLimiter(options: { windowMs: number; maxRequests: number; message: string }) {
@@ -109,47 +85,7 @@ const aiApiLimiter = createRateLimiter({
   message: 'เรียกใช้งานระบบ AI ถี่เกินกำหนดชั่วคราว กรุณารอสักครู่แล้วลองใหม่อีกครั้ง',
 });
 
-function requireApiSession(allowedRoles: Array<'teacher' | 'student'>) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-    const session = token ? verifySessionToken(token) : null;
-
-    if (!session) {
-      return res.status(401).json({
-        error: 'ไม่ได้รับอนุญาต',
-        message: 'เซสชันหมดอายุหรือยังไม่ได้เข้าสู่ระบบ กรุณาเข้าสู่ระบบใหม่อีกครั้ง',
-      });
-    }
-
-    if (!allowedRoles.includes(session.role)) {
-      return res.status(403).json({
-        error: 'ไม่มีสิทธิ์เข้าถึง',
-        message: 'เฉพาะครูผู้สอนเท่านั้นที่สามารถใช้งานฟีเจอร์นี้ได้',
-      });
-    }
-
-    (req as any).apiSession = session;
-    next();
-  };
-}
-
-// Issue HMAC-signed session token after client login
-app.post('/api/auth/session', authSessionLimiter, (req, res) => {
-  const { role, userId, code } = req.body || {};
-  if ((role !== 'teacher' && role !== 'student') || typeof userId !== 'string' || !userId.trim()) {
-    return res.status(400).json({ error: 'ข้อมูลเซสชันไม่ถูกต้อง' });
-  }
-
-  const token = signSessionToken({
-    role,
-    userId: userId.slice(0, 128),
-    code: typeof code === 'string' ? code.slice(0, 64) : '',
-    exp: Date.now() + 12 * 60 * 60 * 1000, // 12 hours
-  });
-
-  return res.json({ success: true, token });
-});
+// Authenticated endpoints below handle login & session verification via PostgreSQL / Firebase Auth.
 
 // Shared Gemini client factory
 function getAiClient(): GoogleGenAI {
@@ -499,7 +435,7 @@ function finalizeGradedResult(
 }
 
 // API Route: AI Auto-Grading & Draft Feedback for Single Submission
-app.post('/api/ai/grade', aiApiLimiter, requireApiSession(['teacher']), async (req, res) => {
+app.post('/api/ai/grade', aiApiLimiter, requireAuth(['teacher']), async (req, res) => {
   try {
     const {
       assignmentTitle,
@@ -621,7 +557,7 @@ ${JSON.stringify(compactPayload)}`;
 });
 
 // API Route: Single-Call Multi-Student Batch AI Auto-Grading
-app.post('/api/ai/grade-batch', aiApiLimiter, requireApiSession(['teacher']), async (req, res) => {
+app.post('/api/ai/grade-batch', aiApiLimiter, requireAuth(['teacher']), async (req, res) => {
   try {
     const {
       assignmentTitle,
@@ -782,7 +718,7 @@ ${JSON.stringify(studentAnswersBatch)}
 });
 
 // API Route: AI Worksheet Generator for Teachers
-app.post('/api/ai/generate-worksheet', aiApiLimiter, requireApiSession(['teacher']), async (req, res) => {
+app.post('/api/ai/generate-worksheet', aiApiLimiter, requireAuth(['teacher']), async (req, res) => {
   try {
     const { subject, gradeLevel, topic, numberOfQuestions = 4, sectionsPlan } = req.body;
     const cleanTopic = String(topic || '').trim().slice(0, 200);
@@ -953,7 +889,7 @@ app.post('/api/ai/generate-worksheet', aiApiLimiter, requireApiSession(['teacher
 });
 
 // API Route: AI Student Hint / Learning Assistant
-app.post('/api/ai/hint', aiApiLimiter, requireApiSession(['teacher', 'student']), async (req, res) => {
+app.post('/api/ai/hint', aiApiLimiter, requireAuth(['teacher', 'student']), async (req, res) => {
   try {
     const { assignmentTitle, questionText, studentQuery } = req.body;
     const safeTitle = String(assignmentTitle || '').slice(0, 200);
@@ -989,6 +925,161 @@ app.post('/api/ai/hint', aiApiLimiter, requireApiSession(['teacher', 'student'])
     });
   }
 });
+
+// ============================================================================
+// PostgreSQL (Cloud SQL) Primary Database API Routes
+// ============================================================================
+const LEGACY_MIRROR_FILE_PATH = '/tmp/edusheet_classroom_mirror.json';
+
+app.get('/api/db/public-config', async (_req, res) => {
+  try {
+    const config = await getPublicSchoolConfig();
+    return res.json({ success: true, ...config });
+  } catch (err) {
+    console.error('Error loading public school config:', err);
+    return res.status(500).json({ error: 'ไม่สามารถโหลดการตั้งค่าโรงเรียนจากฐานข้อมูลได้' });
+  }
+});
+
+app.post('/api/db/login', authSessionLimiter, async (req, res) => {
+  try {
+    const { role, code, password } = req.body || {};
+    const rawCode = String(code ?? '').trim();
+    const rawPassword = String(password ?? '');
+
+    if (!rawCode || (role !== 'student' && role !== 'teacher')) {
+      return res.status(400).json({ error: 'กรุณากรอกรหัสประจำตัวและเลือกบทบาทให้ครบถ้วน' });
+    }
+
+    const result = await verifyLoginCredentials(role, rawCode, rawPassword);
+    if (!result.ok) {
+      const status = result.reason === 'INVALID_PASSWORD' ? 401 : 404;
+      return res.status(status).json({ error: result.reason });
+    }
+
+    const token = signSessionToken({
+      role: result.role,
+      userId: String(result.user.id).slice(0, 128),
+      code: String(result.user.code || '').slice(0, 64),
+      exp: Date.now() + 12 * 60 * 60 * 1000,
+    });
+
+    return res.json({
+      success: true,
+      role: result.role,
+      user: result.user,
+      token,
+      ...(result.isDefaultAdminFallback ? { isDefaultAdminFallback: true } : {}),
+    });
+  } catch (err) {
+    console.error('PostgreSQL login error:', err);
+    return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการตรวจสอบข้อมูลเข้าสู่ระบบ' });
+  }
+});
+
+app.post('/api/db/auth/google', authSessionLimiter, async (req, res) => {
+  try {
+    const idToken = typeof req.body?.idToken === 'string' ? req.body.idToken.trim() : '';
+    if (!idToken) {
+      return res.status(400).json({ error: 'ไม่พบข้อมูลยืนยันตัวตนจาก Google' });
+    }
+
+    const result = await authenticateGoogleIdToken(idToken);
+    if (!result.ok) {
+      return res.status(result.status).json({
+        error: 'GOOGLE_ACCOUNT_NOT_LINKED',
+        message: result.message,
+      });
+    }
+
+    return res.json({
+      success: true,
+      role: result.role,
+      user: result.user,
+      token: result.token,
+    });
+  } catch (err) {
+    console.error('Google authentication verification error:', err);
+    return res.status(401).json({
+      error: 'GOOGLE_AUTH_INVALID',
+      message: 'ไม่สามารถยืนยันบัญชี Google ได้ กรุณาลองใหม่อีกครั้ง',
+    });
+  }
+});
+
+app.get('/api/db/bootstrap', requireAuth(['teacher', 'student']), async (req, res) => {
+  try {
+    const session = (req as any).apiSession as SessionTokenPayload;
+    const data =
+      session.role === 'teacher'
+        ? await getTeacherDataset()
+        : await getStudentDataset(session.code, session.userId);
+
+    return res.json({
+      success: true,
+      data,
+    });
+  } catch (err) {
+    console.error('PostgreSQL bootstrap error:', err);
+    return res.status(500).json({ error: 'ไม่สามารถโหลดข้อมูลห้องเรียนจาก PostgreSQL ได้' });
+  }
+});
+
+app.post('/api/db/mutate', requireAuth(['teacher', 'student']), async (req, res) => {
+  try {
+    const session = (req as any).apiSession as SessionTokenPayload;
+    const { op, payload } = req.body || {};
+    if (typeof op !== 'string' || !op.trim()) {
+      return res.status(400).json({ error: 'คำสั่งอัปเดตฐานข้อมูลไม่ถูกต้อง' });
+    }
+
+    const result = await mutateDatabase(session, op.trim(), payload);
+    if (result.status !== 200) {
+      return res.status(result.status).json({ error: result.error || 'ไม่สามารถดำเนินการได้' });
+    }
+
+    return res.json({ success: true, updatedAt: new Date().toISOString() });
+  } catch (err) {
+    console.error('PostgreSQL mutate error:', err);
+    return res.status(500).json({ error: 'ไม่สามารถบันทึกข้อมูลลง PostgreSQL ได้' });
+  }
+});
+
+app.post('/api/db/import', requireAuth(['teacher']), async (req, res) => {
+  try {
+    const body = req.body || {};
+    const replaceAll = Boolean(body.replaceAll);
+    const counts = await importFullDataset(body, replaceAll);
+    return res.json({ success: true, counts });
+  } catch (err) {
+    console.error('PostgreSQL import error:', err);
+    return res.status(500).json({ error: 'ไม่สามารถนำเข้าข้อมูลเข้า PostgreSQL ได้' });
+  }
+});
+
+app.post('/api/db/migrate-relay', requireAuth(['teacher']), async (_req, res) => {
+  try {
+    if (!fs.existsSync(LEGACY_MIRROR_FILE_PATH)) {
+      return res.json({ success: true, imported: false, message: 'ไม่พบข้อมูลชั่วคราวในเครื่องเซิร์ฟเวอร์' });
+    }
+    const raw = fs.readFileSync(LEGACY_MIRROR_FILE_PATH, 'utf8');
+    const parsed = JSON.parse(raw);
+    const hasRecords =
+      (Array.isArray(parsed?.students) && parsed.students.length > 0) ||
+      (Array.isArray(parsed?.teachers) && parsed.teachers.length > 0) ||
+      (Array.isArray(parsed?.assignments) && parsed.assignments.length > 0) ||
+      (Array.isArray(parsed?.submissions) && parsed.submissions.length > 0);
+    if (!hasRecords) {
+      return res.json({ success: true, imported: false, message: 'ข้อมูลชั่วคราวว่างเปล่า' });
+    }
+    const counts = await importFullDataset(parsed, false);
+    return res.json({ success: true, imported: true, counts });
+  } catch (err) {
+    console.error('PostgreSQL relay migration error:', err);
+    return res.status(500).json({ error: 'ไม่สามารถดึงข้อมูลจากแคชเซิร์ฟเวอร์เข้า PostgreSQL ได้' });
+  }
+});
+
 
 // Setup Vite middleware in dev mode
 async function startServer() {
