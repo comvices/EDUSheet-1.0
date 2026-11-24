@@ -91,16 +91,111 @@ export async function authenticateGoogleIdToken(idToken: string) {
   };
 }
 
+export const EDUSHEET_SESSION_COOKIE = 'edusheet_session';
+
+export function parseSessionCookie(req: Request): string {
+  const raw = req.headers.cookie || '';
+  if (!raw) return '';
+  for (const part of raw.split(';')) {
+    const eqIdx = part.indexOf('=');
+    if (eqIdx <= 0) continue;
+    const name = part.slice(0, eqIdx).trim();
+    if (name === EDUSHEET_SESSION_COOKIE) {
+      try {
+        return decodeURIComponent(part.slice(eqIdx + 1).trim());
+      } catch {
+        return '';
+      }
+    }
+  }
+  return '';
+}
+
+function isHttpsRequest(req: Request): boolean {
+  const forwardedProto = String(req.headers['x-forwarded-proto'] || '')
+    .split(',')[0]
+    .trim()
+    .toLowerCase();
+  const origin = String(req.headers.origin || '').toLowerCase();
+  const referer = String(req.headers.referer || '').toLowerCase();
+  return (
+    req.secure ||
+    forwardedProto === 'https' ||
+    origin.startsWith('https://') ||
+    referer.startsWith('https://')
+  );
+}
+
+/**
+ * Sets an HttpOnly browser-session cookie (no Max-Age / Expires):
+ * - Survives page refreshes automatically
+ * - Automatically cleared by the browser when the browser is closed
+ * - Explicitly cleared by POST /api/db/logout
+ */
+export function setSessionCookie(req: Request, res: Response, token: string): void {
+  const secureAttrs = isHttpsRequest(req)
+    ? 'Secure; SameSite=None; Partitioned'
+    : 'SameSite=Lax';
+  res.setHeader(
+    'Set-Cookie',
+    `${EDUSHEET_SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; ${secureAttrs}`
+  );
+}
+
+export function clearSessionCookie(req: Request, res: Response): void {
+  const secureAttrs = isHttpsRequest(req)
+    ? 'Secure; SameSite=None; Partitioned'
+    : 'SameSite=Lax';
+  res.setHeader(
+    'Set-Cookie',
+    `${EDUSHEET_SESSION_COOKIE}=; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; ${secureAttrs}`
+  );
+}
+
+export function hasValidOriginOrCsrfHeader(req: Request): boolean {
+  const xRequestedWith = String(req.headers['x-requested-with'] || '');
+  if (xRequestedWith === 'XMLHttpRequest') return true;
+
+  const origin = String(req.headers.origin || '').trim();
+  if (!origin) return false;
+  try {
+    const originHost = new URL(origin).host.toLowerCase();
+    const forwardedHost = String(req.headers['x-forwarded-host'] || '')
+      .split(',')[0]
+      .trim()
+      .toLowerCase();
+    const host = String(req.headers.host || '')
+      .split(',')[0]
+      .trim()
+      .toLowerCase();
+    return Boolean(originHost) && (originHost === forwardedHost || originHost === host);
+  } catch {
+    return false;
+  }
+}
+
 export function requireAuth(allowedRoles: UserRole[] = ['teacher', 'student']) {
   return async (req: Request, res: Response, next: NextFunction) => {
     const authHeader = req.headers.authorization || '';
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+    const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+    const cookieToken = !bearerToken ? parseSessionCookie(req) : '';
+    const token = bearerToken || cookieToken;
 
     if (!token) {
       return res.status(401).json({
         error: 'ไม่ได้รับอนุญาต',
         message: 'เซสชันหมดอายุหรือยังไม่ได้เข้าสู่ระบบ กรุณาเข้าสู่ระบบใหม่อีกครั้ง',
       });
+    }
+
+    // If authenticating solely via cookie on a state-changing method, verify Origin or custom header
+    if (!bearerToken && cookieToken && req.method !== 'GET' && req.method !== 'HEAD') {
+      if (!hasValidOriginOrCsrfHeader(req)) {
+        return res.status(403).json({
+          error: 'ไม่ได้รับอนุญาต',
+          message: 'คำขอไม่ผ่านการตรวจสอบแหล่งที่มา (Origin verification failed)',
+        });
+      }
     }
 
     const hmacSession = verifySessionToken(token);

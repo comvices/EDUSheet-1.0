@@ -1,5 +1,3 @@
-import { signInWithPopup, signOut } from 'firebase/auth';
-import { auth, googleAuthProvider } from '../lib/firebase';
 import { getAuthHeaders, getApiSessionToken } from '../utils/security';
 import type {
   Assignment,
@@ -60,7 +58,10 @@ export interface DatabaseBootstrapPayload {
 
 export async function fetchPublicSchoolConfig(): Promise<PublicSchoolConfig | null> {
   try {
-    const res = await fetch('/api/db/public-config');
+    const res = await fetch('/api/db/public-config', {
+      cache: 'no-store',
+      credentials: 'include',
+    });
     if (!res.ok) return null;
     const json = await res.json();
     if (!json?.success) return null;
@@ -105,6 +106,58 @@ export type DbLoginResult =
       message?: string;
     };
 
+export type SessionRestoreResult =
+  | {
+      authenticated: true;
+      role: UserRole;
+      user: StudentProfile | TeacherProfile;
+      token: string;
+      isDefaultAdminFallback?: boolean;
+    }
+  | {
+      authenticated: false;
+    };
+
+export async function restoreDbSession(): Promise<SessionRestoreResult> {
+  try {
+    const res = await fetch('/api/db/session', {
+      method: 'GET',
+      cache: 'no-store',
+      credentials: 'include',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    });
+    if (!res.ok) return { authenticated: false };
+    const data = await res.json().catch(() => null);
+    if (data?.authenticated && data?.user && data?.token && (data.role === 'teacher' || data.role === 'student')) {
+      return {
+        authenticated: true,
+        role: data.role,
+        user: data.user,
+        token: data.token,
+        isDefaultAdminFallback: Boolean(data.isDefaultAdminFallback),
+      };
+    }
+    return { authenticated: false };
+  } catch {
+    return { authenticated: false };
+  }
+}
+
+export async function logoutFromServer(): Promise<void> {
+  try {
+    await fetch('/api/db/logout', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+    });
+  } catch {
+    // Ignore network errors during logout cleanup
+  }
+}
+
 export async function loginWithCredentials(
   role: UserRole,
   code: string,
@@ -113,7 +166,11 @@ export async function loginWithCredentials(
   try {
     const res = await fetch('/api/db/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
       body: JSON.stringify({ role, code, password }),
     });
     const data = await res.json().catch(() => ({}));
@@ -140,71 +197,13 @@ export async function loginWithCredentials(
   }
 }
 
-export type GoogleSignInResult =
-  | {
-      ok: true;
-      role: UserRole;
-      user: StudentProfile | TeacherProfile;
-      token: string;
-    }
-  | {
-      ok: false;
-      cancelled?: boolean;
-      message: string;
-    };
-
-export async function loginWithGooglePopup(): Promise<GoogleSignInResult> {
-  try {
-    const credential = await signInWithPopup(auth, googleAuthProvider);
-    const idToken = await credential.user.getIdToken();
-    const res = await fetch('/api/db/auth/google', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (res.ok && data?.success && data?.user && data?.token) {
-      return {
-        ok: true,
-        role: data.role,
-        user: data.user,
-        token: data.token,
-      };
-    }
-    await signOut(auth).catch(() => {});
-    return {
-      ok: false,
-      message:
-        data?.message ||
-        'อีเมล Google นี้ยังไม่ได้ลงทะเบียนในระบบ กรุณาติดต่อผู้ดูแลระบบหรือเข้าสู่ระบบด้วยรหัสประจำตัว',
-    };
-  } catch (err: unknown) {
-    const code = (err as { code?: string } | null)?.code || '';
-    if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
-      return { ok: false, cancelled: true, message: '' };
-    }
-    return {
-      ok: false,
-      message: 'ไม่สามารถเข้าสู่ระบบด้วย Google ได้ในขณะนี้ กรุณาลองใหม่หรือใช้รหัสประจำตัว',
-    };
-  }
-}
-
-export async function signOutGoogleIfActive(): Promise<void> {
-  try {
-    if (auth.currentUser) {
-      await signOut(auth);
-    }
-  } catch {
-    // Ignore sign-out errors
-  }
-}
-
 export async function fetchDatabaseBootstrap(): Promise<DatabaseBootstrapPayload | null> {
   if (!getApiSessionToken()) return null;
   try {
     const res = await fetch('/api/db/bootstrap', {
       method: 'GET',
+      cache: 'no-store',
+      credentials: 'include',
       headers: getAuthHeaders(),
     });
     if (!res.ok) return null;
@@ -218,21 +217,28 @@ export async function fetchDatabaseBootstrap(): Promise<DatabaseBootstrapPayload
 export async function mutateDatabaseApi(
   op: string,
   payload?: unknown
-): Promise<{ ok: boolean; error?: string }> {
-  if (!getApiSessionToken()) return { ok: false, error: 'ยังไม่ได้เข้าสู่ระบบ' };
+): Promise<{ ok: boolean; status?: number; error?: string }> {
+  if (!getApiSessionToken()) {
+    return { ok: false, status: 401, error: 'เซสชันหมดอายุหรือยังไม่ได้เข้าสู่ระบบ' };
+  }
   try {
     const res = await fetch('/api/db/mutate', {
       method: 'POST',
+      credentials: 'include',
       headers: getAuthHeaders(),
       body: JSON.stringify({ op, payload }),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      return { ok: false, error: data?.error || 'ไม่สามารถบันทึกข้อมูลได้' };
+      return {
+        ok: false,
+        status: res.status,
+        error: data?.message || data?.error || 'ไม่สามารถบันทึกข้อมูลลง PostgreSQL ได้',
+      };
     }
-    return { ok: true };
+    return { ok: true, status: res.status };
   } catch {
-    return { ok: false, error: 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ฐานข้อมูลได้' };
+    return { ok: false, error: 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ PostgreSQL ได้' };
   }
 }
 
@@ -243,6 +249,7 @@ export async function importDatasetToPostgres(
   try {
     const res = await fetch('/api/db/import', {
       method: 'POST',
+      credentials: 'include',
       headers: getAuthHeaders(),
       body: JSON.stringify(payload),
     });
@@ -253,28 +260,5 @@ export async function importDatasetToPostgres(
     return { ok: true, counts: data.counts };
   } catch {
     return { ok: false, error: 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์เพื่อย้ายข้อมูลได้' };
-  }
-}
-
-export async function migrateRelayMirrorToPostgres(): Promise<{
-  ok: boolean;
-  imported: boolean;
-  counts?: DatabaseCounts;
-}> {
-  if (!getApiSessionToken()) return { ok: false, imported: false };
-  try {
-    const res = await fetch('/api/db/migrate-relay', {
-      method: 'POST',
-      headers: getAuthHeaders(),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data?.success) return { ok: false, imported: false };
-    return {
-      ok: true,
-      imported: Boolean(data.imported),
-      counts: data.counts,
-    };
-  } catch {
-    return { ok: false, imported: false };
   }
 }

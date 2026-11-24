@@ -18,6 +18,7 @@ interface GradeLevelViewProps {
   onOpenRosterModal?: (assignment: Assignment) => void;
   onDeleteAssignment?: (assignmentId: string) => void;
   onEditAssignment?: (assignment: Assignment) => void;
+  onCloneAssignment?: (assignment: Assignment) => void;
   gradeLevels?: string[];
   onOpenSettings?: (tab?: 'grades' | 'subjects' | 'students') => void;
   onOpenSplitWorksheetsModal?: (baseGrade?: string) => void;
@@ -38,6 +39,7 @@ export const GradeLevelView: React.FC<GradeLevelViewProps> = ({
   onOpenRosterModal,
   onDeleteAssignment,
   onEditAssignment,
+  onCloneAssignment,
   gradeLevels = ['ทั้งหมด'],
   onOpenSettings,
   onOpenSplitWorksheetsModal,
@@ -280,6 +282,7 @@ export const GradeLevelView: React.FC<GradeLevelViewProps> = ({
                   onOpenRosterModal={onOpenRosterModal}
                   onDeleteAssignment={onDeleteAssignment}
                   onEditAssignment={onEditAssignment}
+                  onCloneAssignment={onCloneAssignment}
                 />
               );
             })}

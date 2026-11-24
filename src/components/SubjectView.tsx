@@ -11,6 +11,7 @@ import {
   EyeOff,
   Sparkles,
   Save,
+  Copy,
 } from 'lucide-react';
 import {
   Assignment,
@@ -49,6 +50,7 @@ interface SubjectViewProps {
   onOpenRosterModal?: (assignment: Assignment) => void;
   onDeleteAssignment?: (assignmentId: string) => void;
   onEditAssignment?: (assignment: Assignment) => void;
+  onCloneAssignment?: (assignment: Assignment) => void;
   subjects?: string[];
   teachingSchedules?: TeachingSchedule[];
   teachersRoster?: TeacherProfile[];
@@ -56,6 +58,7 @@ interface SubjectViewProps {
   onOpenSettings?: (tab?: 'grades' | 'subjects' | 'students') => void;
   onOpenCreateClassroom?: () => void;
   onEditClassroom?: (classroom: SubjectClassroom) => void;
+  onCloneClassroom?: (classroom: SubjectClassroom) => void;
   onDeleteClassroom?: (classroomId: string) => void;
   onSaveClassroom?: (classroom: SubjectClassroom) => void;
   onSaveBatchClassrooms?: (classrooms: SubjectClassroom[]) => Promise<void> | void;
@@ -91,6 +94,7 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
   onOpenRosterModal,
   onDeleteAssignment,
   onEditAssignment,
+  onCloneAssignment,
   subjects = ['ทั้งหมด'],
   teachingSchedules = [],
   teachersRoster = [],
@@ -98,6 +102,7 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
   onOpenSettings,
   onOpenCreateClassroom,
   onEditClassroom,
+  onCloneClassroom,
   onDeleteClassroom,
   onSaveClassroom,
   onSaveBatchClassrooms,
@@ -202,6 +207,7 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
           setActiveClassroomSubject(null);
         }}
         onEditClassroom={(cls) => onEditClassroom && onEditClassroom(cls)}
+        onCloneClassroom={onCloneClassroom}
         onDeleteClassroom={(clsId) => {
           setActiveClassroomId(null);
           setActiveClassroomSubject(null);
@@ -214,6 +220,7 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
         onOpenRosterModal={onOpenRosterModal}
         onDeleteAssignment={onDeleteAssignment}
         onEditAssignment={onEditAssignment}
+        onCloneAssignment={onCloneAssignment}
         onOpenCreateWorksheet={role === 'teacher' ? onOpenCreateWorksheet : undefined}
       />
     );
@@ -514,7 +521,23 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
                         </span>
                       )}
                     </span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    <div className="flex items-center gap-2">
+                      {role === 'teacher' && onCloneClassroom && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onCloneClassroom(cls);
+                          }}
+                          title="คัดลอกห้องเรียนนี้ไปห้องอื่น"
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white dark:bg-slate-800/80 border border-emerald-200 dark:border-emerald-800/70 text-[11px] font-semibold text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-950/50 transition-colors cursor-pointer"
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>คัดลอกห้อง</span>
+                        </button>
+                      )}
+                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </div>
                   </div>
                 </div>
               );
@@ -587,6 +610,7 @@ export const SubjectView: React.FC<SubjectViewProps> = ({
                   onOpenRosterModal={onOpenRosterModal}
                   onDeleteAssignment={onDeleteAssignment}
                   onEditAssignment={onEditAssignment}
+                  onCloneAssignment={onCloneAssignment}
                 />
               );
             })}

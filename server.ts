@@ -6,14 +6,20 @@ import path from 'path';
 import fs from 'fs';
 import {
   authenticateGoogleIdToken,
+  clearSessionCookie,
+  hasValidOriginOrCsrfHeader,
+  parseSessionCookie,
   requireAuth,
+  setSessionCookie,
   signSessionToken,
+  verifySessionToken,
   type SessionTokenPayload,
 } from './src/middleware/auth.ts';
 import {
   getPublicSchoolConfig,
   getStudentDataset,
   getTeacherDataset,
+  getUserBySession,
   importFullDataset,
   mutateDatabase,
   verifyLoginCredentials,
@@ -955,6 +961,7 @@ const LEGACY_MIRROR_FILE_PATH = '/tmp/edusheet_classroom_mirror.json';
 
 app.get('/api/db/public-config', async (_req, res) => {
   try {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     const config = await getPublicSchoolConfig();
     return res.json({ success: true, ...config });
   } catch (err) {
@@ -986,6 +993,8 @@ app.post('/api/db/login', authSessionLimiter, loginAccountLimiter, async (req, r
       exp: Date.now() + 12 * 60 * 60 * 1000,
     });
 
+    setSessionCookie(req, res, token);
+
     return res.json({
       success: true,
       role: result.role,
@@ -997,6 +1006,64 @@ app.post('/api/db/login', authSessionLimiter, loginAccountLimiter, async (req, r
     console.error('PostgreSQL login error:', err);
     return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการตรวจสอบข้อมูลเข้าสู่ระบบ' });
   }
+});
+
+app.get('/api/db/session', async (req, res) => {
+  try {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    const authHeader = req.headers.authorization || '';
+    const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+    const cookieToken = parseSessionCookie(req);
+    const token = bearerToken || cookieToken;
+
+    if (!token) {
+      return res.json({ success: true, authenticated: false });
+    }
+
+    const decoded = verifySessionToken(token);
+    if (!decoded) {
+      if (cookieToken) clearSessionCookie(req, res);
+      return res.json({ success: true, authenticated: false });
+    }
+
+    const account = await getUserBySession(decoded);
+    if (!account) {
+      if (cookieToken) clearSessionCookie(req, res);
+      return res.json({ success: true, authenticated: false });
+    }
+
+    const freshToken = signSessionToken({
+      role: account.role,
+      userId: String(account.user.id).slice(0, 128),
+      code: String(account.user.code || '').slice(0, 64),
+      exp: Date.now() + 12 * 60 * 60 * 1000,
+    });
+
+    setSessionCookie(req, res, freshToken);
+
+    return res.json({
+      success: true,
+      authenticated: true,
+      role: account.role,
+      user: account.user,
+      token: freshToken,
+      ...(account.isDefaultAdminFallback ? { isDefaultAdminFallback: true } : {}),
+    });
+  } catch (err) {
+    console.error('Session restore error:', err);
+    return res.json({ success: true, authenticated: false });
+  }
+});
+
+app.post('/api/db/logout', (req, res) => {
+  if (!hasValidOriginOrCsrfHeader(req)) {
+    return res.status(403).json({
+      error: 'ไม่ได้รับอนุญาต',
+      message: 'คำขอไม่ผ่านการตรวจสอบแหล่งที่มา',
+    });
+  }
+  clearSessionCookie(req, res);
+  return res.json({ success: true });
 });
 
 app.post('/api/db/auth/google', authSessionLimiter, async (req, res) => {
@@ -1031,6 +1098,7 @@ app.post('/api/db/auth/google', authSessionLimiter, async (req, res) => {
 
 app.get('/api/db/bootstrap', requireAuth(['teacher', 'student']), async (req, res) => {
   try {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     const session = (req as any).apiSession as SessionTokenPayload;
     const data =
       session.role === 'teacher'

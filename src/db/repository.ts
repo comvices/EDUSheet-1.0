@@ -546,6 +546,71 @@ export async function verifyLoginCredentials(
   }
 }
 
+export async function getUserBySession(session: AuthenticatedSession): Promise<{
+  role: UserRole;
+  user: StudentProfile | TeacherProfile;
+  isDefaultAdminFallback?: boolean;
+} | null> {
+  try {
+    const cleanId = String(session.userId || '').trim();
+    const cleanCode = normCode(session.code || '');
+
+    if (session.role === 'teacher') {
+      const allTeachers = await db.select().from(teachers);
+      const matched =
+        allTeachers.find((t) => cleanId && t.id === cleanId) ||
+        allTeachers.find((t) => cleanCode && normCode(t.code) === cleanCode);
+      if (matched) {
+        return {
+          role: 'teacher',
+          user: mapTeacherRow(matched, true),
+        };
+      }
+      const hasExplicitAdmin = allTeachers.some((t) => normCode(t.code) === 'ADMIN');
+      if (!hasExplicitAdmin && cleanId === 'tch_admin' && cleanCode === 'ADMIN') {
+        return {
+          role: 'teacher',
+          isDefaultAdminFallback: true,
+          user: {
+            id: 'tch_admin',
+            code: 'ADMIN',
+            name: 'ผู้ดูแลระบบ (Admin)',
+            password: '',
+            subject: 'ผู้ดูแลระบบ',
+            avatar: '',
+          },
+        };
+      }
+      return null;
+    }
+
+    const allStudents = await db.select().from(students);
+    const stripStudentPrefix = (v: string) => normCode(v).replace(/^ST[-\s]*/, '');
+    const strippedSessionCode = stripStudentPrefix(cleanCode);
+    const matchedStudent =
+      allStudents.find((s) => cleanId && s.id === cleanId) ||
+      allStudents.find(
+        (s) =>
+          cleanCode &&
+          (normCode(s.code) === cleanCode ||
+            (strippedSessionCode.length > 0 &&
+              stripStudentPrefix(s.code) === strippedSessionCode))
+      );
+
+    if (matchedStudent) {
+      return {
+        role: 'student',
+        user: mapStudentRow(matchedStudent, true),
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Database query failed in getUserBySession:', error);
+    return null;
+  }
+}
+
 export async function findAccountByGoogleEmail(
   email: string,
   displayName?: string
@@ -1238,11 +1303,25 @@ export async function mutateDatabase(
       }
       case 'upsertStudent': {
         if (!payload?.id) break;
-        const values = toStudentInsert(payload as StudentProfile);
+        const incoming = payload as StudentProfile;
+        const cleanPass = String(incoming.password ?? '').trim();
+        const insertValues = {
+          ...toStudentInsert(incoming),
+          password: cleanPass || '123456',
+        };
+        const updateSet = cleanPass
+          ? insertValues
+          : {
+              code: insertValues.code,
+              name: insertValues.name,
+              gradeLevel: insertValues.gradeLevel,
+              avatar: insertValues.avatar,
+              email: insertValues.email,
+            };
         await db
           .insert(students)
-          .values(values)
-          .onConflictDoUpdate({ target: students.id, set: values });
+          .values(insertValues)
+          .onConflictDoUpdate({ target: students.id, set: updateSet });
         break;
       }
       case 'upsertStudentsBatch': {
@@ -1250,11 +1329,24 @@ export async function mutateDatabase(
           await db.transaction(async (tx) => {
             for (const s of payload as StudentProfile[]) {
               if (!s?.id) continue;
-              const values = toStudentInsert(s);
+              const cleanPass = String(s.password ?? '').trim();
+              const insertValues = {
+                ...toStudentInsert(s),
+                password: cleanPass || '123456',
+              };
+              const updateSet = cleanPass
+                ? insertValues
+                : {
+                    code: insertValues.code,
+                    name: insertValues.name,
+                    gradeLevel: insertValues.gradeLevel,
+                    avatar: insertValues.avatar,
+                    email: insertValues.email,
+                  };
               await tx
                 .insert(students)
-                .values(values)
-                .onConflictDoUpdate({ target: students.id, set: values });
+                .values(insertValues)
+                .onConflictDoUpdate({ target: students.id, set: updateSet });
             }
           });
         }
@@ -1268,11 +1360,23 @@ export async function mutateDatabase(
       }
       case 'upsertTeacher': {
         if (!payload?.id) break;
-        const values = toTeacherInsert(payload as TeacherProfile);
+        const incoming = payload as TeacherProfile;
+        const cleanPass = String(incoming.password ?? '').trim();
+        const insertValues = toTeacherInsert(incoming);
+        const updateSet = cleanPass
+          ? insertValues
+          : {
+              code: insertValues.code,
+              name: insertValues.name,
+              subject: insertValues.subject,
+              avatar: insertValues.avatar,
+              email: insertValues.email,
+              themeColor: insertValues.themeColor,
+            };
         await db
           .insert(teachers)
-          .values(values)
-          .onConflictDoUpdate({ target: teachers.id, set: values });
+          .values(insertValues)
+          .onConflictDoUpdate({ target: teachers.id, set: updateSet });
         break;
       }
       case 'deleteTeacher': {

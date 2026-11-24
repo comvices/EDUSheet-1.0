@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Clock, FileText, CheckCircle2, AlertCircle, Edit3, HelpCircle, Eye, ChevronRight, Award, Trash2, Users } from 'lucide-react';
+import { Calendar, Clock, FileText, CheckCircle2, AlertCircle, Edit3, HelpCircle, Eye, ChevronRight, Award, Trash2, Users, Copy } from 'lucide-react';
 import { Assignment, Submission, UserRole } from '../types';
 import { CardCornerOrnament } from './ThemeGraphics';
 import { findStudentGroup } from '../utils/groupHelpers';
@@ -16,6 +16,7 @@ interface AssignmentCardProps {
   onOpenRosterModal?: (assignment: Assignment) => void;
   onDeleteAssignment?: (assignmentId: string) => void;
   onEditAssignment?: (assignment: Assignment) => void;
+  onCloneAssignment?: (assignment: Assignment) => void;
 }
 
 export const AssignmentCard: React.FC<AssignmentCardProps> = ({
@@ -30,6 +31,7 @@ export const AssignmentCard: React.FC<AssignmentCardProps> = ({
   onOpenRosterModal,
   onDeleteAssignment,
   onEditAssignment,
+  onCloneAssignment,
 }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -71,9 +73,18 @@ export const AssignmentCard: React.FC<AssignmentCardProps> = ({
               {assignment.totalPoints} คะแนน
             </span>
 
-            {/* Teacher Actions: Edit & Trash */}
+            {/* Teacher Actions: Clone, Edit & Trash */}
             {role === 'teacher' && (
               <div className="flex items-center gap-1">
+                {onCloneAssignment && (
+                  <button
+                    onClick={() => onCloneAssignment(assignment)}
+                    className="p-1 text-slate-400 hover:text-teal-700 hover:bg-teal-50 dark:hover:bg-teal-950/40 rounded-md transition-colors cursor-pointer"
+                    title="คัดลอกใบงานไปห้องอื่น"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                )}
                 {onEditAssignment && (
                   <button
                     onClick={() => onEditAssignment(assignment)}

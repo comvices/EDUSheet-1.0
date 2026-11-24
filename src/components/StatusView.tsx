@@ -17,6 +17,7 @@ interface StatusViewProps {
   onOpenRosterModal?: (assignment: Assignment) => void;
   onDeleteAssignment?: (assignmentId: string) => void;
   onEditAssignment?: (assignment: Assignment) => void;
+  onCloneAssignment?: (assignment: Assignment) => void;
 }
 
 export const StatusView: React.FC<StatusViewProps> = ({
@@ -32,6 +33,7 @@ export const StatusView: React.FC<StatusViewProps> = ({
   onOpenRosterModal,
   onDeleteAssignment,
   onEditAssignment,
+  onCloneAssignment,
 }) => {
   // Helper to test if assignment matches status
   const filterByStatus = (asg: Assignment) => {
@@ -153,6 +155,7 @@ export const StatusView: React.FC<StatusViewProps> = ({
                   onOpenRosterModal={onOpenRosterModal}
                   onDeleteAssignment={onDeleteAssignment}
                   onEditAssignment={onEditAssignment}
+                  onCloneAssignment={onCloneAssignment}
                 />
               );
             })}

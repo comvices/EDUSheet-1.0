@@ -155,10 +155,10 @@ export const InfoModal: React.FC<InfoModalProps> = ({
               <div className="p-4 bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-2xl space-y-2">
                 <div className="flex items-center gap-2 text-emerald-900 dark:text-emerald-200 font-bold font-prompt">
                   <Database className="w-4 h-4 text-emerald-600" />
-                  <span>การจัดเก็บข้อมูลบน Google Firebase Firestore</span>
+                  <span>การจัดเก็บข้อมูลบน PostgreSQL (Cloud SQL)</span>
                 </div>
                 <p className="text-[11px] text-emerald-800 dark:text-emerald-300">
-                  ข้อมูลใบงาน การส่งการบ้าน คะแนน และบัญชีนักเรียนถูกจัดเก็บบน Google Firebase Cloud Firestore ปลอดภัยด้วยกฎ <code>firestore.rules</code> และซิงก์ข้อมูลแบบเรียลไทม์
+                  ข้อมูลใบงาน การส่งการบ้าน คะแนน เช็คชื่อ ตารางสอน และบัญชีผู้ใช้งานทั้งหมดถูกจัดเก็บบนฐานข้อมูลหลัก PostgreSQL เพียงตัวเดียว อ่านเขียนได้ทันทีไม่จำกัดโควตาการอ่านรายวัน
                 </p>
               </div>
 

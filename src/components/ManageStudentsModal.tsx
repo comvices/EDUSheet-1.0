@@ -768,13 +768,13 @@ export const ManageStudentsModal: React.FC<ManageStudentsModalProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  รหัสผ่าน (Password)
+                  รหัสผ่านใหม่ (เว้นว่างไว้หากใช้รหัสผ่านเดิม)
                 </label>
                 <input
                   type="text"
-                  required
                   value={editingStudent.password}
                   onChange={(e) => setEditingStudent({ ...editingStudent, password: e.target.value })}
+                  placeholder="ปล่อยว่างไว้เพื่อคงรหัสผ่านเดิม"
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl text-xs font-mono"
                 />
               </div>

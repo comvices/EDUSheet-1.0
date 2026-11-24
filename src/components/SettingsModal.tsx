@@ -1877,7 +1877,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             </span>
                           </div>
                           <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed">
-                            เปลี่ยนโทนสีแถบเมนู ปุ่มหลัก กรอบการ์ด กราฟิก SVG และแถบเลื่อนทั้งระบบทันทีอย่างนุ่มนวล โดยคงพื้นหลังสีเทาสบายตา พร้อมบันทึกลงฐานข้อมูลกลางใน Firestore ให้ทุกบัญชีใช้งานตรงกัน
+                            เปลี่ยนโทนสีแถบเมนู ปุ่มหลัก กรอบการ์ด กราฟิก SVG และแถบเลื่อนทั้งระบบทันทีอย่างนุ่มนวล โดยคงพื้นหลังสีเทาสบายตา พร้อมบันทึกลงฐานข้อมูลกลาง PostgreSQL ให้ทุกบัญชีใช้งานตรงกัน
                           </p>
                         </div>
                       </div>
@@ -2081,7 +2081,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Modal Footer */}
         <div className="px-5 sm:px-6 py-4 border-t border-slate-200 dark:border-emerald-950/60 bg-slate-50/90 dark:bg-[var(--theme-surface-dark-elevated)] flex items-center justify-between">
           <span className="text-[11px] text-slate-400 hidden sm:inline">
-            ข้อมูลการตั้งค่าจะซิงก์ตรงกับ Google Firebase Firestore แบบเรียลไทม์
+            ข้อมูลทั้งหมดจัดเก็บและซิงก์ตรงกับฐานข้อมูลหลัก PostgreSQL (Cloud SQL)
           </span>
           <button
             onClick={onClose}
@@ -2179,13 +2179,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  รหัสผ่าน (Password)
+                  รหัสผ่านใหม่ (เว้นว่างไว้หากใช้รหัสผ่านเดิม)
                 </label>
                 <input
                   type="text"
-                  required
                   value={editingStudent.password}
                   onChange={(e) => setEditingStudent({ ...editingStudent, password: e.target.value })}
+                  placeholder="ปล่อยว่างไว้เพื่อคงรหัสผ่านเดิม"
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl text-xs font-mono"
                 />
               </div>
@@ -2285,13 +2285,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  รหัสผ่าน (Password)
+                  รหัสผ่านใหม่ (เว้นว่างไว้หากใช้รหัสผ่านเดิม)
                 </label>
                 <input
                   type="text"
-                  required
                   value={editingTeacher.password}
                   onChange={(e) => setEditingTeacher({ ...editingTeacher, password: e.target.value })}
+                  placeholder="ปล่อยว่างไว้เพื่อคงรหัสผ่านเดิม"
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-mono"
                 />
               </div>

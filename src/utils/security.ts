@@ -17,6 +17,7 @@ export function clearApiSessionToken(): void {
 export function getAuthHeaders(extraHeaders: Record<string, string> = {}): Record<string, string> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
     ...extraHeaders,
   };
   if (inMemoryApiToken) {

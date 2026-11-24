@@ -372,7 +372,7 @@ export const ThemePalettePicker: React.FC<ThemePalettePickerProps> = ({
             </p>
             <p className="text-[10px] text-slate-500 dark:text-slate-400">
               {isTeacherAccount
-                ? 'บันทึกลงฐานข้อมูลกลางใน Firestore อัตโนมัติ'
+                ? 'บันทึกลงฐานข้อมูลหลัก PostgreSQL อัตโนมัติ'
                 : 'กำหนดโดยผู้ดูแลระบบ (Admin)'}
             </p>
           </div>
