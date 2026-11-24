@@ -8,8 +8,15 @@ import {
 } from '../db/repository.ts';
 import type { UserRole } from '../types/index.ts';
 
-// Ephemeral CSPRNG fallback guarantees per-instance unpredictability if SESSION_SECRET is unset
-const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+// Deterministic fallback from server-side DB secrets prevents multi-instance / restart 401s when SESSION_SECRET is unset
+const SESSION_SECRET =
+  process.env.SESSION_SECRET ||
+  (process.env.SQL_PASSWORD
+    ? crypto
+        .createHash('sha256')
+        .update(`edusheet-session:${process.env.SQL_HOST || ''}:${process.env.SQL_DB_NAME || ''}:${process.env.SQL_PASSWORD}`)
+        .digest('hex')
+    : crypto.randomBytes(32).toString('hex'));
 
 export interface SessionTokenPayload extends AuthenticatedSession {
   exp: number;

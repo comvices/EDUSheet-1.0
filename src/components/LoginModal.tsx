@@ -117,6 +117,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         setErrorMsg(
           'ยังไม่มีรายชื่อในฐานข้อมูล กรุณาให้ครูผู้สอนเข้าสู่ระบบด้วย ADMIN เพื่อย้ายข้อมูลเข้า PostgreSQL'
         );
+      } else if (result.reason === 'RATE_LIMITED') {
+        setErrorMsg(
+          result.message || 'มีการลองเข้าสู่ระบบบ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่อีกครั้ง'
+        );
+      } else if (result.reason === 'SERVER_ERROR') {
+        setErrorMsg(
+          result.message || 'เซิร์ฟเวอร์ฐานข้อมูลขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง'
+        );
       } else if (result.reason === 'NETWORK_ERROR') {
         setErrorMsg('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง');
       } else if (loginRole === 'student' && code.trim().toUpperCase() !== 'ADMIN') {

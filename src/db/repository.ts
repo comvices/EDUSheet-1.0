@@ -411,6 +411,18 @@ export type CredentialLoginResult =
       reason: 'INVALID_PASSWORD' | 'USER_NOT_FOUND' | 'DB_EMPTY';
     };
 
+function matchesPasswordSafely(storedPassword: unknown, rawPassword: string): boolean {
+  const stored = String(storedPassword ?? '');
+  const input = String(rawPassword ?? '');
+  if (constantTimeStringEqual(stored, input)) return true;
+  const trimmedInput = input.trim();
+  const trimmedStored = stored.trim();
+  if (trimmedInput && (trimmedInput !== input || trimmedStored !== stored)) {
+    return constantTimeStringEqual(trimmedStored, trimmedInput);
+  }
+  return false;
+}
+
 export async function verifyLoginCredentials(
   requestedRole: UserRole,
   rawCode: string,
@@ -419,53 +431,74 @@ export async function verifyLoginCredentials(
   try {
     const cleanCode = String(rawCode ?? '').trim();
     const inputUpper = cleanCode.toUpperCase();
+    const inputNoSt = inputUpper.replace(/^ST[-\s]*/, '');
+    const inputNoTch = inputUpper.replace(/^TCH[-\s]*/, '');
 
-    if (requestedRole === 'student' && inputUpper !== 'ADMIN') {
-      const allStudents = await db.select().from(students);
-      const foundStudent = allStudents.find((s) => {
-        const sCode = normCode(s.code);
-        return sCode === inputUpper || sCode.replace(/^ST-/, '') === inputUpper;
-      });
+    const [allStudents, allTeachers] = await Promise.all([
+      db.select().from(students),
+      db.select().from(teachers),
+    ]);
 
-      if (foundStudent) {
-        if (!constantTimeStringEqual(foundStudent.password, rawPassword)) {
-          return { ok: false, reason: 'INVALID_PASSWORD' };
-        }
-        return {
-          ok: true,
-          role: 'student',
-          user: mapStudentRow(foundStudent, true),
-        };
-      }
+    const matchingStudents = allStudents.filter((s) => {
+      const sCode = normCode(s.code);
+      const sNoSt = sCode.replace(/^ST[-\s]*/, '');
+      return (
+        sCode === inputUpper ||
+        (Boolean(inputNoSt) && sNoSt === inputNoSt)
+      );
+    });
 
-      if (allStudents.length === 0) {
-        const teacherCnt = await db.select({ value: count() }).from(teachers);
-        if (Number(teacherCnt[0]?.value ?? 0) === 0) {
-          return { ok: false, reason: 'DB_EMPTY' };
-        }
-      }
-      return { ok: false, reason: 'USER_NOT_FOUND' };
-    }
-
-    // Teacher or Admin login
-    const allTeachers = await db.select().from(teachers);
-    const cleanNumeric = inputUpper.replace(/^TCH-/, '');
+    const matchedStudent = matchingStudents.find((s) =>
+      matchesPasswordSafely(s.password, rawPassword)
+    );
 
     const matchingTeachers = allTeachers.filter((t) => {
       const tCode = normCode(t.code);
       const tName = String(t.name || '').trim().toLowerCase();
-      const cleanTCode = tCode.replace(/^TCH-/, '');
+      const cleanTCode = tCode.replace(/^TCH[-\s]*/, '');
       if (tCode === inputUpper) return true;
-      if (cleanNumeric && tCode.startsWith('TCH-') && cleanTCode === cleanNumeric) return true;
-      if (cleanNumeric && inputUpper.startsWith('TCH-') && cleanTCode === cleanNumeric) return true;
+      if (inputNoTch && tCode.startsWith('TCH-') && cleanTCode === inputNoTch) return true;
+      if (inputNoTch && inputUpper.startsWith('TCH-') && cleanTCode === inputNoTch) return true;
       if (tName && tName === cleanCode.toLowerCase()) return true;
       return false;
     });
 
     const matchedTeacher = matchingTeachers.find((t) =>
-      constantTimeStringEqual(t.password, rawPassword)
+      matchesPasswordSafely(t.password, rawPassword)
     );
 
+    const hasExplicitAdmin = allTeachers.some((t) => normCode(t.code) === 'ADMIN');
+    const matchesDefaultAdminFallback =
+      inputUpper === 'ADMIN' &&
+      !hasExplicitAdmin &&
+      matchesPasswordSafely('admin123', rawPassword);
+
+    if (requestedRole === 'student' && inputUpper !== 'ADMIN') {
+      if (matchedStudent) {
+        return {
+          ok: true,
+          role: 'student',
+          user: mapStudentRow(matchedStudent, true),
+        };
+      }
+      if (matchingStudents.length > 0) {
+        return { ok: false, reason: 'INVALID_PASSWORD' };
+      }
+      // Smart fallback: if a teacher/admin forgot to switch tabs and entered valid teacher credentials
+      if (matchedTeacher) {
+        return {
+          ok: true,
+          role: 'teacher',
+          user: mapTeacherRow(matchedTeacher, true),
+        };
+      }
+      if (allStudents.length === 0 && allTeachers.length === 0) {
+        return { ok: false, reason: 'DB_EMPTY' };
+      }
+      return { ok: false, reason: 'USER_NOT_FOUND' };
+    }
+
+    // Teacher or Admin login
     if (matchedTeacher) {
       return {
         ok: true,
@@ -474,12 +507,7 @@ export async function verifyLoginCredentials(
       };
     }
 
-    const hasExplicitAdmin = allTeachers.some((t) => normCode(t.code) === 'ADMIN');
-    if (
-      inputUpper === 'ADMIN' &&
-      !hasExplicitAdmin &&
-      constantTimeStringEqual(rawPassword, 'admin123')
-    ) {
+    if (matchesDefaultAdminFallback) {
       return {
         ok: true,
         role: 'teacher',
@@ -499,7 +527,16 @@ export async function verifyLoginCredentials(
       return { ok: false, reason: 'INVALID_PASSWORD' };
     }
 
-    if (allTeachers.length === 0) {
+    // Smart fallback: if a student accidentally clicked the teacher tab and entered valid student credentials
+    if (matchedStudent) {
+      return {
+        ok: true,
+        role: 'student',
+        user: mapStudentRow(matchedStudent, true),
+      };
+    }
+
+    if (allTeachers.length === 0 && allStudents.length === 0) {
       return { ok: false, reason: 'DB_EMPTY' };
     }
     return { ok: false, reason: 'USER_NOT_FOUND' };

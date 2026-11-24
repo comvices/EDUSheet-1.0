@@ -95,7 +95,14 @@ export type DbLoginResult =
     }
   | {
       ok: false;
-      reason: 'INVALID_PASSWORD' | 'USER_NOT_FOUND' | 'DB_EMPTY' | 'NETWORK_ERROR';
+      reason:
+        | 'INVALID_PASSWORD'
+        | 'USER_NOT_FOUND'
+        | 'DB_EMPTY'
+        | 'RATE_LIMITED'
+        | 'SERVER_ERROR'
+        | 'NETWORK_ERROR';
+      message?: string;
     };
 
 export async function loginWithCredentials(
@@ -118,6 +125,12 @@ export async function loginWithCredentials(
         token: data.token,
         isDefaultAdminFallback: Boolean(data.isDefaultAdminFallback),
       };
+    }
+    if (res.status === 429 || data?.error === 'RATE_LIMITED') {
+      return { ok: false, reason: 'RATE_LIMITED', message: data?.message };
+    }
+    if (res.status >= 500) {
+      return { ok: false, reason: 'SERVER_ERROR', message: data?.error || data?.message };
     }
     if (data?.error === 'INVALID_PASSWORD') return { ok: false, reason: 'INVALID_PASSWORD' };
     if (data?.error === 'DB_EMPTY') return { ok: false, reason: 'DB_EMPTY' };

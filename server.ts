@@ -40,7 +40,12 @@ app.use((_req, res, next) => {
 });
 
 // Sliding-Window In-Memory Rate Limiter
-function createRateLimiter(options: { windowMs: number; maxRequests: number; message: string }) {
+function createRateLimiter(options: {
+  windowMs: number;
+  maxRequests: number;
+  message: string;
+  keyFn?: (req: Request) => string;
+}) {
   const buckets = new Map<string, number[]>();
 
   return (req: Request, res: Response, next: NextFunction) => {
@@ -48,22 +53,23 @@ function createRateLimiter(options: { windowMs: number; maxRequests: number; mes
       (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
       req.socket.remoteAddress ||
       'unknown';
+    const key = options.keyFn ? options.keyFn(req) : ip;
     const now = Date.now();
     const cutoff = now - options.windowMs;
-    const timestamps = (buckets.get(ip) || []).filter((t) => t > cutoff);
+    const timestamps = (buckets.get(key) || []).filter((t) => t > cutoff);
 
     if (timestamps.length >= options.maxRequests) {
       return res.status(429).json({
-        error: 'มีการเรียกใช้งานถี่เกินกำหนด',
+        error: 'RATE_LIMITED',
         message: options.message,
       });
     }
 
     timestamps.push(now);
-    buckets.set(ip, timestamps);
+    buckets.set(key, timestamps);
 
     // Opportunistic cleanup to keep memory bounded
-    if (buckets.size > 1000) {
+    if (buckets.size > 2000) {
       for (const [k, v] of buckets.entries()) {
         if (v.every((t) => t <= cutoff)) buckets.delete(k);
       }
@@ -73,10 +79,26 @@ function createRateLimiter(options: { windowMs: number; maxRequests: number; mes
   };
 }
 
+// Classroom-safe IP limiter so an entire school Wi-Fi NAT doesn't lock out students/teachers
 const authSessionLimiter = createRateLimiter({
   windowMs: 5 * 60 * 1000,
-  maxRequests: 30,
-  message: 'มีการเข้าสู่ระบบหรือขอสิทธิ์บ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่',
+  maxRequests: 500,
+  message: 'มีการเข้าสู่ระบบจากเครือข่ายนี้หนาแน่นเกินไป กรุณารอสักครู่แล้วลองใหม่',
+});
+
+// Per-account + IP limiter to prevent brute-force guessing against a single user
+const loginAccountLimiter = createRateLimiter({
+  windowMs: 5 * 60 * 1000,
+  maxRequests: 25,
+  message: 'มีการลองเข้าสู่ระบบด้วยบัญชีนี้บ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่',
+  keyFn: (req) => {
+    const ip =
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      req.socket.remoteAddress ||
+      'unknown';
+    const code = String(req.body?.code ?? '').trim().toUpperCase() || 'EMPTY';
+    return `${ip}::${code}`;
+  },
 });
 
 const aiApiLimiter = createRateLimiter({
@@ -941,7 +963,7 @@ app.get('/api/db/public-config', async (_req, res) => {
   }
 });
 
-app.post('/api/db/login', authSessionLimiter, async (req, res) => {
+app.post('/api/db/login', authSessionLimiter, loginAccountLimiter, async (req, res) => {
   try {
     const { role, code, password } = req.body || {};
     const rawCode = String(code ?? '').trim();
@@ -1090,9 +1112,10 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static(path.resolve(__dirname, 'dist')));
+    const distDir = path.resolve(process.cwd(), 'dist');
+    app.use(express.static(distDir));
     app.get('*', (_req, res) => {
-      res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
+      res.sendFile(path.resolve(distDir, 'index.html'));
     });
   }
 
